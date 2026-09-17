@@ -1,0 +1,16 @@
+{
+  "identifier": "613D7903-01D9-420A-A931-891B24AD8843",
+  "nonRenewingSubscriptions": [],
+  "products": [{
+    "displayPrice": "4.99",
+    "familyShareable": false,
+    "internalID": "hydrotone-local-pro",
+    "localizations": [{"description": "Unlimited photo and full-length video exports.", "displayName": "HydroTone Pro", "locale": "en_US"}],
+    "productID": "com.hydrotone.pro",
+    "referenceName": "HydroTone Pro — LOCAL TEST PRICE ONLY",
+    "type": "NonConsumable"
+  }],
+  "settings": {"_failTransactionsEnabled": false, "_locale": "en_US", "_storefront": "USA", "_storeKitErrors": []},
+  "subscriptionGroups": [],
+  "version": {"major": 3, "minor": 0}
+}
