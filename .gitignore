@@ -1,5 +1,6 @@
 .build/
 .build-release/
+.device-build*/
 DerivedData/
 *.xcuserstate
 xcuserdata/
