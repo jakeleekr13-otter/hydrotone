@@ -7,6 +7,7 @@ enum DivePreset: String, CaseIterable, Identifiable, Sendable {
     case original = "Original", natural = "Natural Dive", red = "Restore Red"
     case clear = "Clear Water", tropical = "Tropical", deep = "Deep Dive"
     var id: String { rawValue }
+    var localizedName: String { String(localized: String.LocalizationValue(rawValue)) }
     var restoration: Float {
         switch self { case .original: 0; case .natural: 0.45; case .red: 0.72; case .clear: 0.36; case .tropical: 0.42; case .deep: 0.82 }
     }

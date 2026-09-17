@@ -4,7 +4,7 @@ final class HydroToneUITests: XCTestCase {
     @MainActor
     func testPhotoImportPresetsCompareExportSaveAndTrialGate() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-keychain=\(UUID().uuidString)"]
+        app.launchArguments = ["--ui-test-keychain=\(UUID().uuidString)", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         XCTAssertTrue(app.buttons["Select Photo"].waitForExistence(timeout: 10))
         app.buttons["Select Photo"].tap()
@@ -23,7 +23,8 @@ final class HydroToneUITests: XCTestCase {
         app.buttons["Export"].tap()
         XCTAssertTrue(app.staticTexts["Free trial"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["1 photo export. This uses your free photo."].exists)
-        app.buttons.matching(identifier: "Export").lastMatch.tap()
+        let exportButtons = app.buttons.matching(identifier: "Export")
+        exportButtons.element(boundBy: exportButtons.count - 1).tap()
         XCTAssertTrue(app.buttons["Save to Photos"].waitForExistence(timeout: 15))
         app.buttons["Save to Photos"].tap()
         XCTAssertTrue(app.staticTexts["Saved to Photos"].waitForExistence(timeout: 10))
@@ -34,7 +35,7 @@ final class HydroToneUITests: XCTestCase {
     @MainActor
     func testVideoImportAndLandscapeEditor() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-keychain=\(UUID().uuidString)"]
+        app.launchArguments = ["--ui-test-keychain=\(UUID().uuidString)", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         XCTAssertTrue(app.buttons["Select Video"].waitForExistence(timeout: 10))
         app.buttons["Select Video"].tap()
@@ -48,11 +49,13 @@ final class HydroToneUITests: XCTestCase {
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Landscape video editor"; screenshot.lifetime = .keepAlways; add(screenshot)
         app.buttons["Export"].tap()
-        XCTAssertTrue(app.staticTexts["1 video export · first 10 seconds · up to 1080p SDR. This uses your free video."].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["video-trial-description"].waitForExistence(timeout: 8))
     }
     @MainActor
     func testHomeAndPaywall() {
-        let app = XCUIApplication(); app.launch()
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
         XCTAssertTrue(app.buttons["Select Video"].waitForExistence(timeout: 10))
         app.buttons["Get Pro"].tap()
         XCTAssertTrue(app.staticTexts["One-time purchase. Every dive."].waitForExistence(timeout: 5))

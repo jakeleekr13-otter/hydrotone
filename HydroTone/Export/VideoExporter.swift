@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreImage
 import VideoToolbox
+import os
 
 struct VideoExportResult: Sendable {
     let url: URL
@@ -10,8 +11,12 @@ struct VideoExportResult: Sendable {
 
 actor VideoExporter {
     private let engine = FilterEngine()
+    private let signposter = OSSignposter(subsystem: "com.hydrotone.app", category: "export")
     func export(url: URL, metadata: VideoMetadata, settings: FilterSettings, options: ExportOptions,
                 progress: @escaping @Sendable (Double) async -> Void) async throws -> VideoExportResult {
+        let interval = signposter.beginInterval("Video export")
+        defer { signposter.endInterval("Video export", interval) }
+        guard ProcessInfo.processInfo.thermalState != .critical else { throw Failure(kind: .thermal, domain: "HydroTone", code: 0) }
         try Task.checkCancellation()
         let hdr = options.range == .hdr
         guard !hdr || (metadata.isHDR && (metadata.dynamicRange == .hlg || metadata.dynamicRange == .pq) && (metadata.bitDepth ?? 0) >= 10) else { throw HydroError.unsupported }
@@ -91,18 +96,22 @@ actor VideoExporter {
         var lastActivity = Date()
         while !videoDone || audioDone.count < audio.count {
             try Task.checkCancellation()
+            if frames % 30 == 0, ProcessInfo.processInfo.thermalState == .critical { throw Failure(kind: .thermal, domain: "HydroTone", code: 0) }
             guard writer.status == .writing, reader.status != .failed else { throw writer.error ?? reader.error ?? HydroError.exportFailed }
             var advanced = false
+            var destination: CVPixelBuffer?
             if !videoDone && input.isReadyForMoreMediaData {
+                guard let pool = adaptor.pixelBufferPool else { throw HydroError.exportFailed }
+                let allocation = CVPixelBufferPoolCreatePixelBufferWithAuxAttributes(nil, pool,
+                    [kCVPixelBufferPoolAllocationThresholdKey: 6] as CFDictionary, &destination)
+                guard allocation == kCVReturnSuccess || allocation == kCVReturnWouldExceedAllocationThreshold else { throw HydroError.exportFailed }
+            }
+            if !videoDone && input.isReadyForMoreMediaData, let destination {
                 let pts: Double? = try autoreleasepool {
                     guard let sample = output.copyNextSampleBuffer() else { videoDone = true; input.markAsFinished(); return nil }
                     guard let buffer = CMSampleBufferGetImageBuffer(sample) else { throw HydroError.unreadable }
                     let time = CMSampleBufferGetPresentationTimeStamp(sample)
                     guard time < end else { videoDone = true; input.markAsFinished(); return nil }
-                    var destination: CVPixelBuffer?
-                    guard let pool = adaptor.pixelBufferPool,
-                          CVPixelBufferPoolCreatePixelBuffer(nil, pool, &destination) == kCVReturnSuccess,
-                          let destination else { throw HydroError.exportFailed }
                     VideoColorPipeline.tag(destination, hdr: hdr, pq: metadata.dynamicRange == .pq)
                     let source = CIImage(cvPixelBuffer: buffer).transformed(by: toneMappedByComposition ? .identity : metadata.transform)
                     let oriented = source.transformed(by: CGAffineTransform(translationX: -source.extent.minX, y: -source.extent.minY))
@@ -111,6 +120,7 @@ actor VideoExporter {
                     engine.context.render(corrected, to: destination, bounds: CGRect(origin: .zero, size: size), colorSpace: VideoColorPipeline.colorSpace(hdr: hdr, pq: metadata.dynamicRange == .pq))
                     guard adaptor.append(destination, withPresentationTime: time) else { throw writer.error ?? HydroError.exportFailed }
                     frames += 1
+                    if frames.isMultiple(of: 300) { engine.context.clearCaches() }
                     return time.seconds
                 }
                 advanced = true

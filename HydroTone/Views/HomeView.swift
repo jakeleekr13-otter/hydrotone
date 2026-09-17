@@ -3,6 +3,8 @@ import PhotosUI
 
 struct HomeView: View {
     @Environment(PurchaseStore.self) private var purchases
+    @Environment(DiagnosticsCenter.self) private var diagnostics
+    @State private var showDiagnostics = false
     @State private var showPro = false
     @State private var selection: PhotosPickerItem?
     @State private var media: ImportedMedia?
@@ -24,18 +26,26 @@ struct HomeView: View {
                 }.buttonStyle(.bordered)
                 Text("Your media stays on your iPhone.").font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity)
             }.padding(28).navigationTitle("HydroTone")
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(purchases.isPro ? "Pro" : "Get Pro") { showPro = true } } }
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) { Button { showDiagnostics = true } label: { Image(systemName: "info.circle").accessibilityLabel("Diagnostics") } }
+                    ToolbarItem(placement: .topBarTrailing) { Button(purchases.isPro ? "Pro" : "Get Pro") { showPro = true } }
+                }
+                .sheet(isPresented: $showDiagnostics) { DiagnosticsView() }
                 .sheet(isPresented: $showPro) { ProView() }
                 .disabled(loading)
                 .overlay { if loading { ProgressView("Importing…").padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) } }
-                .navigationDestination(item: $media) { item in EditorView(media: item) }
+                .navigationDestination(item: $media) { item in EditorView(media: item, diagnostics: diagnostics.recorder) }
                 .task(id: selection) {
                     guard let selection else { return }
                     loading = true
                     defer { loading = false }
-                    do { media = try await MediaImporter().load(selection) }
+                    do { media = try await SafeReadRetry().run(operation: .importing) { try await MediaImporter().load(selection) } }
                     catch is CancellationError { }
-                    catch { self.error = HydroError.unreadable.localizedDescription }
+                    catch {
+                        let failure = Failure.classify(error, operation: .importing)
+                        await diagnostics.recorder.record(failure, operation: .importing)
+                        if failure.kind != .cancelled { self.error = failure.message }
+                    }
                     self.selection = nil
                 }
                 .alert("Couldn’t import", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }

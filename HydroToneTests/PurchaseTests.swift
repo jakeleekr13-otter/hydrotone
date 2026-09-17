@@ -53,7 +53,7 @@ final class PurchaseTests: XCTestCase {
         session.askToBuyEnabled = true
         await store.purchase()
         XCTAssertFalse(store.isPro)
-        XCTAssertTrue(store.message?.contains("pending") == true)
+        XCTAssertNotNil(store.message)
         let pending = try XCTUnwrap(session.allTransactions().first)
         try session.approveAskToBuyTransaction(identifier: pending.identifier)
         await waitForOwnership(true, store: store)

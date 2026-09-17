@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 import StoreKit
-import os
 
 @MainActor @Observable
 final class PurchaseStore {
@@ -12,7 +11,9 @@ final class PurchaseStore {
     private var entitlementGeneration = 0
     var message: String?
     @ObservationIgnored nonisolated(unsafe) private var updates: Task<Void, Never>?
-    init() {
+    private let diagnostics: DiagnosticRecorder?
+    init(diagnostics: DiagnosticRecorder? = nil) {
+        self.diagnostics = diagnostics
         updates = Task { [weak self] in
             for await result in Transaction.updates {
                 guard !Task.isCancelled else { return }
@@ -28,9 +29,9 @@ final class PurchaseStore {
     func load() async {
         await refreshEntitlement()
         do {
-            product = try await Product.products(for: [Self.productID]).first { $0.type == .nonConsumable }
-            if product == nil { message = "The purchase is currently unavailable. Please try again later." }
-        } catch { report(error) }
+            product = try await SafeReadRetry().run(operation: .productLoading) { try await Product.products(for: [Self.productID]) }.first { $0.type == .nonConsumable }
+            if product == nil { message = String(localized: "The purchase is currently unavailable. Please try again later.") }
+        } catch { report(error, operation: .productLoading) }
     }
     func refreshEntitlement() async {
         entitlementGeneration += 1
@@ -56,17 +57,17 @@ final class PurchaseStore {
             switch try await product.purchase() {
             case .success(let result):
                 guard case .verified(let transaction) = result, transaction.productID == Self.productID else {
-                    message = "Your purchase couldn’t be verified. Please try Restore Purchase."; return
+                    message = String(localized: "Your purchase couldn’t be verified. Please try Restore Purchase."); return
                 }
                 accept(transaction)
                 await transaction.finish()
-                message = isPro ? "HydroTone Pro is unlocked." : "Your purchase is being verified. Try Restore Purchase shortly."
+                message = isPro ? String(localized: "HydroTone Pro is unlocked.") : String(localized: "Your purchase is being verified. Try Restore Purchase shortly.")
             case .userCancelled: break
-            case .pending: message = "Your purchase is pending approval. Pro will unlock when it’s approved."
-            @unknown default: message = "The purchase couldn’t finish. Please try again."
+            case .pending: message = String(localized: "Your purchase is pending approval. Pro will unlock when it’s approved.")
+            @unknown default: message = String(localized: "The purchase couldn’t finish. Please try again.")
             }
         } catch StoreKitError.userCancelled { message = nil }
-        catch { report(error) }
+        catch { report(error, operation: .purchase) }
     }
     func restore() async {
         guard !busy else { return }
@@ -75,13 +76,12 @@ final class PurchaseStore {
         do {
             try await AppStore.sync()
             await refreshEntitlement()
-            message = isPro ? "Purchase restored." : "No HydroTone Pro purchase was found for this Apple Account."
-        } catch { report(error) }
+            message = isPro ? String(localized: "Purchase restored.") : String(localized: "No HydroTone Pro purchase was found for this Apple Account.")
+        } catch { report(error, operation: .restore) }
     }
-    private func report(_ error: Error) {
-        #if DEBUG
-        Logger(subsystem: "com.hydrotone.app", category: "store").error("\(String(reflecting: error), privacy: .public)")
-        #endif
-        message = "The App Store couldn’t complete this request. Check your connection and try again."
+    private func report(_ error: Error, operation: Operation) {
+        let failure = Failure.classify(error, operation: operation)
+        Task { await diagnostics?.record(failure, operation: operation) }
+        message = failure.kind == .cancelled ? nil : Failure(kind: .storeUnavailable, domain: failure.domain, code: failure.code).message
     }
 }

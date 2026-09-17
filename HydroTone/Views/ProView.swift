@@ -19,7 +19,7 @@ struct ProView: View {
                     if purchases.isPro {
                         Label("Pro is unlocked", systemImage: "checkmark.circle.fill").foregroundStyle(.mint)
                     } else if let product = purchases.product {
-                        Button("Buy Pro · \(product.displayPrice)") { Task { await purchases.purchase() } }
+                        Button(String(localized: "Buy Pro · \(product.displayPrice)")) { Task { await purchases.purchase() } }
                             .buttonStyle(.borderedProminent).frame(minHeight: 44)
                     } else {
                         Text("Purchase is currently unavailable.").foregroundStyle(.secondary)

@@ -12,7 +12,7 @@ struct ExportView: View {
                     Section("Resolution") {
                         Picker("Resolution", selection: $model.options.resolution) {
                             ForEach(ExportOptions.Resolution.allCases) { resolution in
-                                Text(resolution.rawValue).tag(resolution).disabled(!purchases.isPro && resolution == .source && max(metadata.displaySize.width, metadata.displaySize.height) > 1920)
+                                Text(resolution.localizedName).tag(resolution).disabled(!purchases.isPro && resolution == .source && max(metadata.displaySize.width, metadata.displaySize.height) > 1920)
                             }
                         }
                         Text(model.options.summary(for: metadata)).font(.footnote).foregroundStyle(.secondary)
@@ -29,7 +29,8 @@ struct ExportView: View {
                 }
                 if !purchases.isPro {
                     Section("Free trial") {
-                        Text(model.media.kind == .photo ? "1 photo export. This uses your free photo." : "1 video export · first 10 seconds · up to 1080p SDR. This uses your free video.")
+                        Text(model.media.kind == .photo ? String(localized: "1 photo export. This uses your free photo.") : String(localized: "1 video export · first 10 seconds · up to 1080p SDR. This uses your free video."))
+                            .accessibilityIdentifier(model.media.kind == .photo ? "photo-trial-description" : "video-trial-description")
                         Text("Failed or cancelled exports don’t use your trial.").font(.footnote).foregroundStyle(.secondary)
                     }
                 }

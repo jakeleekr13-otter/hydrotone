@@ -33,14 +33,14 @@ enum VideoColorPipeline {
 struct ExportCapability: Sendable {
     let hdrAvailable: Bool
     let explanation: String
-    static let photo = Self(hdrAvailable: false, explanation: "HDR photo export is unavailable. Your photo will be saved as a wide-color SDR JPEG.")
+    static var photo: Self { Self(hdrAvailable: false, explanation: String(localized: "HDR photo export is unavailable. Your photo will be saved as a wide-color SDR JPEG.")) }
     static func evaluate(url: URL, metadata: VideoMetadata) async -> Self {
-        guard metadata.isHDR else { return Self(hdrAvailable: false, explanation: "This video is SDR. HDR export requires HDR source footage.") }
+        guard metadata.isHDR else { return Self(hdrAvailable: false, explanation: String(localized: "This video is SDR. HDR export requires HDR source footage.")) }
         guard metadata.dynamicRange == .hlg || metadata.dynamicRange == .pq, (metadata.bitDepth ?? 0) >= 10 else {
-            return Self(hdrAvailable: false, explanation: "This video’s HDR format cannot be safely exported as HDR.")
+            return Self(hdrAvailable: false, explanation: String(localized: "This video’s HDR format cannot be safely exported as HDR."))
         }
         #if targetEnvironment(simulator)
-        return Self(hdrAvailable: false, explanation: "HDR export requires a supported iPhone. SDR export is available in the simulator.")
+        return Self(hdrAvailable: false, explanation: String(localized: "HDR export requires a supported iPhone. SDR export is available in the simulator."))
         #else
         // Test the actual source, decoder, Core Image path and encoder at source resolution.
         // No entitlement is consumed. Failure conservatively leaves HDR unavailable.
@@ -49,9 +49,9 @@ struct ExportCapability: Sendable {
             options.range = .hdr; options.durationLimit = min(0.2, metadata.duration)
             let result = try await VideoExporter().export(url: url, metadata: metadata, settings: .init(preset: .original), options: options) { _ in }
             TemporaryFiles.remove(result.url)
-            return Self(hdrAvailable: true, explanation: "HDR · HEVC · 10-bit. The editor shows a tone-mapped SDR preview.")
+            return Self(hdrAvailable: true, explanation: String(localized: "HDR · HEVC · 10-bit. The editor shows a tone-mapped SDR preview."))
         } catch {
-            return Self(hdrAvailable: false, explanation: "HDR export is unavailable for this media/device. You can export SDR.")
+            return Self(hdrAvailable: false, explanation: String(localized: "HDR export is unavailable for this media/device. You can export SDR."))
         }
         #endif
     }

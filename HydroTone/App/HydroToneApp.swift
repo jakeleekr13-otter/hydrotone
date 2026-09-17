@@ -2,10 +2,13 @@ import SwiftUI
 
 @main
 struct HydroToneApp: App {
+    @State private var diagnostics: DiagnosticsCenter
     @State private var purchases: PurchaseStore
     @State private var trial: TrialStore
     init() {
-        _purchases = State(initialValue: PurchaseStore())
+        let diagnostics = DiagnosticsCenter()
+        _diagnostics = State(initialValue: diagnostics)
+        _purchases = State(initialValue: PurchaseStore(diagnostics: diagnostics.recorder))
         var persistence = KeychainTrialPersistence()
         #if DEBUG
         // UI tests still exercise real Keychain persistence, isolated from a person's trial.
@@ -13,13 +16,13 @@ struct HydroToneApp: App {
             persistence = KeychainTrialPersistence(service: "com.hydrotone.uitests." + argument.dropFirst("--ui-test-keychain=".count))
         }
         #endif
-        _trial = State(initialValue: TrialStore(persistence: persistence))
+        _trial = State(initialValue: TrialStore(persistence: persistence, diagnostics: diagnostics.recorder))
         TemporaryFiles.cleanPreviousSession()
     }
     var body: some Scene {
         WindowGroup {
             HomeView().preferredColorScheme(.dark).tint(.mint)
-                .environment(purchases).environment(trial)
+                .environment(purchases).environment(trial).environment(diagnostics)
                 .task { await purchases.load() }
         }
     }

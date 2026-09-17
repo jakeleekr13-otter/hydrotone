@@ -48,7 +48,9 @@ final class TrialStore {
     private(set) var state = TrialState()
     private(set) var available = false
     private let persistence: any TrialPersistence
-    init(persistence: any TrialPersistence = KeychainTrialPersistence()) {
+    private let diagnostics: DiagnosticRecorder?
+    init(persistence: any TrialPersistence = KeychainTrialPersistence(), diagnostics: DiagnosticRecorder? = nil) {
+        self.diagnostics = diagnostics
         self.persistence = persistence
         reload()
     }
@@ -58,7 +60,11 @@ final class TrialStore {
             // A pending export from a terminated process produced no deliverable file.
             if saved.pending != nil { saved.pending = nil; try persistence.write(saved) }
             state = saved; available = true
-        } catch { available = false }
+        } catch {
+            available = false
+            let failure = Failure.classify(error, operation: .trial)
+            Task { await diagnostics?.record(failure, operation: .trial) }
+        }
     }
     func canExport(_ kind: ImportedMedia.Kind) -> Bool { available && state.pending == nil && state.available(kind) }
     func reserve(_ kind: ImportedMedia.Kind) throws {

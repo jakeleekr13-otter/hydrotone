@@ -6,7 +6,7 @@ struct EditorView: View {
     @Environment(TrialStore.self) private var trial
     @Environment(\.scenePhase) private var scenePhase
     @State private var model: EditorModel
-    init(media: ImportedMedia) { _model = State(initialValue: EditorModel(media: media)) }
+    init(media: ImportedMedia, diagnostics: DiagnosticRecorder) { _model = State(initialValue: EditorModel(media: media, diagnostics: diagnostics)) }
     var body: some View {
         @Bindable var model = model
         GeometryReader { geometry in
@@ -28,6 +28,8 @@ struct EditorView: View {
             .task(id: model.settings) { if !model.loading { await model.refreshPreview() } }
             .task(id: model.comparing) { if !model.loading { await model.refreshPreview() } }
             .onDisappear { model.close() }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in model.memoryWarning() }
+            .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemFailedToPlayToEndTime)) { model.playbackFailed($0) }
             .onChange(of: scenePhase) { _, phase in if phase == .background { model.cancelForBackground() } }
             .sheet(isPresented: $model.showPro) { ProView() }
             .sheet(isPresented: $model.showExportOptions, onDismiss: { model.optionsDismissing = false }) { ExportView(model: model) }
@@ -51,9 +53,10 @@ struct EditorView: View {
     private var controls: some View {
         @Bindable var model = model
         return VStack(spacing: 18) {
+            if model.previewPaused { Button("Retry preview") { Task { await model.retryPreview() } } }
             if model.metadata?.isHDR == true { Text("HDR source · SDR preview").font(.caption).foregroundStyle(.secondary) }
             HStack {
-                Text(model.comparing ? "Original" : model.settings.preset.rawValue).font(.subheadline).foregroundStyle(.secondary)
+                Text(model.comparing ? String(localized: "Original") : model.settings.preset.localizedName).font(.subheadline).foregroundStyle(.secondary)
                 Spacer()
                 Button { model.comparing.toggle() } label: { Label("Compare", systemImage: model.comparing ? "eye.fill" : "eye") }
                     .buttonStyle(.bordered).frame(minHeight: 44)
@@ -66,7 +69,7 @@ struct EditorView: View {
                         Button { model.settings.preset = preset } label: {
                             VStack(spacing: 8) {
                                 Image(systemName: preset == .original ? "circle.lefthalf.filled" : "water.waves").font(.title2)
-                                Text(preset.rawValue).font(.caption.weight(.medium))
+                                Text(preset.localizedName).font(.caption.weight(.medium))
                             }.frame(minWidth: 96, minHeight: 72).padding(.horizontal, 5)
                                 .background(model.settings.preset == preset ? Color.mint.opacity(0.2) : Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
                                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(model.settings.preset == preset ? Color.mint : .clear))
@@ -87,7 +90,9 @@ struct EditorView: View {
         VStack(spacing: 20) {
             if model.media.kind == .video {
                 ProgressView(value: model.progress).frame(width: 220)
-                Text(model.progress >= 0.99 ? "Checking your video…" : "Exporting \(Int(model.progress * 100))%")
+                Text(model.progress >= 0.99
+                     ? String(localized: "Checking your video…")
+                     : String(localized: "Exporting \(Int(model.progress * 100))%"))
             } else { ProgressView("Exporting…") }
             Text("Keep HydroTone open until export finishes.").font(.footnote)
             Button("Cancel") { model.exportTask?.cancel() }.frame(minHeight: 44)

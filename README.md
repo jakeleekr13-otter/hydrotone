@@ -17,6 +17,8 @@ Open **HydroTone.xcodeproj**, select the **HydroTone** scheme and an iPhone simu
 - Progress follows processed presentation time. Cancellation removes partial output. Backgrounding cancels the export, with a short background task reserved for cleanup.
 - Free trial: **one photo export and one video export of the first 10 seconds**, up to 1080p SDR for video. No limit on importing or previewing. Failed/cancelled exports do not consume the trial. A validated, completed export consumes it; saving can be retried if Photos permission is denied.
 - Pro: verified non-consumable **com.hydrotone.pro**, unlimited photos, full video length, source-resolution/4K and HDR where supported.
+- English is the source and fallback language. The included String Catalog follows the iPhone language order and contains Korean, Japanese, Simplified Chinese and Traditional Chinese translations. The Translation framework is intentionally not used because HydroTone has fixed interface copy rather than user-generated text.
+- Errors use privacy-safe Unified Logging and local MetricKit reports. Repeated events are aggregated and retained for seven days; nothing is uploaded automatically. The user can prepare, share or delete the report from Diagnostics.
 
 ## Purchases
 
@@ -47,4 +49,4 @@ The app has a DEBUG-only launch argument for isolated real Keychain storage in U
 
 Synthetic media fixtures are checked in. `scripts/make_test_media.py` regenerates the main codec/HDR fixtures using a developer-installed ffmpeg; ffmpeg is not included in the app. `scripts/create_project.py` reproducibly generates the Xcode project, whose source folders synchronize automatically. `scripts/make_icon.py` regenerates the wave icon.
 
-See [QA matrix](docs/QA.md) and [processing decisions](docs/Architecture.md) for verification and remaining release checks.
+See [QA matrix](docs/QA.md), [processing decisions](docs/Architecture.md), and [diagnostics review](docs/Diagnostics.md) for verification and remaining release checks.

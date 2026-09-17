@@ -31,8 +31,8 @@ enum TemporaryFiles {
         let bytes = try source.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         try StorageCheck.require(bytes: Int64(bytes))
         let target = try makeURL(extension: source.pathExtension)
-        try FileManager.default.copyItem(at: source, to: target)
-        return target
+        do { try FileManager.default.copyItem(at: source, to: target); return target }
+        catch { remove(target); throw error }
     }
     static func remove(_ url: URL?) {
         guard let url, url.deletingLastPathComponent() == directory else { return }
@@ -50,13 +50,13 @@ enum HydroError: LocalizedError {
     case unreadable, unsupported, exportFailed, permission, storage, invalidOutput, trialUnavailable
     var errorDescription: String? {
         switch self {
-        case .unreadable: "This media couldn’t be opened. Try another photo or video."
-        case .unsupported: "This media format isn’t supported on this device."
-        case .exportFailed: "The export couldn’t finish. Please try again."
-        case .permission: "Allow HydroTone to add to Photos in Settings, then try saving again."
-        case .storage: "There isn’t enough free storage. Free up some space and try again."
-        case .invalidOutput: "The exported file didn’t pass our quality checks. Nothing was saved."
-        case .trialUnavailable: "Trial access couldn’t be checked securely. Please try again."
+        case .unreadable: String(localized: "This media couldn’t be opened. Try another photo or video.")
+        case .unsupported: String(localized: "This media format isn’t supported on this device.")
+        case .exportFailed: String(localized: "The export couldn’t finish. Please try again.")
+        case .permission: String(localized: "Allow HydroTone to add to Photos in Settings, then try saving again.")
+        case .storage: String(localized: "There isn’t enough free storage. Free up some space and try again.")
+        case .invalidOutput: String(localized: "The exported file didn’t pass our quality checks. Nothing was saved.")
+        case .trialUnavailable: String(localized: "Trial access couldn’t be checked securely. Please try again.")
         }
     }
 }
