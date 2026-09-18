@@ -9,12 +9,14 @@ actor DepthEstimator {
     static let modelSize = CGSize(width: 518, height: 392)
 
     private let context: CIContext
+    private let computeUnits: MLComputeUnits
     private var model: MLModel?
     #if DEBUG
     private let logger = Logger(subsystem: "com.hydrotone.app", category: "photo-depth")
     #endif
 
-    init() {
+    init(computeUnits: MLComputeUnits = .all) {
+        self.computeUnits = computeUnits
         let options: [CIContextOption: Any] = [.cacheIntermediates: false]
         if let device = MTLCreateSystemDefaultDevice() {
             context = CIContext(mtlDevice: device, options: options)
@@ -68,7 +70,7 @@ actor DepthEstimator {
             throw RestorationError.missingModel
         }
         let configuration = MLModelConfiguration()
-        configuration.computeUnits = .all
+        configuration.computeUnits = computeUnits
         let loaded = try await MLModel.load(contentsOf: url, configuration: configuration)
         model = loaded
         return loaded

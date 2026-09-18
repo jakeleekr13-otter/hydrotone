@@ -35,13 +35,18 @@ struct WaterModelEstimator {
 
         // When red information is nearly absent, stronger amplification mostly reveals noise.
         let redSurvival = min(1, max(0, 1 - legacy.redLoss))
+        let recoverability = channelRecoverability(pixels: pixels, depth: map.values, infinity: infinity,
+                                                   betaBackscatter: betaBackscatter,
+                                                   redSurvival: redSurvival)
         let limits = RestorationLimits(maximumGain: SIMD3(1.32 + 0.45 * redSurvival, 1.55, 1.45))
         let hits = limitHitPercentages(depth: map.values, betaDirect: betaDirect, limits: limits)
         return RestorationPlan(depth: map, depthSource: depth.source, depthStatistics: depth.statistics,
                                backscatterInfinity: finite(infinity), betaDirect: finite(betaDirect),
                                betaBackscatter: finite(betaBackscatter), confidence: confidence,
                                limits: limits, transmissionFloorPixelPercentage: hits.floor,
-                               maximumGainPixelPercentage: hits.gain)
+                               maximumGainPixelPercentage: hits.gain, depthConfidence: depth.confidence,
+                               waterFitConfidence: sqrt(max(0, fitQuality)),
+                               channelRecoverability: recoverability)
     }
 
     private func pixels(from image: CIImage, width: Int, height: Int, context: CIContext) throws -> [SIMD3<Float>] {
@@ -74,7 +79,9 @@ struct WaterModelEstimator {
                 let a = pixels[$0], b = pixels[$1]
                 return a.x + a.y + a.z < b.x + b.y + b.z
             }
-            selected.append(contentsOf: indices.prefix(max(3, indices.count / 5)))
+            // A few hundred lower-envelope samples per bin are enough for the
+            // three-parameter fit and keep preparation time independent of photo size.
+            selected.append(contentsOf: indices.prefix(min(256, max(3, indices.count / 5))))
         }
         return selected
     }
@@ -152,8 +159,27 @@ struct WaterModelEstimator {
         return (Float(floorHits) * 100 / count, Float(gainHits) * 100 / count)
     }
 
+    private func channelRecoverability(pixels: [SIMD3<Float>], depth: [Float], infinity: SIMD3<Float>,
+                                       betaBackscatter: SIMD3<Float>, redSurvival: Float) -> SIMD3<Float> {
+        var result = SIMD3<Float>(repeating: 0)
+        for channel in 0..<3 {
+            var direct: [Float] = []
+            direct.reserveCapacity(min(4096, pixels.count))
+            let stride = max(1, pixels.count / 4096)
+            for index in Swift.stride(from: 0, to: pixels.count, by: stride) {
+                let backscatter = infinity[channel] * (1 - exp(-betaBackscatter[channel] * depth[index]))
+                let signal = pixels[index][channel] - backscatter
+                if signal.isFinite && signal > 0 { direct.append(signal) }
+            }
+            direct.sort()
+            let median = direct.isEmpty ? 0 : direct[direct.count / 2]
+            result[channel] = min(1, max(0.08, (median - 0.004) / 0.075))
+        }
+        result.x = min(result.x, max(0.12, redSurvival))
+        return finite(result)
+    }
+
     private func finite(_ value: SIMD3<Float>) -> SIMD3<Float> {
         SIMD3(value.x.isFinite ? value.x : 0, value.y.isFinite ? value.y : 0, value.z.isFinite ? value.z : 0)
     }
 }
-

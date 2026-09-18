@@ -12,8 +12,10 @@ final class EditorModel {
     var comparing = false
     var player: AVPlayer?
     var metadata: VideoMetadata?
+    var videoAnalysis: VideoRestorationAnalysis?
     var capability = ExportCapability.photo
     let video = VideoExporter()
+    let videoPreview = VideoPreview()
     let previewSettings = PreviewSettings()
     var options = ExportOptions()
     var showExportOptions = false
@@ -27,6 +29,7 @@ final class EditorModel {
     var ready = false
     var previewPaused = false
     private var previewFailures = 0
+    private var previewGeneration = PreviewGeneration()
     var exporting = false
     var progress: Double = 0
     var error: String?
@@ -43,11 +46,19 @@ final class EditorModel {
             } else {
                 let metadata = try await SafeReadRetry().run(operation: .inspection) { try await MediaInspector().inspect(media.url) }
                 self.metadata = metadata
-                capability = await ExportCapability.evaluate(url: media.url, metadata: metadata)
-                let videoPreview = VideoPreview()
-                settings.analysis = try await videoPreview.analyze(media.url, duration: metadata.duration)
                 previewSettings.update(settings, comparing: comparing)
                 player = AVPlayer(playerItem: try await videoPreview.item(media.url, settings: previewSettings))
+                ready = true
+                capability = await ExportCapability.evaluate(url: media.url, metadata: metadata)
+                let analysis = try await videoPreview.analyze(media.url, metadata: metadata)
+                videoAnalysis = analysis
+                settings.analysis = analysis.legacyAnalysis
+                previewSettings.update(settings, comparing: comparing)
+                if let item = player?.currentItem {
+                    item.videoComposition = try await videoPreview.composition(asset: item.asset,
+                                                                                settings: previewSettings,
+                                                                                analysis: analysis)
+                }
             }
             ready = media.kind == .photo ? preview != nil : player != nil
         } catch is CancellationError { } catch { report(error, operation: .inspection) }
@@ -56,9 +67,22 @@ final class EditorModel {
         guard !previewPaused else { return }
         guard media.kind == .photo else {
             previewSettings.update(settings, comparing: comparing)
-            if let player, player.rate == 0, let item = player.currentItem {
-                item.videoComposition = item.videoComposition?.copy() as? AVVideoComposition
-                await player.seek(to: player.currentTime(), toleranceBefore: .zero, toleranceAfter: .zero)
+            let generation = previewGeneration.begin()
+            guard let player, let item = player.currentItem, let videoAnalysis else { return }
+            do {
+                let composition = try await videoPreview.composition(asset: item.asset, settings: previewSettings,
+                                                                     analysis: videoAnalysis)
+                try Task.checkCancellation()
+                guard previewGeneration.accepts(generation) else { return }
+                item.videoComposition = composition
+                if player.rate == 0 {
+                    await player.seek(to: player.currentTime(), toleranceBefore: .zero, toleranceAfter: .zero)
+                }
+                previewFailures = 0
+            } catch is CancellationError { } catch {
+                previewFailures += 1
+                if previewFailures >= 3 { previewPaused = true }
+                report(error, operation: .preview)
             }
             return
         }
@@ -115,7 +139,8 @@ final class EditorModel {
                 } else { chosenOptions.durationLimit = nil }
                 let output: URL
                 if let metadata {
-                    output = try await video.export(url: media.url, metadata: metadata, settings: chosenSettings, options: chosenOptions) { value in
+                    output = try await video.export(url: media.url, metadata: metadata, settings: chosenSettings,
+                                                    options: chosenOptions, restorationAnalysis: videoAnalysis) { value in
                         await self.updateProgress(value)
                     }.url
                 } else {

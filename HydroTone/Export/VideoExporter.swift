@@ -11,8 +11,10 @@ struct VideoExportResult: Sendable {
 
 actor VideoExporter {
     private let engine = FilterEngine()
+    private let restorationEngine = RestorationEngine()
     private let signposter = OSSignposter(subsystem: "com.hydrotone.app", category: "export")
     func export(url: URL, metadata: VideoMetadata, settings: FilterSettings, options: ExportOptions,
+                restorationAnalysis: VideoRestorationAnalysis? = nil,
                 progress: @escaping @Sendable (Double) async -> Void) async throws -> VideoExportResult {
         let interval = signposter.beginInterval("Video export")
         defer { signposter.endInterval("Video export", interval) }
@@ -20,6 +22,9 @@ actor VideoExporter {
         try Task.checkCancellation()
         let hdr = options.range == .hdr
         guard !hdr || (metadata.isHDR && (metadata.dynamicRange == .hlg || metadata.dynamicRange == .pq) && (metadata.bitDepth ?? 0) >= 10) else { throw HydroError.unsupported }
+        let temporalSession = settings.preset == .original ? nil : restorationAnalysis.map {
+            TemporalRestorationSession(analysis: $0, preservesHDR: hdr)
+        }
         let asset = AVURLAsset(url: url)
         guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw HydroError.unreadable }
         let duration = min(metadata.duration, options.durationLimit ?? metadata.duration)
@@ -107,24 +112,34 @@ actor VideoExporter {
                 guard allocation == kCVReturnSuccess || allocation == kCVReturnWouldExceedAllocationThreshold else { throw HydroError.exportFailed }
             }
             if !videoDone && input.isReadyForMoreMediaData, let destination {
-                let pts: Double? = try autoreleasepool {
+                let frame: (CIImage, CMTime)? = try autoreleasepool {
                     guard let sample = output.copyNextSampleBuffer() else { videoDone = true; input.markAsFinished(); return nil }
                     guard let buffer = CMSampleBufferGetImageBuffer(sample) else { throw HydroError.unreadable }
                     let time = CMSampleBufferGetPresentationTimeStamp(sample)
                     guard time < end else { videoDone = true; input.markAsFinished(); return nil }
-                    VideoColorPipeline.tag(destination, hdr: hdr, pq: metadata.dynamicRange == .pq)
                     let source = CIImage(cvPixelBuffer: buffer).transformed(by: toneMappedByComposition ? .identity : metadata.transform)
                     let oriented = source.transformed(by: CGAffineTransform(translationX: -source.extent.minX, y: -source.extent.minY))
                     let scaled = oriented.transformed(by: CGAffineTransform(scaleX: size.width / oriented.extent.width, y: size.height / oriented.extent.height))
-                    let corrected = engine.apply(scaled, settings: settings)
-                    engine.context.render(corrected, to: destination, bounds: CGRect(origin: .zero, size: size), colorSpace: VideoColorPipeline.colorSpace(hdr: hdr, pq: metadata.dynamicRange == .pq))
-                    guard adaptor.append(destination, withPresentationTime: time) else { throw writer.error ?? HydroError.exportFailed }
+                    return (scaled, time)
+                }
+                if let frame {
+                    VideoColorPipeline.tag(destination, hdr: hdr, pq: metadata.dynamicRange == .pq)
+                    let fallback = engine.apply(frame.0, settings: settings)
+                    let corrected: CIImage
+                    if let temporalSession,
+                       let plan = await temporalSession.plan(for: frame.0, at: frame.1.seconds,
+                                                             runtime: .current) {
+                        corrected = (try? restorationEngine.combined(frame.0, plan: plan,
+                                                                      settings: settings, filter: engine)) ?? fallback
+                    } else { corrected = fallback }
+                    engine.context.render(corrected, to: destination, bounds: CGRect(origin: .zero, size: size),
+                                          colorSpace: VideoColorPipeline.colorSpace(hdr: hdr, pq: metadata.dynamicRange == .pq))
+                    guard adaptor.append(destination, withPresentationTime: frame.1) else { throw writer.error ?? HydroError.exportFailed }
                     frames += 1
                     if frames.isMultiple(of: 300) { engine.context.clearCaches() }
-                    return time.seconds
                 }
                 advanced = true
-                if let pts {
+                if let pts = frame?.1.seconds {
                     let fraction = min(0.99, max(0, pts / duration))
                     if fraction - lastProgress >= 0.01 { lastProgress = fraction; await progress(fraction) }
                 }

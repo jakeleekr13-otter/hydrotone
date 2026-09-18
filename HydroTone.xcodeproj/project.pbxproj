@@ -1,40 +1,443 @@
 // !$*UTF8*$!
-{ archiveVersion = 1; classes = {}; objectVersion = 77; objects = {
-89E1FD6268CC0F221A2BE178 = { isa = XCBuildConfiguration; buildSettings = { SWIFT_VERSION = "5.0"; IPHONEOS_DEPLOYMENT_TARGET = "26.0"; SDKROOT = "iphoneos"; TARGETED_DEVICE_FAMILY = "1"; CLANG_ENABLE_MODULES = "YES"; SWIFT_STRICT_CONCURRENCY = "targeted"; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = "dwarf"; ENABLE_TESTABILITY = "YES"; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG"; }; name = Debug; };
-E6DE6C99132752C914FEF632 = { isa = XCBuildConfiguration; buildSettings = { SWIFT_VERSION = "5.0"; IPHONEOS_DEPLOYMENT_TARGET = "26.0"; SDKROOT = "iphoneos"; TARGETED_DEVICE_FAMILY = "1"; CLANG_ENABLE_MODULES = "YES"; SWIFT_STRICT_CONCURRENCY = "targeted"; SWIFT_OPTIMIZATION_LEVEL = "-O"; DEBUG_INFORMATION_FORMAT = "dwarf"; ENABLE_TESTABILITY = "NO"; SWIFT_ACTIVE_COMPILATION_CONDITIONS = ""; }; name = Release; };
-BC7E287B75C6D3E574547D08 = { isa = XCConfigurationList; buildConfigurations = (89E1FD6268CC0F221A2BE178,E6DE6C99132752C914FEF632,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-E9B2E96ABC5F6856F2BE79CF = { isa = XCBuildConfiguration; buildSettings = { SWIFT_VERSION = "5.0"; IPHONEOS_DEPLOYMENT_TARGET = "26.0"; SDKROOT = "iphoneos"; TARGETED_DEVICE_FAMILY = "1"; CLANG_ENABLE_MODULES = "YES"; SWIFT_STRICT_CONCURRENCY = "targeted"; PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = "com.hydrotone.app"; GENERATE_INFOPLIST_FILE = "YES"; CODE_SIGN_STYLE = "Automatic"; DEVELOPMENT_TEAM = "M3HJ7YK7N7"; INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save your finished photos and videos to your library."; INFOPLIST_KEY_UILaunchScreen_Generation = "YES"; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = "YES"; INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"; CODE_SIGN_ENTITLEMENTS = "HydroTone/Resources/HydroTone.entitlements"; ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon"; MARKETING_VERSION = "1.0"; CURRENT_PROJECT_VERSION = "1"; INFOPLIST_KEY_CFBundleDisplayName = "HydroTone"; }; name = Debug; };
-5A8C91857F674E16E2724F47 = { isa = XCBuildConfiguration; buildSettings = { SWIFT_VERSION = "5.0"; IPHONEOS_DEPLOYMENT_TARGET = "26.0"; SDKROOT = "iphoneos"; TARGETED_DEVICE_FAMILY = "1"; CLANG_ENABLE_MODULES = "YES"; SWIFT_STRICT_CONCURRENCY = "targeted"; PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = "com.hydrotone.app"; GENERATE_INFOPLIST_FILE = "YES"; CODE_SIGN_STYLE = "Automatic"; DEVELOPMENT_TEAM = "M3HJ7YK7N7"; INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save your finished photos and videos to your library."; INFOPLIST_KEY_UILaunchScreen_Generation = "YES"; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = "YES"; INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"; CODE_SIGN_ENTITLEMENTS = "HydroTone/Resources/HydroTone.entitlements"; ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon"; MARKETING_VERSION = "1.0"; CURRENT_PROJECT_VERSION = "1"; INFOPLIST_KEY_CFBundleDisplayName = "HydroTone"; }; name = Release; };
-60EA43DB068BD71C9709BED5 = { isa = XCConfigurationList; buildConfigurations = (E9B2E96ABC5F6856F2BE79CF,5A8C91857F674E16E2724F47,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-0F3D67935A4F199E058A017A = { isa = XCBuildConfiguration; buildSettings = { SWIFT_VERSION = "5.0"; IPHONEOS_DEPLOYMENT_TARGET = "26.0"; SDKROOT = "iphoneos"; TARGETED_DEVICE_FAMILY = "1"; CLANG_ENABLE_MODULES = "YES"; SWIFT_STRICT_CONCURRENCY = "targeted"; PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = "com.hydrotone.tests"; GENERATE_INFOPLIST_FILE = "YES"; CODE_SIGN_STYLE = "Automatic"; DEVELOPMENT_TEAM = "M3HJ7YK7N7"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HydroTone.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HydroTone"; BUNDLE_LOADER = "$(TEST_HOST)"; }; name = Debug; };
-20B70E15FDC36C625E57F658 = { isa = XCBuildConfiguration; buildSettings = { SWIFT_VERSION = "5.0"; IPHONEOS_DEPLOYMENT_TARGET = "26.0"; SDKROOT = "iphoneos"; TARGETED_DEVICE_FAMILY = "1"; CLANG_ENABLE_MODULES = "YES"; SWIFT_STRICT_CONCURRENCY = "targeted"; PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = "com.hydrotone.tests"; GENERATE_INFOPLIST_FILE = "YES"; CODE_SIGN_STYLE = "Automatic"; DEVELOPMENT_TEAM = "M3HJ7YK7N7"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HydroTone.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HydroTone"; BUNDLE_LOADER = "$(TEST_HOST)"; }; name = Release; };
-EC78861A60CD111A3D8A2421 = { isa = XCConfigurationList; buildConfigurations = (0F3D67935A4F199E058A017A,20B70E15FDC36C625E57F658,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-FB520F6E62C2A172230C620F = { isa = XCBuildConfiguration; buildSettings = { SWIFT_VERSION = "5.0"; IPHONEOS_DEPLOYMENT_TARGET = "26.0"; SDKROOT = "iphoneos"; TARGETED_DEVICE_FAMILY = "1"; CLANG_ENABLE_MODULES = "YES"; SWIFT_STRICT_CONCURRENCY = "targeted"; PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = "com.hydrotone.uitests"; GENERATE_INFOPLIST_FILE = "YES"; CODE_SIGN_STYLE = "Automatic"; DEVELOPMENT_TEAM = "M3HJ7YK7N7"; TEST_TARGET_NAME = "HydroTone"; }; name = Debug; };
-FECE8ECE4507AB75FB580D0F = { isa = XCBuildConfiguration; buildSettings = { SWIFT_VERSION = "5.0"; IPHONEOS_DEPLOYMENT_TARGET = "26.0"; SDKROOT = "iphoneos"; TARGETED_DEVICE_FAMILY = "1"; CLANG_ENABLE_MODULES = "YES"; SWIFT_STRICT_CONCURRENCY = "targeted"; PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = "com.hydrotone.uitests"; GENERATE_INFOPLIST_FILE = "YES"; CODE_SIGN_STYLE = "Automatic"; DEVELOPMENT_TEAM = "M3HJ7YK7N7"; TEST_TARGET_NAME = "HydroTone"; }; name = Release; };
-661F4FB61ADF9739C517CA60 = { isa = XCConfigurationList; buildConfigurations = (FB520F6E62C2A172230C620F,FECE8ECE4507AB75FB580D0F,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-3A2A88DEEFF3D1D23E496597 = { isa = PBXFileSystemSynchronizedRootGroup; path = HydroTone; sourceTree = "<group>"; };
-E6FC57C251E9E1BEC1D3C0D2 = { isa = PBXFileReference; explicitFileType = wrapper.application; path = HydroTone.app; sourceTree = BUILT_PRODUCTS_DIR; };
-971ED9D05B25DB6C4D7680D4 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-78AE8C6BEB2A40A6D824CCEE = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-364863F9F2E558B0F50473FC = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-4F6027D858B72CC70E5CC8E9 = { isa = PBXNativeTarget; buildConfigurationList = 60EA43DB068BD71C9709BED5; buildPhases = (971ED9D05B25DB6C4D7680D4,78AE8C6BEB2A40A6D824CCEE,364863F9F2E558B0F50473FC,); buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (3A2A88DEEFF3D1D23E496597,); name = HydroTone; productName = HydroTone; productReference = E6FC57C251E9E1BEC1D3C0D2; productType = "com.apple.product-type.application"; };
-F80B2C2021F097DC9FAA009C = { isa = PBXFileSystemSynchronizedRootGroup; path = HydroToneTests; sourceTree = "<group>"; };
-AD5D520508EF8024D25C00BA = { isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = HydroToneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-87578F7D47DE44A504256C73 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-32BD75FE04B3CDF992A510FD = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-1544DFBBD36E4A0D68754A27 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-00FA7595418DE673442D4E14 = { isa = PBXContainerItemProxy; containerPortal = 98F54143AB4E86B28C3AFEE0; proxyType = 1; remoteGlobalIDString = 4F6027D858B72CC70E5CC8E9; remoteInfo = HydroTone; };
-BBAAC9B14F10DD891F7A8816 = { isa = PBXTargetDependency; target = 4F6027D858B72CC70E5CC8E9; targetProxy = 00FA7595418DE673442D4E14; };
-002378A4B0AB8ED6C3038A81 = { isa = PBXNativeTarget; buildConfigurationList = EC78861A60CD111A3D8A2421; buildPhases = (87578F7D47DE44A504256C73,32BD75FE04B3CDF992A510FD,1544DFBBD36E4A0D68754A27,); buildRules = (); dependencies = (BBAAC9B14F10DD891F7A8816); fileSystemSynchronizedGroups = (F80B2C2021F097DC9FAA009C,); name = HydroToneTests; productName = HydroToneTests; productReference = AD5D520508EF8024D25C00BA; productType = "com.apple.product-type.bundle.unit-test"; };
-5FA060BA93CA7D761DC0AA1D = { isa = PBXFileSystemSynchronizedRootGroup; path = HydroToneUITests; sourceTree = "<group>"; };
-B22D326D03B77788C7376316 = { isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = HydroToneUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-0C9EC29799D8656EFFBB3686 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-568DA1E24DAA16B51B299506 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-6142FDE1B74BF44BB99CE1B1 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-CEDAC8F28FDB4B718B5D1BEB = { isa = PBXContainerItemProxy; containerPortal = 98F54143AB4E86B28C3AFEE0; proxyType = 1; remoteGlobalIDString = 4F6027D858B72CC70E5CC8E9; remoteInfo = HydroTone; };
-A875EB7D356C9AA9654C80EB = { isa = PBXTargetDependency; target = 4F6027D858B72CC70E5CC8E9; targetProxy = CEDAC8F28FDB4B718B5D1BEB; };
-4D630F78F997333C57512D1C = { isa = PBXNativeTarget; buildConfigurationList = 661F4FB61ADF9739C517CA60; buildPhases = (0C9EC29799D8656EFFBB3686,568DA1E24DAA16B51B299506,6142FDE1B74BF44BB99CE1B1,); buildRules = (); dependencies = (A875EB7D356C9AA9654C80EB); fileSystemSynchronizedGroups = (5FA060BA93CA7D761DC0AA1D,); name = HydroToneUITests; productName = HydroToneUITests; productReference = B22D326D03B77788C7376316; productType = "com.apple.product-type.bundle.ui-testing"; };
-FBDC4F23F93125BBEEAE800C = { isa = PBXGroup; children = (E6FC57C251E9E1BEC1D3C0D2,AD5D520508EF8024D25C00BA,B22D326D03B77788C7376316,); name = Products; sourceTree = "<group>"; };
-B28B7AF69320201D1CF206EB = { isa = PBXGroup; children = (3A2A88DEEFF3D1D23E496597,F80B2C2021F097DC9FAA009C,5FA060BA93CA7D761DC0AA1D,FBDC4F23F93125BBEEAE800C,); sourceTree = "<group>"; };
-98F54143AB4E86B28C3AFEE0 = { isa = PBXProject; attributes = { BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2700; }; buildConfigurationList = BC7E287B75C6D3E574547D08; compatibilityVersion = "Xcode 16.0"; developmentRegion = en; knownRegions = (en,Base,ko,ja,"zh-Hans","zh-Hant"); mainGroup = B28B7AF69320201D1CF206EB; productRefGroup = FBDC4F23F93125BBEEAE800C; projectDirPath = ""; projectRoot = ""; targets = (4F6027D858B72CC70E5CC8E9,002378A4B0AB8ED6C3038A81,4D630F78F997333C57512D1C,); preferredProjectObjectVersion = 77; };
-}; rootObject = 98F54143AB4E86B28C3AFEE0; }
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 71;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		00FA7595418DE673442D4E14 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98F54143AB4E86B28C3AFEE0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4F6027D858B72CC70E5CC8E9;
+			remoteInfo = HydroTone;
+		};
+		CEDAC8F28FDB4B718B5D1BEB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98F54143AB4E86B28C3AFEE0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4F6027D858B72CC70E5CC8E9;
+			remoteInfo = HydroTone;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		AD5D520508EF8024D25C00BA /* HydroToneTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = HydroToneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B22D326D03B77788C7376316 /* HydroToneUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = HydroToneUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E6FC57C251E9E1BEC1D3C0D2 /* HydroTone.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = HydroTone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		3A2A88DEEFF3D1D23E496597 /* HydroTone */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = HydroTone; sourceTree = "<group>"; };
+		5FA060BA93CA7D761DC0AA1D /* HydroToneUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = HydroToneUITests; sourceTree = "<group>"; };
+		F80B2C2021F097DC9FAA009C /* HydroToneTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = HydroToneTests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		32BD75FE04B3CDF992A510FD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		568DA1E24DAA16B51B299506 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		78AE8C6BEB2A40A6D824CCEE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B28B7AF69320201D1CF206EB = {
+			isa = PBXGroup;
+			children = (
+				3A2A88DEEFF3D1D23E496597 /* HydroTone */,
+				F80B2C2021F097DC9FAA009C /* HydroToneTests */,
+				5FA060BA93CA7D761DC0AA1D /* HydroToneUITests */,
+				FBDC4F23F93125BBEEAE800C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FBDC4F23F93125BBEEAE800C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E6FC57C251E9E1BEC1D3C0D2 /* HydroTone.app */,
+				AD5D520508EF8024D25C00BA /* HydroToneTests.xctest */,
+				B22D326D03B77788C7376316 /* HydroToneUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		002378A4B0AB8ED6C3038A81 /* HydroToneTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EC78861A60CD111A3D8A2421 /* Build configuration list for PBXNativeTarget "HydroToneTests" */;
+			buildPhases = (
+				87578F7D47DE44A504256C73 /* Sources */,
+				32BD75FE04B3CDF992A510FD /* Frameworks */,
+				1544DFBBD36E4A0D68754A27 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BBAAC9B14F10DD891F7A8816 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				F80B2C2021F097DC9FAA009C /* HydroToneTests */,
+			);
+			name = HydroToneTests;
+			productName = HydroToneTests;
+			productReference = AD5D520508EF8024D25C00BA /* HydroToneTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		4D630F78F997333C57512D1C /* HydroToneUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 661F4FB61ADF9739C517CA60 /* Build configuration list for PBXNativeTarget "HydroToneUITests" */;
+			buildPhases = (
+				0C9EC29799D8656EFFBB3686 /* Sources */,
+				568DA1E24DAA16B51B299506 /* Frameworks */,
+				6142FDE1B74BF44BB99CE1B1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A875EB7D356C9AA9654C80EB /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5FA060BA93CA7D761DC0AA1D /* HydroToneUITests */,
+			);
+			name = HydroToneUITests;
+			productName = HydroToneUITests;
+			productReference = B22D326D03B77788C7376316 /* HydroToneUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		4F6027D858B72CC70E5CC8E9 /* HydroTone */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 60EA43DB068BD71C9709BED5 /* Build configuration list for PBXNativeTarget "HydroTone" */;
+			buildPhases = (
+				971ED9D05B25DB6C4D7680D4 /* Sources */,
+				78AE8C6BEB2A40A6D824CCEE /* Frameworks */,
+				364863F9F2E558B0F50473FC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				3A2A88DEEFF3D1D23E496597 /* HydroTone */,
+			);
+			name = HydroTone;
+			productName = HydroTone;
+			productReference = E6FC57C251E9E1BEC1D3C0D2 /* HydroTone.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		98F54143AB4E86B28C3AFEE0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2700;
+			};
+			buildConfigurationList = BC7E287B75C6D3E574547D08 /* Build configuration list for PBXProject "HydroTone" */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				ko,
+				ja,
+				"zh-Hans",
+				"zh-Hant",
+			);
+			mainGroup = B28B7AF69320201D1CF206EB;
+			productRefGroup = FBDC4F23F93125BBEEAE800C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				4F6027D858B72CC70E5CC8E9 /* HydroTone */,
+				002378A4B0AB8ED6C3038A81 /* HydroToneTests */,
+				4D630F78F997333C57512D1C /* HydroToneUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		1544DFBBD36E4A0D68754A27 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		364863F9F2E558B0F50473FC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6142FDE1B74BF44BB99CE1B1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0C9EC29799D8656EFFBB3686 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		87578F7D47DE44A504256C73 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		971ED9D05B25DB6C4D7680D4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A875EB7D356C9AA9654C80EB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4F6027D858B72CC70E5CC8E9 /* HydroTone */;
+			targetProxy = CEDAC8F28FDB4B718B5D1BEB /* PBXContainerItemProxy */;
+		};
+		BBAAC9B14F10DD891F7A8816 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4F6027D858B72CC70E5CC8E9 /* HydroTone */;
+			targetProxy = 00FA7595418DE673442D4E14 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0F3D67935A4F199E058A017A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = M3HJ7YK7N7;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydrotone.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HydroTone.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HydroTone";
+			};
+			name = Debug;
+		};
+		20B70E15FDC36C625E57F658 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = M3HJ7YK7N7;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydrotone.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HydroTone.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HydroTone";
+			};
+			name = Release;
+		};
+		5A8C91857F674E16E2724F47 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = HydroTone/Resources/HydroTone.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M3HJ7YK7N7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HydroTone;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save your finished photos and videos to your library.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydrotone.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		89E1FD6268CC0F221A2BE178 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		E6DE6C99132752C914FEF632 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		E9B2E96ABC5F6856F2BE79CF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = HydroTone/Resources/HydroTone.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M3HJ7YK7N7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HydroTone;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save your finished photos and videos to your library.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydrotone.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		FB520F6E62C2A172230C620F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = M3HJ7YK7N7;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydrotone.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = HydroTone;
+			};
+			name = Debug;
+		};
+		FECE8ECE4507AB75FB580D0F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = M3HJ7YK7N7;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydrotone.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = HydroTone;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		60EA43DB068BD71C9709BED5 /* Build configuration list for PBXNativeTarget "HydroTone" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E9B2E96ABC5F6856F2BE79CF /* Debug */,
+				5A8C91857F674E16E2724F47 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		661F4FB61ADF9739C517CA60 /* Build configuration list for PBXNativeTarget "HydroToneUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FB520F6E62C2A172230C620F /* Debug */,
+				FECE8ECE4507AB75FB580D0F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BC7E287B75C6D3E574547D08 /* Build configuration list for PBXProject "HydroTone" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				89E1FD6268CC0F221A2BE178 /* Debug */,
+				E6DE6C99132752C914FEF632 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EC78861A60CD111A3D8A2421 /* Build configuration list for PBXNativeTarget "HydroToneTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0F3D67935A4F199E058A017A /* Debug */,
+				20B70E15FDC36C625E57F658 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 98F54143AB4E86B28C3AFEE0 /* Project object */;
+}

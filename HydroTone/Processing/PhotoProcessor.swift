@@ -108,6 +108,7 @@ actor PhotoProcessor {
             #endif
         } catch is CancellationError {
             restorationPlan = nil
+            analyzedURL = nil
             throw CancellationError()
         } catch {
             // Depth/model/fitting failures deliberately preserve the shipping HydroTone result.

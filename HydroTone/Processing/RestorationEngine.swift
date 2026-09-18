@@ -22,7 +22,7 @@ enum RestorationMath {
 
     static func inverse(observed: SIMD3<Float>, depth: Float, backscatterInfinity: SIMD3<Float>,
                         betaDirect: SIMD3<Float>, betaBackscatter: SIMD3<Float>,
-                        limits: RestorationLimits) -> RestorationPixelResult {
+                        limits: RestorationLimits, recoverability: SIMD3<Float> = .init(repeating: 1)) -> RestorationPixelResult {
         let source = finite(observed)
         let z = safe(depth, fallback: 0, range: 0...1)
         var corrected = SIMD3<Float>(repeating: 0)
@@ -45,6 +45,9 @@ enum RestorationMath {
         corrected = SIMD3(min(maximumOutput, max(0, corrected.x)),
                           min(maximumOutput, max(0, corrected.y)),
                           min(maximumOutput, max(0, corrected.z)))
+        let recovery = SIMD3(min(1, max(0, recoverability.x)), min(1, max(0, recoverability.y)),
+                             min(1, max(0, recoverability.z)))
+        corrected = source + (corrected - source) * recovery
         return RestorationPixelResult(color: finite(corrected), hitTransmissionFloor: hitFloor, hitMaximumGain: hitGain)
     }
 
@@ -70,11 +73,13 @@ enum RestorationMath {
     }
 }
 
-final class RestorationEngine {
-    private lazy var kernel: CIColorKernel? = {
-        guard let kernels = try? CIKernel.kernels(withMetalString: Self.metalSource) else { return nil }
-        return kernels.first { $0.name == "HydroToneRestoration" } as? CIColorKernel
-    }()
+final class RestorationEngine: @unchecked Sendable {
+    private let kernel: CIColorKernel?
+
+    init() {
+        let kernels = try? CIKernel.kernels(withMetalString: Self.metalSource)
+        kernel = kernels?.first { $0.name == "HydroToneRestoration" } as? CIColorKernel
+    }
 
     private static let metalSource = """
     #include <CoreImage/CoreImage.h>
@@ -86,7 +91,8 @@ final class RestorationEngine {
                                                 float4 betaDirect,
                                                 float4 betaBackscatter,
                                                 float4 limits,
-                                                float4 maximumGain) {
+                                                float4 maximumGain,
+                                                float4 recoverability) {
         const float z = clamp(depthSample.r, 0.0f, 1.0f);
         const float3 directTransmission = exp(-max(betaDirect.rgb, float3(0.0f)) * z);
         const float3 backscatterTransmission = exp(-max(betaBackscatter.rgb, float3(0.0f)) * z);
@@ -98,6 +104,7 @@ final class RestorationEngine {
         const float highlight = smoothstep(limits.y, max(limits.y + 0.001f, limits.z), peak) * 0.8f;
         restored = mix(restored, source.rgb, highlight);
         restored = clamp(restored, float3(0.0f), float3(max(0.5f, limits.w)));
+        restored = source.rgb + (restored - source.rgb) * clamp(recoverability.rgb, 0.0f, 1.0f);
         if (!all(isfinite(restored))) { restored = max(source.rgb, float3(0.0f)); }
         return float4(restored, source.a);
     }
@@ -112,7 +119,7 @@ final class RestorationEngine {
             vector(plan.backscatterInfinity), vector(plan.betaDirect), vector(plan.betaBackscatter),
             CIVector(x: CGFloat(limits.transmissionFloor), y: CGFloat(limits.highlightStart),
                      z: CGFloat(limits.highlightEnd), w: CGFloat(limits.maximumOutput)),
-            vector(limits.maximumGain)
+            vector(limits.maximumGain), vector(plan.channelRecoverability)
         ])
         guard let output else { throw RestorationError.kernelUnavailable }
         return output.cropped(to: image.extent)
@@ -131,5 +138,16 @@ final class RestorationEngine {
 
     private func vector(_ value: SIMD3<Float>) -> CIVector {
         CIVector(x: CGFloat(value.x), y: CGFloat(value.y), z: CGFloat(value.z), w: 0)
+    }
+
+    func combined(_ image: CIImage, plan: RestorationPlan, settings: FilterSettings,
+                  filter: FilterEngine) throws -> CIImage {
+        let current = filter.apply(image, settings: settings)
+        let amount = min(1, max(0, settings.intensity))
+        guard settings.preset != .original, amount > 0 else { return image }
+        let physicallyRestored = try restore(image, plan: plan)
+        let finished = filter.finishing(physicallyRestored, settings: settings)
+        let depthAware = filter.blend(image, finished, amount: amount)
+        return filter.blend(current, depthAware, amount: plan.confidence)
     }
 }
