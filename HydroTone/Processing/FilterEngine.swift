@@ -50,6 +50,11 @@ final class FilterEngine: @unchecked Sendable {
     func apply(_ image: CIImage, settings: FilterSettings) -> CIImage {
         let amount = min(1, max(0, settings.intensity))
         guard settings.preset != .original, amount > 0 else { return image }
+        return blend(image, finishing(image, settings: settings), amount: amount)
+    }
+    /// Applies a preset at full strength. Callers choose what the final intensity blends against.
+    func finishing(_ image: CIImage, settings: FilterSettings) -> CIImage {
+        guard settings.preset != .original else { return image }
         let analysis = settings.analysis
         let restore = CGFloat(settings.preset.restoration * min(0.9, max(0, analysis.redLoss)))
         // Convex channel reconstruction protects neutral whites and avoids amplifying red noise.
@@ -78,12 +83,15 @@ final class FilterEngine: @unchecked Sendable {
             exposure.ev = min(0.12, max(0, analysis.exposure))
             corrected = exposure.outputImage ?? corrected
         }
-        // Dissolve interpolates complete results: 0 is exactly the source, 1 the preset.
+        return corrected.cropped(to: image.extent)
+    }
+    func blend(_ source: CIImage, _ target: CIImage, amount: Float) -> CIImage {
+        // Dissolve interpolates complete results: 0 is exactly the source, 1 the target.
         let blend = CIFilter.dissolveTransition()
-        blend.inputImage = image
-        blend.targetImage = corrected
-        blend.time = amount
-        return (blend.outputImage ?? image).cropped(to: image.extent)
+        blend.inputImage = source
+        blend.targetImage = target
+        blend.time = min(1, max(0, amount))
+        return (blend.outputImage ?? source).cropped(to: source.extent)
     }
     func sdr(_ image: CIImage) -> CIImage {
         guard image.contentHeadroom > 1 else { return image }
