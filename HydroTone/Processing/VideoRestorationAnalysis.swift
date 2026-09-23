@@ -121,6 +121,9 @@ actor VideoRestorationAnalyzer {
         #if DEBUG
         logger.debug("samples=\(plans.count) workload=\(source.workload.rawValue, privacy: .public) previewDepth=\(previewPolicy.depthMapMaxDimension) exportDepth=\(exportPolicy.depthMapMaxDimension) exportCadence=\(exportPolicy.depthInferencesPerSecond) opticalFlow=\(exportPolicy.useOpticalFlow)")
         #endif
+        Task.detached(priority: .utility) {
+            await self.profiler.completeBenchmarkIfNeeded(representativeImage: representativeImage)
+        }
         return VideoRestorationAnalysis(legacyAnalysis: .median(legacySamples), representativeFrame: representative,
                                         representativeTime: representativeTime, samplePlans: plans,
                                         initialEnvironment: environment, deviceProfile: device,

@@ -50,6 +50,7 @@ actor DeviceCapabilityProfiler {
     }
     private static let cacheKey = "HydroTone.VideoV2.DeviceProfile.v1"
     private let defaults: UserDefaults
+    private var benchmarkInProgress = false
     #if DEBUG
     private let logger = Logger(subsystem: "com.hydrotone.app", category: "video-policy")
     #endif
@@ -65,17 +66,13 @@ actor DeviceCapabilityProfiler {
         }
         let metal = MTLCreateSystemDefaultDevice()
         var timings: [DepthComputePolicy: Double] = [:]
-        for policy in DepthComputePolicy.allCases {
-            do {
-                let estimate = try await DepthEstimator(computeUnits: policy.coreML).monocularDepth(for: representativeImage)
-                if let milliseconds = estimate.inferenceMilliseconds, milliseconds.isFinite {
-                    timings[policy] = milliseconds
-                }
-            } catch {
-                continue
-            }
+        if let estimate = try? await DepthEstimator(computeUnits: MLComputeUnits.all).monocularDepth(for: representativeImage),
+           let milliseconds = estimate.inferenceMilliseconds, milliseconds.isFinite {
+            timings[.all] = milliseconds
         }
-        let preferred = timings.min(by: { $0.value < $1.value })?.key ?? .all
+        // The first clip uses this safe provisional result. The second compute mode is
+        // measured after preview analysis so model loading never blocks the first image.
+        let preferred = DepthComputePolicy.all
         let measured = timings[preferred]
         let memory = ProcessInfo.processInfo.physicalMemory
         let performance: DevicePerformanceClass
@@ -97,6 +94,42 @@ actor DeviceCapabilityProfiler {
         logger.debug("class=\(performance.rawValue, privacy: .public) compute=\(preferred.rawValue, privacy: .public) inferenceMS=\(measured ?? -1) metalDynamic=\(result.supportsDynamicMetalLibraries)")
         #endif
         return result
+    }
+
+    func completeBenchmarkIfNeeded(representativeImage: CIImage) async {
+        guard !benchmarkInProgress else { return }
+        benchmarkInProgress = true
+        defer { benchmarkInProgress = false }
+        let major = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        guard let data = defaults.data(forKey: Self.cacheKey),
+              let cached = try? JSONDecoder().decode(Cache.self, from: data),
+              cached.systemMajorVersion == major,
+              cached.profile.neuralEngineMilliseconds == nil else { return }
+        guard let estimate = try? await DepthEstimator(computeUnits: MLComputeUnits.cpuAndNeuralEngine)
+            .monocularDepth(for: representativeImage),
+              let neural = estimate.inferenceMilliseconds, neural.isFinite else { return }
+        let all = cached.profile.allComputeMilliseconds
+        let preferred: DepthComputePolicy = all.map { neural < $0 ? .cpuAndNeuralEngine : .all } ?? .cpuAndNeuralEngine
+        let measured = preferred == .cpuAndNeuralEngine ? neural : all
+        let performance: DevicePerformanceClass
+        if let measured, measured < 45, cached.profile.physicalMemoryBytes >= 5_000_000_000 { performance = .high }
+        else if let measured, measured < 90, cached.profile.physicalMemoryBytes >= 3_000_000_000 { performance = .balanced }
+        else { performance = .conservative }
+        let updated = DeviceCapabilityProfile(
+            performanceClass: performance, preferredComputePolicy: preferred,
+            measuredDepthMilliseconds: measured, allComputeMilliseconds: all,
+            neuralEngineMilliseconds: neural,
+            supportsDynamicMetalLibraries: cached.profile.supportsDynamicMetalLibraries,
+            supportsHardwareHEVCDecode: cached.profile.supportsHardwareHEVCDecode,
+            supportsHardwareHEVCEncode: cached.profile.supportsHardwareHEVCEncode,
+            physicalMemoryBytes: cached.profile.physicalMemoryBytes,
+            cacheVersion: cached.profile.cacheVersion)
+        if let encoded = try? JSONEncoder().encode(Cache(systemMajorVersion: major, profile: updated)) {
+            defaults.set(encoded, forKey: Self.cacheKey)
+        }
+        #if DEBUG
+        logger.debug("background-benchmark allMS=\(all ?? -1) neuralMS=\(neural) selected=\(preferred.rawValue, privacy: .public)")
+        #endif
     }
 }
 

@@ -17,7 +17,9 @@ A reused Metal-backed CIContext works in extended linear Rec.2020 with half-floa
 
 The automatic estimator samples a small float thumbnail, omits very dark/bright values, measures channel imbalance, luminance distribution and saturation, and bounds restoration. Red reconstruction is a convex combination of existing channels rather than a large red multiplier. Neutral whites remain neutral under red restoration. Presets use conservative vibrance and warmth. Intensity dissolves the complete original/corrected results, with exact zero/original behavior.
 
-Video samples five scenes once and uses median analysis for the entire clip. No per-frame auto white balance or exposure estimation is performed. The same filter settings and engine drive preview and export. Real underwater scene tuning remains a physical-media QA task.
+Video samples five scenes at 10/30/50/70/90 percent to establish a robust, confidence-weighted restoration environment. Preview uses an immutable timestamp-indexed five-sample plan so its asynchronous composition callback contains no mutable temporal state. Export retains the sequential reader/writer architecture and owns a `TemporalRestorationSession` that performs Depth Anything inference at a policy-selected cadence, smoothly propagates low-resolution depth, and applies time-based smoothing to water parameters. It never independently applies unsmoothed frame parameters.
+
+`DeviceCapabilityProfile`, `VideoSourceProfile`, `RuntimeSystemState` and `ProcessingPolicy` control analysis cost only. Restoration confidence is separately gated by depth confidence, water-fit confidence, temporal confidence and per-channel recoverability. Thermal adaptation can lower future analysis cadence, but cannot alter output resolution, frame rate or SDR/HDR selection. Optical flow is not used in the first Video V2 path; its quality/cost must be demonstrated before adoption.
 
 ## Video
 

@@ -49,15 +49,20 @@ final class EditorModel {
                 previewSettings.update(settings, comparing: comparing)
                 player = AVPlayer(playerItem: try await videoPreview.item(media.url, settings: previewSettings))
                 ready = true
+                // Show the existing HydroTone preview immediately. Device benchmarking and
+                // depth analysis may continue without keeping the editor behind "Opening…".
+                loading = false
                 capability = await ExportCapability.evaluate(url: media.url, metadata: metadata)
                 let analysis = try await videoPreview.analyze(media.url, metadata: metadata)
                 videoAnalysis = analysis
                 settings.analysis = analysis.legacyAnalysis
                 previewSettings.update(settings, comparing: comparing)
                 if let item = player?.currentItem {
-                    item.videoComposition = try await videoPreview.composition(asset: item.asset,
-                                                                                settings: previewSettings,
-                                                                                analysis: analysis)
+                    let generation = previewGeneration.begin()
+                    let composition = try await videoPreview.composition(asset: item.asset,
+                                                                         settings: previewSettings,
+                                                                         analysis: analysis)
+                    if previewGeneration.accepts(generation) { item.videoComposition = composition }
                 }
             }
             ready = media.kind == .photo ? preview != nil : player != nil

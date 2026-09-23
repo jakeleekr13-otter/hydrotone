@@ -75,6 +75,9 @@ final class RestorationTests: XCTestCase {
     }
 
     func testBundledDepthModelProducesCompactFiniteDepth() async throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Depth Anything's compressed MPSGraph backend requires a physical Apple device")
+        #else
         let foreground = CIImage(color: CIColor(red: 0.8, green: 0.2, blue: 0.08))
             .cropped(to: CGRect(x: 70, y: 45, width: 180, height: 130))
         let background = CIImage(color: CIColor(red: 0.05, green: 0.42, blue: 0.65))
@@ -86,6 +89,8 @@ final class RestorationTests: XCTestCase {
         XCTAssertEqual(estimate.map.values.count, 518 * 392)
         XCTAssertTrue(estimate.map.values.allSatisfy { $0.isFinite && $0 >= 0 && $0 <= 1 })
         XCTAssertNotNil(estimate.inferenceMilliseconds)
+        print("Depth Anything physical inference: \(estimate.inferenceMilliseconds ?? -1) ms")
+        #endif
     }
 
     private func assertEqual(_ lhs: SIMD3<Float>, _ rhs: SIMD3<Float>, accuracy: Float,
@@ -93,4 +98,3 @@ final class RestorationTests: XCTestCase {
         for channel in 0..<3 { XCTAssertEqual(lhs[channel], rhs[channel], accuracy: accuracy, file: file, line: line) }
     }
 }
-

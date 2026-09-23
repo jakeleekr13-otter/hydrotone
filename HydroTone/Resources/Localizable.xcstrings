@@ -223,7 +223,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "다이빙의 색을\n되찾으세요."
+            "value": "수중 촬영물의 잃어버린 색을\n찾으세요."
           }
         },
         "ja": {
@@ -1833,7 +1833,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "수중 사진과 동영상에 자연스러운 색을 되찾아 줍니다."
+            "value": "수중 촬영물에 자연스러운 색을 되찾아 줍니다."
           }
         },
         "ja": {

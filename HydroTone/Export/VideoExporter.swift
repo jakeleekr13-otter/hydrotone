@@ -13,10 +13,14 @@ actor VideoExporter {
     private let engine = FilterEngine()
     private let restorationEngine = RestorationEngine()
     private let signposter = OSSignposter(subsystem: "com.hydrotone.app", category: "export")
+    #if DEBUG
+    private let logger = Logger(subsystem: "com.hydrotone.app", category: "video-performance")
+    #endif
     func export(url: URL, metadata: VideoMetadata, settings: FilterSettings, options: ExportOptions,
                 restorationAnalysis: VideoRestorationAnalysis? = nil,
                 progress: @escaping @Sendable (Double) async -> Void) async throws -> VideoExportResult {
         let interval = signposter.beginInterval("Video export")
+        let startedAt = Date()
         defer { signposter.endInterval("Video export", interval) }
         guard ProcessInfo.processInfo.thermalState != .critical else { throw Failure(kind: .thermal, domain: "HydroTone", code: 0) }
         try Task.checkCancellation()
@@ -168,6 +172,10 @@ actor VideoExporter {
         guard writer.status == .completed else { throw writer.error ?? HydroError.exportFailed }
         let result = try await OutputValidator().validate(target, source: metadata, options: options, expectedFrames: frames)
         await progress(1)
+        #if DEBUG
+        let elapsed = max(0.001, Date().timeIntervalSince(startedAt))
+        logger.debug("frames=\(frames) seconds=\(elapsed) exportFPS=\(Double(frames) / elapsed) millisecondsPerFrame=\(elapsed * 1000 / Double(max(1, frames)))")
+        #endif
         succeeded = true
         return VideoExportResult(url: target, metadata: result, frames: frames)
     }

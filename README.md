@@ -9,8 +9,9 @@ Open **HydroTone.xcodeproj**, select the **HydroTone** scheme and an iPhone simu
 - Import photos/videos with the system Photos picker; broad library access is not requested.
 - Original, Natural Dive, Restore Red, Clear Water, Tropical and Deep Dive presets; 0–100% intensity and an explicit Compare control.
 - Photo preview and export share the same engine. JPEG/HEIC input; full-resolution, orientation-normalized Display P3 SDR JPEG output. Capture dates are retained; stale thumbnails, gain maps and location metadata are not copied.
-- Video analysis samples five representative scenes and produces one fixed correction model for the entire clip. Users apply a filter to the whole video; there is no frame-editing workflow.
+- Video V2 samples five representative scenes to initialize a restoration environment, then performs policy-controlled low-resolution depth inference during sequential export. Depth and water parameters are stabilized over time with confidence-controlled fallback to the original HydroTone correction; no per-frame independent auto correction is applied.
 - Sequential GPU-assisted export preserves presentation timestamps and every supported audio track, supports source resolution/4K and optional 1080p without upscaling, and validates the output before offering Save to Photos.
+- A cached device/source processing policy selects analysis-map size and roughly 2–5 depth keyframes per second without changing the requested resolution, frame rate or dynamic range. Optical flow is intentionally not enabled in the initial Video V2 path.
 - SDR is the default. HDR sources are tone mapped by Apple's compositor for SDR output. HDR export preserves HLG or PQ in HEVC Main10 with Rec.2020 signaling. No Dolby Vision output claims are made.
 - The video editor deliberately shows SDR, including a labeled tone-mapped preview for HDR sources. Native EDR preview and HDR photo output are unavailable.
 - HDR export is offered only after a small actual export/validation succeeds for that source on the iPhone. Simulator UI conservatively disables HDR; the automated tests exercise the real 10-bit pipeline independently.

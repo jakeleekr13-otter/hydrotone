@@ -10,13 +10,14 @@ actor DepthEstimator {
 
     private let context: CIContext
     private let computeUnits: MLComputeUnits
-    private var model: MLModel?
+    private let modelStore: DepthModelStore
     #if DEBUG
     private let logger = Logger(subsystem: "com.hydrotone.app", category: "photo-depth")
     #endif
 
-    init(computeUnits: MLComputeUnits = .all) {
+    init(computeUnits: MLComputeUnits = .all, modelStore: DepthModelStore = .shared) {
         self.computeUnits = computeUnits
+        self.modelStore = modelStore
         let options: [CIContextOption: Any] = [.cacheIntermediates: false]
         if let device = MTLCreateSystemDefaultDevice() {
             context = CIContext(mtlDevice: device, options: options)
@@ -48,7 +49,7 @@ actor DepthEstimator {
         context.render(resized, to: input, bounds: CGRect(origin: .zero, size: Self.modelSize),
                        colorSpace: CGColorSpace(name: CGColorSpace.sRGB))
 
-        let loaded = try await loadModel()
+        let loaded = try await modelStore.model(computeUnits: computeUnits)
         let provider = try MLDictionaryFeatureProvider(dictionary: ["image": MLFeatureValue(pixelBuffer: input)])
         let start = ContinuousClock.now
         let prediction = try await loaded.prediction(from: provider)
@@ -61,19 +62,6 @@ actor DepthEstimator {
         // Depth Anything V2's relative output is inverse-depth-like: larger values are nearer.
         return try normalize(buffer: buffer, source: .monocular, fartherIsLarger: false,
                              baseConfidence: 0.72, inferenceMilliseconds: milliseconds)
-    }
-
-    private func loadModel() async throws -> MLModel {
-        if let model { return model }
-        let bundles = [Bundle(for: ModelBundleToken.self), .main]
-        guard let url = bundles.compactMap({ $0.url(forResource: "DepthAnythingV2SmallF16P6", withExtension: "mlmodelc") }).first else {
-            throw RestorationError.missingModel
-        }
-        let configuration = MLModelConfiguration()
-        configuration.computeUnits = computeUnits
-        let loaded = try await MLModel.load(contentsOf: url, configuration: configuration)
-        model = loaded
-        return loaded
     }
 
     private func embeddedDepth(from url: URL) throws -> DepthEstimate? {
@@ -183,6 +171,27 @@ actor DepthEstimator {
         let timing = estimate.inferenceMilliseconds.map { String(format: "%.2fms", $0) } ?? "embedded"
         logger.debug("source=\(estimate.source.rawValue, privacy: .public) inference=\(timing, privacy: .public) min=\(estimate.statistics.minimum) max=\(estimate.statistics.maximum) median=\(estimate.statistics.median) confidence=\(estimate.confidence)")
         #endif
+    }
+}
+
+actor DepthModelStore {
+    static let shared = DepthModelStore()
+    private var allModel: MLModel?
+    private var neuralEngineModel: MLModel?
+
+    func model(computeUnits: MLComputeUnits) async throws -> MLModel {
+        if computeUnits == .cpuAndNeuralEngine, let neuralEngineModel { return neuralEngineModel }
+        if computeUnits != .cpuAndNeuralEngine, let allModel { return allModel }
+        let bundles = [Bundle(for: ModelBundleToken.self), .main]
+        guard let url = bundles.compactMap({ $0.url(forResource: "DepthAnythingV2SmallF16P6", withExtension: "mlmodelc") }).first else {
+            throw RestorationError.missingModel
+        }
+        let configuration = MLModelConfiguration()
+        configuration.computeUnits = computeUnits
+        let loaded = try await MLModel.load(contentsOf: url, configuration: configuration)
+        if computeUnits == .cpuAndNeuralEngine { neuralEngineModel = loaded }
+        else { allModel = loaded }
+        return loaded
     }
 }
 

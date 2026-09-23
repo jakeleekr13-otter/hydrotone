@@ -13,6 +13,7 @@ Status reflects automated tests in this repository. “Device QA” is deliberat
 | Orientation | Portrait metadata is baked; output transform is identity; source/output pixels compared | Automated pass |
 | Cancellation | Before start and during export; no partial output remains | Automated pass |
 | Long export | Two-minute 3,600-frame sequential export; bounded post-warmup memory after output-pool cap | Automated pass |
+| Video V2 logic | Device/source policy separation; thermal analysis degradation; per-channel confidence; persistent environment reset; false-reset suppression; timestamp plan lookup; stale preview rejection | Automated pass |
 | HDR input/output | HLG and PQ 10-bit detection; HDR→SDR; HLG/PQ Main10 signaling; highlight values above SDR white | Automated pass on simulator codecs |
 | Dolby Vision | No output claim; base HDR compatibility only | Device QA required |
 | Trial | One photo; one video; 10 seconds; rollback after failure/interruption; real Keychain round trip | Automated pass |
@@ -29,6 +30,7 @@ Run these before an App Store release:
 - GoPro, DJI Osmo Action and Insta360 samples: H.264/HEVC, 8/10-bit, 1080p/4K, 30/60 fps, portrait/landscape, variable timing, with/without audio.
 - iPhone HLG/Dolby Vision, external-camera HLG/HDR10 and unusual compatible Dolby Vision clips. Inspect every result in Photos, QuickTime/AVAsset and a metadata tool. Confirm HydroTone never labels output Dolby Vision.
 - Multi-minute and long 4K exports on the oldest supported iPhone. Measure peak memory, thermal behavior, sustained frame rate and free-space estimates with Instruments.
+- Run the dedicated [Video V2 real-world matrix](VideoV2QA.md); specifically inspect temporal color pumping, depth-map popping and environment transitions.
 - Background, lock, phone call, memory warning, thermal critical, disk-full and Photos permission-denied flows. Confirm cleanup and trial rollback.
 - VoiceOver, Dynamic Type accessibility sizes, landscape layout, long Japanese/Chinese strings and every supported language in pseudolocalization.
 - Real App Store sandbox: not purchased, buy, cancel, Ask to Buy/pending, interrupted transaction, restore, refund/revocation and offline StoreKit.

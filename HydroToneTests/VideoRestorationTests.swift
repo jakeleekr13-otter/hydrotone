@@ -1,5 +1,6 @@
 import XCTest
 import CoreImage
+import AVFoundation
 @testable import HydroTone
 
 final class VideoRestorationTests: XCTestCase {
@@ -81,6 +82,68 @@ final class VideoRestorationTests: XCTestCase {
         var generation = PreviewGeneration()
         let a = generation.begin(), b = generation.begin(), c = generation.begin()
         XCTAssertFalse(generation.accepts(a)); XCTAssertFalse(generation.accepts(b)); XCTAssertTrue(generation.accepts(c))
+    }
+
+    func testPresetAndIntensityRefreshCreateFreshVideoComposition() async throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
+        let asset = AVURLAsset(url: url)
+        let settings = PreviewSettings()
+        settings.update(.init(preset: .natural, intensity: 0.4), comparing: false)
+        let first = try await VideoPreview().composition(asset: asset, settings: settings)
+        settings.update(.init(preset: .deep, intensity: 0.9), comparing: false)
+        let second = try await VideoPreview().composition(asset: asset, settings: settings)
+        XCTAssertFalse(first === second, "A preset revision must invalidate AVPlayer's rendered-frame cache")
+    }
+
+    func testVideoExportContinuesWhenPhysicalAnalysisIsUnavailable() async throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
+        let metadata = try await MediaInspector().inspect(url)
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        let representative = try await generator.image(at: .zero).image
+        let sourceProfile = VideoSourceProfile.make(url: url, metadata: metadata)
+        let fallbackAnalysis = VideoRestorationAnalysis(
+            legacyAnalysis: .init(redLoss: 0.6), representativeFrame: representative,
+            representativeTime: 0, samplePlans: [], initialEnvironment: nil,
+            deviceProfile: device(.conservative, milliseconds: 120), sourceProfile: sourceProfile,
+            previewPolicy: policy(.preview), exportPolicy: policy(.export))
+        let started = Date()
+        let result = try await VideoExporter().export(url: url, metadata: metadata,
+            settings: .init(preset: .natural, intensity: 0.8, analysis: fallbackAnalysis.legacyAnalysis),
+            options: .init(), restorationAnalysis: fallbackAnalysis) { _ in }
+        defer { TemporaryFiles.remove(result.url) }
+        XCTAssertGreaterThan(result.frames, 0)
+        XCTAssertEqual(result.metadata.audioTrackCount, metadata.audioTrackCount)
+        XCTAssertEqual(result.metadata.displaySize, metadata.displaySize)
+        let elapsed = max(0.001, Date().timeIntervalSince(started))
+        print("Video V2 integration export: \(result.frames) frames in \(elapsed)s (\(Double(result.frames) / elapsed) fps)")
+    }
+
+    func testFiveFrameAnalyzerOnPhysicalDevice() async throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Compressed Depth Anything analysis requires a physical Apple device")
+        #else
+        let suite = "HydroTone.VideoV2.Tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
+        let metadata = try await MediaInspector().inspect(url)
+        let profiler = DeviceCapabilityProfiler(defaults: defaults)
+        let analyzer = VideoRestorationAnalyzer(profiler: profiler)
+        let started = Date()
+        let analysis = try await analyzer.analyze(url: url, metadata: metadata)
+        XCTAssertEqual(analysis.samplePlans.count, 5)
+        XCTAssertNotNil(analysis.initialEnvironment)
+        XCTAssertFalse(analysis.exportPolicy.useOpticalFlow)
+        XCTAssertTrue((2...5).contains(analysis.exportPolicy.depthInferencesPerSecond))
+        var completedProfile = analysis.deviceProfile
+        for _ in 0..<120 where completedProfile.neuralEngineMilliseconds == nil {
+            try await Task.sleep(for: .milliseconds(50))
+            completedProfile = await profiler.profile(representativeImage: CIImage(cgImage: analysis.representativeFrame))
+        }
+        XCTAssertNotNil(completedProfile.neuralEngineMilliseconds)
+        print("Video V2 five-frame analysis: \(Date().timeIntervalSince(started))s; all=\(completedProfile.allComputeMilliseconds ?? -1)ms neural=\(completedProfile.neuralEngineMilliseconds ?? -1)ms selected=\(completedProfile.preferredComputePolicy.rawValue)")
+        #endif
     }
 
     private func makePlan(depth: Float, confidence: Float,

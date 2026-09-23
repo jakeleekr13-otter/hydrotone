@@ -75,6 +75,7 @@ final class TemporalRestorationSession {
     private var lastFrameTime: Double?
     private var lastInferenceTime: Double?
     private var nextInferenceTime: Double = 0
+    private var nextEnvironmentCheckTime: Double = 0
     private var lastThermalState: RuntimeThermalState
     private var inferenceCount = 0
     #if DEBUG
@@ -137,7 +138,11 @@ final class TemporalRestorationSession {
             let depthDifference = difference(currentDepth, depth.map)
             let newTemporalConfidence = max(0.2, min(1, exp(-depthDifference * 3)))
             let signature = makeSignature(image: analysisImage, plan: candidate)
-            let environmentChanged = detector.observe(signature)
+            let environmentChanged: Bool
+            if time + 0.0001 >= nextEnvironmentCheckTime {
+                environmentChanged = detector.observe(signature)
+                nextEnvironmentCheckTime = time + 1 / max(0.25, policy.environmentChecksPerSecond)
+            } else { environmentChanged = false }
             let delta = parameterDistance(candidate)
             let elapsed = max(0.001, time - (lastInferenceTime ?? time - interval))
             var alpha = Float(1 - exp(-elapsed / 1.25)) * max(0.15, candidate.confidence)
