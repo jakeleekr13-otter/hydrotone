@@ -6,3 +6,5 @@ DerivedData/
 xcuserdata/
 .DS_Store
 TestResults/
+HydroToneTests/Fixtures/developersfile/
+AppStoreAssets/Builds/

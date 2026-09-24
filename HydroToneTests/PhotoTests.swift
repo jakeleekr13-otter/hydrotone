@@ -6,6 +6,9 @@ import UniformTypeIdentifiers
 
 final class PhotoTests: XCTestCase {
     let engine = FilterEngine()
+    func testPresetListStaysCompactAndDistinct() {
+        XCTAssertEqual(DivePreset.allCases, [.original, .natural, .tropical, .deep])
+    }
     func pixel(_ image: CIImage) -> [Float] {
         var result = [Float](repeating: 0, count: 4)
         engine.context.render(image, toBitmap: &result, rowBytes: 16, bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
@@ -16,9 +19,9 @@ final class PhotoTests: XCTestCase {
         let analysis = engine.analyze(image)
         XCTAssertGreaterThan(analysis.redLoss, 0.5)
         let original = pixel(image)
-        let zero = pixel(engine.apply(image, settings: .init(preset: .red, intensity: 0, analysis: analysis)))
-        let full = pixel(engine.apply(image, settings: .init(preset: .red, intensity: 1, analysis: analysis)))
-        let half = pixel(engine.apply(image, settings: .init(preset: .red, intensity: 0.5, analysis: analysis)))
+        let zero = pixel(engine.apply(image, settings: .init(preset: .deep, intensity: 0, analysis: analysis)))
+        let full = pixel(engine.apply(image, settings: .init(preset: .deep, intensity: 1, analysis: analysis)))
+        let half = pixel(engine.apply(image, settings: .init(preset: .deep, intensity: 0.5, analysis: analysis)))
         for i in 0..<3 {
             XCTAssertEqual(zero[i], original[i], accuracy: 0.001)
             XCTAssertEqual(half[i], (original[i] + full[i]) / 2, accuracy: 0.003)
@@ -28,7 +31,7 @@ final class PhotoTests: XCTestCase {
     func testNeutralWhiteAndBlackStayNeutral() {
         for level: CGFloat in [0, 0.5, 1] {
             let source = CIImage(color: CIColor(red: level, green: level, blue: level)).cropped(to: CGRect(x: 0, y: 0, width: 48, height: 48))
-            let corrected = pixel(engine.apply(source, settings: .init(preset: .red, intensity: 1, analysis: engine.analyze(source))))
+            let corrected = pixel(engine.apply(source, settings: .init(preset: .deep, intensity: 1, analysis: engine.analyze(source))))
             XCTAssertEqual(corrected[0], corrected[1], accuracy: 0.002)
             XCTAssertEqual(corrected[1], corrected[2], accuracy: 0.002)
         }

@@ -289,6 +289,7 @@
 				DEVELOPMENT_TEAM = M3HJ7YK7N7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HydroTone;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save your finished photos and videos to your library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -300,6 +301,8 @@
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_VERSION = 5.0;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
@@ -324,15 +327,20 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
-				DEBUG_INFORMATION_FORMAT = dwarf;
+				COPY_PHASE_STRIP = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_TESTABILITY = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -347,6 +355,7 @@
 				DEVELOPMENT_TEAM = M3HJ7YK7N7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HydroTone;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save your finished photos and videos to your library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -358,6 +367,8 @@
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_VERSION = 5.0;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;

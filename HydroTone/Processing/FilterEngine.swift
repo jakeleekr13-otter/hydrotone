@@ -4,15 +4,15 @@ import Metal
 
 // Immutable settings are shared by preview and export. Analysis never changes per video frame.
 enum DivePreset: String, CaseIterable, Identifiable, Sendable {
-    case original = "Original", natural = "Natural Dive", red = "Restore Red"
-    case clear = "Clear Water", tropical = "Tropical", deep = "Deep Dive"
+    case original = "Original", natural = "Natural Dive"
+    case tropical = "Tropical", deep = "Deep Dive"
     var id: String { rawValue }
     var localizedName: String { String(localized: String.LocalizationValue(rawValue)) }
     var restoration: Float {
-        switch self { case .original: 0; case .natural: 0.45; case .red: 0.72; case .clear: 0.36; case .tropical: 0.42; case .deep: 0.82 }
+        switch self { case .original: 0; case .natural: 0.45; case .tropical: 0.42; case .deep: 0.82 }
     }
     var vibrance: Float {
-        switch self { case .original: 0; case .natural: 0.10; case .red: 0.06; case .clear: 0.13; case .tropical: 0.22; case .deep: 0.10 }
+        switch self { case .original: 0; case .natural: 0.10; case .tropical: 0.22; case .deep: 0.10 }
     }
 }
 struct WaterAnalysis: Sendable, Equatable {
@@ -77,12 +77,6 @@ final class FilterEngine: @unchecked Sendable {
         vibrance.inputImage = corrected
         vibrance.amount = settings.preset.vibrance * max(0.3, 1 - analysis.saturation)
         corrected = vibrance.outputImage ?? corrected
-        if settings.preset == .clear {
-            let exposure = CIFilter.exposureAdjust()
-            exposure.inputImage = corrected
-            exposure.ev = min(0.12, max(0, analysis.exposure))
-            corrected = exposure.outputImage ?? corrected
-        }
         return corrected.cropped(to: image.extent)
     }
     func blend(_ source: CIImage, _ target: CIImage, amount: Float) -> CIImage {

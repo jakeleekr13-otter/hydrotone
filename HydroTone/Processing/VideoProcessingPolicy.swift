@@ -97,7 +97,10 @@ actor DeviceCapabilityProfiler {
     }
 
     func completeBenchmarkIfNeeded(representativeImage: CIImage) async {
-        guard !benchmarkInProgress else { return }
+        if benchmarkInProgress {
+            while benchmarkInProgress { try? await Task.sleep(for: .milliseconds(50)) }
+            return
+        }
         benchmarkInProgress = true
         defer { benchmarkInProgress = false }
         let major = ProcessInfo.processInfo.operatingSystemVersion.majorVersion

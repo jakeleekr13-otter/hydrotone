@@ -7,7 +7,7 @@ Open **HydroTone.xcodeproj**, select the **HydroTone** scheme and an iPhone simu
 ## Current behavior
 
 - Import photos/videos with the system Photos picker; broad library access is not requested.
-- Original, Natural Dive, Restore Red, Clear Water, Tropical and Deep Dive presets; 0–100% intensity and an explicit Compare control.
+- Original, Natural Dive, Tropical and Deep Dive presets; 0–100% intensity and an explicit Compare control.
 - Photo preview and export share the same engine. JPEG/HEIC input; full-resolution, orientation-normalized Display P3 SDR JPEG output. Capture dates are retained; stale thumbnails, gain maps and location metadata are not copied.
 - Video V2 samples five representative scenes to initialize a restoration environment, then performs policy-controlled low-resolution depth inference during sequential export. Depth and water parameters are stabilized over time with confidence-controlled fallback to the original HydroTone correction; no per-frame independent auto correction is applied.
 - Sequential GPU-assisted export preserves presentation timestamps and every supported audio track, supports source resolution/4K and optional 1080p without upscaling, and validates the output before offering Save to Photos.

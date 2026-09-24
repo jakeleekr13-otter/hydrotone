@@ -13,8 +13,8 @@ final class HydroToneUITests: XCTestCase {
             XCTFail("Photo picker contents: \(app.debugDescription)"); return
         }
         cell.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        XCTAssertTrue(app.buttons["Restore Red"].waitForExistence(timeout: 15))
-        app.buttons["Restore Red"].tap()
+        XCTAssertTrue(app.buttons["Deep Dive"].waitForExistence(timeout: 15))
+        app.buttons["Deep Dive"].tap()
         app.buttons["Compare"].tap()
         app.buttons["Compare"].tap()
         let screenshot = XCTAttachment(screenshot: app.screenshot())

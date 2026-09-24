@@ -12,6 +12,8 @@ The current implementation follows Apple's native diagnostics path without addin
 - MetricKit receives Apple's crash, hang, CPU, disk-write, energy and performance reports. Reports stay local, are capped at one MiB each, and are pruned to six reports/seven days.
 - The Diagnostics screen explains the report, prepares it only when requested, lets the user inspect/share it with the system share sheet, and lets the user delete it. No report is uploaded automatically.
 - TestFlight/App Store crash reports remain available through Xcode Organizer when the user shares diagnostics with Apple. Release archives and dSYMs must be retained for symbolication.
+- TestFlight crash reports are shared automatically with the developer. App Store crash availability depends on the customer's analytics-sharing setting. These reports are reviewed in Xcode Organizer rather than delivered as HydroTone support email.
+- The in-app diagnostic JSON is never sent automatically. The user explicitly chooses Mail or another destination from the system share sheet.
 - `OSSignposter` measures video exports. The exporter cancels on critical thermal state or memory pressure and removes partial output.
 
 This is aligned with Apple's guidance to use Unified Logging with privacy controls, signposts for important intervals, MetricKit for on-device performance/diagnostic reports, and Xcode Organizer for symbolicated crash reports. The local report is an optional support aid; it does not replace Organizer crash reports or Instruments profiling.

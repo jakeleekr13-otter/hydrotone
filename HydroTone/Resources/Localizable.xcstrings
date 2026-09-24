@@ -386,41 +386,6 @@
         }
       }
     },
-    "Clear Water": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear Water"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "맑은 물"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "クリアウォーター"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "清澈水域"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "清澈水域"
-          }
-        }
-      }
-    },
     "Color": {
       "extractionState": "manual",
       "localizations": {
@@ -2377,41 +2342,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "回復購買"
-          }
-        }
-      }
-    },
-    "Restore Red": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore Red"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "붉은색 복원"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "赤色を復元"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "恢复红色"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "恢復紅色"
           }
         }
       }

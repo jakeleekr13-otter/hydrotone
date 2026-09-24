@@ -136,11 +136,9 @@ final class VideoRestorationTests: XCTestCase {
         XCTAssertNotNil(analysis.initialEnvironment)
         XCTAssertFalse(analysis.exportPolicy.useOpticalFlow)
         XCTAssertTrue((2...5).contains(analysis.exportPolicy.depthInferencesPerSecond))
-        var completedProfile = analysis.deviceProfile
-        for _ in 0..<120 where completedProfile.neuralEngineMilliseconds == nil {
-            try await Task.sleep(for: .milliseconds(50))
-            completedProfile = await profiler.profile(representativeImage: CIImage(cgImage: analysis.representativeFrame))
-        }
+        let representative = CIImage(cgImage: analysis.representativeFrame)
+        await profiler.completeBenchmarkIfNeeded(representativeImage: representative)
+        let completedProfile = await profiler.profile(representativeImage: representative)
         XCTAssertNotNil(completedProfile.neuralEngineMilliseconds)
         print("Video V2 five-frame analysis: \(Date().timeIntervalSince(started))s; all=\(completedProfile.allComputeMilliseconds ?? -1)ms neural=\(completedProfile.neuralEngineMilliseconds ?? -1)ms selected=\(completedProfile.preferredComputePolicy.rawValue)")
         #endif
