@@ -6,6 +6,7 @@ struct EditorView: View {
     @Environment(TrialStore.self) private var trial
     @Environment(\.scenePhase) private var scenePhase
     @State private var model: EditorModel
+    @State private var zoom = PreviewZoom()
     init(media: ImportedMedia, diagnostics: DiagnosticRecorder) { _model = State(initialValue: EditorModel(media: media, diagnostics: diagnostics)) }
     var body: some View {
         @Bindable var model = model
@@ -45,7 +46,8 @@ struct EditorView: View {
             Color.black
             if model.media.kind == .video { VideoPlayer(player: model.player) }
             else if let preview = model.comparing ? model.originalPreview : model.preview {
-                Image(decorative: preview, scale: 1).resizable().scaledToFit().accessibilityLabel("Photo preview")
+                // Compare swaps the image but keeps the zoom, so the same detail can be checked both ways.
+                ZoomablePreview(image: preview, zoom: $zoom) { model.requestDetailPreview() }
             }
             if model.loading {
                 if model.analyzing { ProgressView("Analyzing…") } else { ProgressView("Opening…") }

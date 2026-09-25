@@ -2556,6 +2556,41 @@
         }
       }
     },
+    "Pinch or double-tap to zoom.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pinch or double-tap to zoom."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "두 손가락으로 벌리거나 두 번 탭하여 확대합니다."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ピンチまたはダブルタップで拡大します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "双指张开或轻点两下即可缩放。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "雙指張開或點兩下即可縮放。"
+          }
+        }
+      }
+    },
     "Play 3s": {
       "extractionState": "manual",
       "localizations": {

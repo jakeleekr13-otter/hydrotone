@@ -9,6 +9,9 @@ final class EditorModel {
     var settings = FilterSettings()
     var preview: CGImage?
     var originalPreview: CGImage?
+    /// Long side of the photo preview. It doubles once the user zooms in, so fine detail stays sharp.
+    private(set) var previewMaxPixel: CGFloat = 1600
+    private var detailPreviewBlocked = false
     var comparing = false
     var player: AVPlayer?
     var clipPlaying = false
@@ -123,7 +126,7 @@ final class EditorModel {
             return
         }
         do {
-            let rendered = try await photos.preview(media.url, settings: settings, original: false)
+            let rendered = try await photos.preview(media.url, settings: settings, original: false, maxPixel: previewMaxPixel)
             try Task.checkCancellation()
             preview = rendered
             previewFailures = 0
@@ -275,9 +278,23 @@ final class EditorModel {
         previewPaused = false; previewFailures = 0
         await refreshPreview()
     }
+    /// Called when the photo preview is zoomed in: re-render both previews at twice the size, once.
+    func requestDetailPreview() {
+        guard media.kind == .photo, previewMaxPixel < 3200, !loading, !detailPreviewBlocked else { return }
+        previewMaxPixel = 3200
+        Task {
+            do {
+                originalPreview = try await photos.preview(media.url, settings: settings, original: true, maxPixel: previewMaxPixel)
+            } catch is CancellationError { } catch { report(error, operation: .preview) }
+            await refreshPreview()
+        }
+    }
     func memoryWarning() {
         let failure = Failure(kind: .memoryPressure, domain: "HydroTone", code: 0)
         Task { await diagnostics.record(failure, operation: .export) }
+        // Later previews go back to the standard size, for the rest of this edit; the current ones stay on screen.
+        previewMaxPixel = 1600
+        detailPreviewBlocked = true
         if exporting { cancellationNotice = failure.message; exportTask?.cancel() }
     }
     func playbackFailed(_ notification: Notification) {
