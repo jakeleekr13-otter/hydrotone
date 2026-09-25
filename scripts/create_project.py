@@ -27,17 +27,9 @@ for scope in ['project', 'app', 'tests', 'uitests']:
     configs[scope] = add(scope+'configlist',f'isa = XCConfigurationList; buildConfigurations = ({",".join(refs)},); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;')
 products=[]; groups=[]; targets=[]
 for scope,name,kind in [('app','HydroTone','application'),('tests','HydroToneTests','bundle.unit-test'),('uitests','HydroToneUITests','bundle.ui-testing')]:
+    # Developer media (UIEB, dive clips, market pairs) lives in DeveloperMedia/ at the repo root, outside every
+    # synchronized group. Anything under HydroToneTests/ ships in the test bundle, git-ignored or not.
     exceptions=''
-    if scope=='tests':
-        # Local-only photo samples (gitignored, ~1.4 GB) must never ship in the test bundle.
-        # Synchronized groups ignore folder paths and EXCLUDED_SOURCE_FILE_NAMES, so list each file.
-        samples=Path(name,'Fixtures/developersfile/samples')
-        files=sorted(str(f.relative_to(name)) for f in samples.rglob('*') if f.is_file()) if samples.is_dir() else []
-        if files:
-            listed=' '.join('"'+f.replace('\\','\\\\').replace('"','\\"')+'",' for f in files)
-            target=ident(scope+'target')
-            exception=add('testsexceptions',f'isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = ({listed}); target = {target};')
-            exceptions=f'exceptions = ({exception},); '
     group=add(scope+'group',f'isa = PBXFileSystemSynchronizedRootGroup; {exceptions}path = {name}; sourceTree = "<group>";')
     groups.append(group)
     ext='app' if scope=='app' else 'xctest'

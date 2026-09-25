@@ -1,16 +1,16 @@
 # Shared setup for the colour evaluation scripts (zsh). Source it; do not run it.
-# HT_EVAL_DATA     data root (UIEB, market pairs, real photos). Default: the git-ignored fixtures folder.
+# HT_EVAL_DATA     data root (UIEB, market pairs, real photos). Default: DeveloperMedia/ (git-ignored, outside every Xcode group).
 # HT_EVAL_SOURCES  folder with FilterEngine, RestorationPlan, RestorationEngine, WaterModelEstimator, DepthEstimator.
-# HT_EVAL_MARKET   market pairs (raw/, ref/). Default: scripts/color-eval/private/market (git-ignored).
+# HT_EVAL_MARKET   market pairs (raw/, ref/). Default: $HT_EVAL_DATA/market.
 # HT_EVAL_OUT      cache and results root. Default: $TMPDIR/hydrotone-color-eval. Never inside the repo.
 HERE=${0:A:h}
 REPO=${HERE:h:h}
-HT_EVAL_DATA=${HT_EVAL_DATA:-$REPO/HydroToneTests/Fixtures/developersfile}
+HT_EVAL_DATA=${HT_EVAL_DATA:-$REPO/DeveloperMedia}
 HT_EVAL_SOURCES=${HT_EVAL_SOURCES:-$REPO/HydroTone/Processing}
 HT_EVAL_OUT=${HT_EVAL_OUT:-${TMPDIR:-/tmp}/hydrotone-color-eval}
-# Market before/after pairs are private web images. Keep them OUTSIDE HydroToneTests/: that folder is a
-# synchronized Xcode group, and same-named files in raw/ and ref/ break build-for-testing.
-HT_EVAL_MARKET=${HT_EVAL_MARKET:-$HERE/private/market}
+# Keep all media OUTSIDE HydroToneTests/: that folder is a synchronized Xcode group, so even git-ignored
+# files there ship in the test bundle, and same-named files (raw/ vs ref/) break build-for-testing.
+HT_EVAL_MARKET=${HT_EVAL_MARKET:-$HT_EVAL_DATA/market}
 UIEB=$HT_EVAL_DATA/samples/photo
 MODEL=$HT_EVAL_OUT/cache/DepthAnythingV2SmallF16P6.mlmodelc
 export HT_EVAL_DATA

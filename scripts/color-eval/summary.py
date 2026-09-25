@@ -2,7 +2,7 @@ import csv, sys, statistics as st, math
 rows=list(csv.DictReader(open(sys.argv[1])))
 import os, json
 if len(sys.argv)>3:
-    data=os.environ.get("HT_EVAL_DATA", os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../HydroToneTests/Fixtures/developersfile"))
+    data=os.environ.get("HT_EVAL_DATA", os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../DeveloperMedia"))
     allf=sorted(f for f in os.listdir(os.path.join(data, "samples/photo/raw-890")) if f.lower().endswith((".png",".jpg",".jpeg")))
     keep={f for i,f in enumerate(allf) if (i%2==1)==(sys.argv[3]=="dev")}
     rows=[r for r in rows if r["image"] in keep]
