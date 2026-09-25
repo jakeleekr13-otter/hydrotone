@@ -1,4 +1,5 @@
 .build/
+.build-appstore/
 .build-release/
 .device-build*/
 DerivedData/

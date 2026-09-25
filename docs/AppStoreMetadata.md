@@ -22,7 +22,7 @@ Features:
 
 • Natural Dive, Tropical and Deep Dive looks
 • Depth-aware photo and video restoration
-• Stable video correction without per-frame colour flicker
+• Temporally stabilized video correction
 • Original-resolution and 4K video export with HydroTone Pro
 • SDR and supported HLG/PQ HDR video output
 • Original frame rate, timing, orientation and audio preservation
@@ -54,36 +54,21 @@ HydroTone은 레저 다이빙의 추억을 위한 앱이며 과학적 색 측정
 
 ## Keywords
 
-**English:** underwater,diving,photo,video,colour,restore,enhance,reef,ocean,scuba
+**English:** underwater,diving,scuba,snorkel,photo,video,color,colour,restore,enhance,reef,ocean,coral,marine
 
 **Korean:** 수중,다이빙,스쿠버,사진,영상,색보정,복원,바다,산호,필터
 
 ## Screenshot set
 
-Prepare five portrait screenshots at an accepted 6.9-inch size, preferably **1320 × 2868 px**, flattened RGB PNG/JPEG without alpha. One to ten screenshots are accepted; the largest iPhone set can be scaled down by App Store Connect.
+Five upload-ready English portrait screenshots are in `AppStoreAssets/Screenshots/en-US/final-v2`. They use the accepted 6.9-inch **1320 × 2868 px** size and are flattened RGB JPEGs without alpha.
 
-1. **Home / privacy**
-   - EN: `Bring back the dive.` / `Private processing on your iPhone.`
-   - KO: `수중 촬영의 색을 되찾다` / `모든 처리는 iPhone에서.`
-2. **Corrected underwater photo — Natural Dive**
-   - EN: `Natural colour, depth by depth.`
-   - KO: `거리와 깊이에 맞춘 자연스러운 색`
-3. **Compare control / original comparison**
-   - EN: `See the difference instantly.`
-   - KO: `원본과 바로 비교하세요`
-4. **Video editor using real underwater footage**
-   - EN: `Stable restoration for every frame.`
-   - KO: `영상 전체에 안정적인 복원`
-5. **Export options**
-   - EN: `Keep 4K, frame rate and supported HDR.`
-   - KO: `4K·프레임률·지원 HDR 유지`
+1. **Authentic before/after split** — `See the difference. Instantly.`
+2. **Deep Dive editor** — `Blue water. Clearer depth.`
+3. **Video editor** — `Stable colour. Frame after frame.`
+4. **Export options** — `Keep the quality you captured.`
+5. **Authentic video before/after** — `Video, before and after.`
 
-Optional sixth image:
-
-- EN: `No account. No cloud upload.`
-- KO: `계정도, 클라우드 업로드도 없습니다.`
-
-Use the local `developersfile` reef/diver media for screenshots, but do not include filenames, timestamps or personal details. Capture Original and corrected states from the same frame. Marketing layouts may add a headline and background, but the displayed app UI and results must remain authentic.
+The set uses the local developer-owned reef/diver media and actual HydroTone output. Original and corrected states come from the same frame; no generated or benchmark reference image is presented as app output. UIEB remains internal academic benchmark material only and must not be redistributed or used in App Store marketing.
 
 ## Optional app preview
 
@@ -93,11 +78,23 @@ An App Preview video isn't required for the first release. If produced later, sh
 
 **Display name:** HydroTone Pro
 
-**Description:** Unlock unlimited photo exports, full-length video, original-resolution 4K and supported HDR export with one purchase.
+**Description:** Unlimited photos, full video, 4K and HDR
 
-**Korean:** 일회성 구매로 사진 무제한, 전체 길이 영상, 원본 해상도 4K 및 지원 HDR 내보내기를 잠금 해제합니다.
+**Korean:** 사진·전체 영상·4K·HDR 무제한 내보내기
 
 The IAP review screenshot should show the HydroTone Pro screen with the one-time purchase wording, feature list, localised App Store price and Restore Purchase button. If a promoted-IAP image is used, prepare a flattened 1024 × 1024 RGB JPG/PNG without rounded corners.
+
+The optional promoted-IAP image is ready at `AppStoreAssets/IAP/HydroTonePro-1024.png`. A separate real in-app purchase-screen review screenshot is still required.
+
+## Public URLs
+
+**Support:** https://jakeleekr13-otter.github.io/hydrotone-support/support/
+
+**Privacy Policy:** https://jakeleekr13-otter.github.io/hydrotone-support/privacy/
+
+**Support email:** support@enheart.me
+
+**Privacy email:** privacy@enheart.me
 
 ## App Review notes
 
