@@ -12,22 +12,37 @@ enum DivePreset: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
     var localizedName: String { String(localized: String.LocalizationValue(rawValue)) }
     var restoration: Float {
-        switch self { case .original: 0; case .natural, .custom: 0.45; case .tropical: 0.42; case .deep: 0.50 }
+        switch self { case .original: 0; case .natural, .custom: 0.45; case .tropical: 0.50; case .deep: 0.56 }
     }
     var vibrance: Float {
-        switch self { case .original: 0; case .natural, .custom: 0.18; case .tropical: 0.30; case .deep: 0.24 }
+        switch self { case .original: 0; case .natural, .custom: 0.18; case .tropical: 0.22; case .deep: 0.18 }
     }
     var castRemoval: Float {
-        switch self { case .original: 0; case .natural, .custom: 0.16; case .tropical: 0.12; case .deep: 0.18 }
+        switch self { case .original: 0; case .natural, .custom: 0.16; case .tropical: 0.16; case .deep: 0.18 }
     }
     var contrast: Float {
-        switch self { case .original: 1; case .natural, .custom: 1.04; case .tropical: 1.06; case .deep: 1.10 }
+        switch self { case .original: 1; case .natural, .custom: 1.04; case .tropical: 1.04; case .deep: 1.04 }
     }
     var saturation: Float {
-        switch self { case .original: 1; case .natural, .custom: 1.08; case .tropical: 1.18; case .deep: 1.14 }
+        switch self { case .original: 1; case .natural, .custom: 1.08; case .tropical: 1.16; case .deep: 1.08 }
     }
     var clarity: Float {
         switch self { case .original: 0; case .natural, .custom: 0.16; case .tropical: 0.19; case .deep: 0.25 }
+    }
+    /// Colour temperature shift in kelvin for an underwater scene. A grey scene (scene-mean chroma
+    /// 0.05 or less) gets none; the full shift applies from chroma 0.10.
+    var warmth: Float {
+        switch self { case .original, .natural, .deep, .custom: 0; case .tropical: 600 }
+    }
+    /// Scale on the water tone's chroma ceiling: below 1 calms neon water. The water tone holds the
+    /// water's hue, so calmer water does not drift toward violet. (Scaling waterSaturation instead
+    /// turned pale blue water lavender.)
+    var waterChroma: Float {
+        switch self { case .original, .natural, .tropical, .custom: 1; case .deep: 0.85 }
+    }
+    /// Extra shadow lift, added after the global contrast. Deep Dive lifts dark subjects further.
+    var shadowBoost: Float {
+        switch self { case .original, .natural, .tropical, .custom: 0; case .deep: 0.10 }
     }
     var symbolName: String {
         switch self {
@@ -301,8 +316,10 @@ struct ColorCorrection: Sendable, Equatable {
         // The chroma limits allow for the later steps (saturation, contrast, shadow lift), which
         // were measured to raise far-water chroma by about 1.45 times.
         let seenLCh = oklch(seen), later = 1.45 * max(0.5, v.saturation)
+        // Natural Dive keeps the plain ceiling; a preset may calm neon water further (DivePreset.waterChroma).
+        let ceiling = preset == .natural ? 0.1 / later : 0.1 / later * preset.waterChroma
         let target = waterTarget(seenLCh, waterType: type, murky: deep * haze, keep: keep, source: oklch(water),
-                                 ceiling: 0.1 / later, murkyFloor: 0.14 / later)
+                                 ceiling: ceiling, murkyFloor: 0.14 / later)
         // More chroma than the water has is only for murky water; elsewhere it would push
         // water-coloured subjects (silver fish, blue reef) away from grey and take their red.
         let tone = waterCorrection(from: seen, to: target, maximumSaturation: target.y > seenLCh.y + 0.005 ? 1.6 : 1)
@@ -360,7 +377,6 @@ struct ColorCorrection: Sendable, Equatable {
         v.definition = preset.clarity * (0.5 + haze * 0.8)
         let sharpen = 1 + user.clarity * (user.clarity < 0 ? Caps.clarityDown : Caps.clarityUp)
         v.clarity *= sharpen; v.definition *= sharpen
-        v.warmth = (preset == .tropical ? 300 : 0) + user.temperature * Caps.temperature
         v.vibrance = preset.vibrance * max(0.3, 1 - analysis.saturation) * (1 - neon)
         if let plan {
             v.physicalWeight = plan.confidence
@@ -377,6 +393,17 @@ struct ColorCorrection: Sendable, Equatable {
             let ceiling = 0.22 * (1 - 0.4 * highlight)
             v.midLift = midLift(from: restoredMid, to: min(goal, max(restoredMid, ceiling)))
         }
+        if preset != .natural, preset != .custom {
+            // Preset terms. Natural Dive and Custom have none: Natural's values are the base for Custom.
+            v.warmth = preset.warmth * min(1, analysis.castStrength * 4)
+            v.shadowLift += preset.shadowBoost
+            // The preset's extra saturation is meant for subjects. Water-like pixels give it back, so they
+            // keep the saturation Natural Dive gives this scene.
+            let naturalSaturation = 1 + (DivePreset.natural.saturation + haze * 0.10 - 1) * (1 - neon) - 0.12 * neon
+            v.waterSaturation *= naturalSaturation / max(0.5, v.saturation)
+        }
+        // Custom: the user's temperature on top of the automatic result (no preset warmth).
+        v.warmth += user.temperature * Caps.temperature
         // Brightness down lowers the mid-tones on both paths. The white reference below sees the result.
         v.midLift = min(0.9, max(minimumMidLift, v.midLift + min(0, user.brightness) * Caps.brightnessDown))
         v.waterLit = lit
@@ -924,8 +951,11 @@ final class FilterEngine: Sendable {
         if v.warmth != 0 {
             let warmth = CIFilter.temperatureAndTint()
             warmth.inputImage = corrected
-            warmth.neutral = CIVector(x: 6500, y: 0)
-            warmth.targetNeutral = CIVector(x: CGFloat(6500 + v.warmth), y: 0)
+            // The source is taken as lit at 6500 K + warmth and rendered at 6500 K, so a positive value warms.
+            // (6500 to 6500 + warmth cooled the image: +300 K turned grey blue.) A green tint of 1 per 100 K
+            // makes the shift yellow rather than orange, so pale blue water does not turn lavender.
+            warmth.neutral = CIVector(x: CGFloat(6500 + v.warmth), y: CGFloat(-v.warmth / 100))
+            warmth.targetNeutral = CIVector(x: 6500, y: 0)
             corrected = warmth.outputImage ?? corrected
         }
         let vibrance = CIFilter.vibrance()
