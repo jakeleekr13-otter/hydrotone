@@ -51,3 +51,5 @@ The app has a DEBUG-only launch argument for isolated real Keychain storage in U
 Synthetic media fixtures are checked in. `scripts/make_test_media.py` regenerates the main codec/HDR fixtures using a developer-installed ffmpeg; ffmpeg is not included in the app. `scripts/create_project.py` reproducibly generates the Xcode project, whose source folders synchronize automatically. `scripts/make_icon.py` regenerates the wave icon.
 
 See [QA matrix](docs/QA.md), [processing decisions](docs/Architecture.md), and [diagnostics review](docs/Diagnostics.md) for verification and remaining release checks.
+
+The colour algorithm, its decisions and its evaluation are in [ColorAlgorithm](docs/ColorAlgorithm.md). The video pipeline is in [Video V2](docs/VideoV2.md). The scorecard harness is [scripts/color-eval](scripts/color-eval/README.md).
