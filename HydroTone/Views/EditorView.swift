@@ -65,15 +65,20 @@ struct EditorView: View {
             if model.previewPaused { Button("Retry preview") { Task { await model.retryPreview() } } }
             if model.metadata?.isHDR == true { Text("HDR source · SDR preview").font(.caption).foregroundStyle(.secondary) }
             HStack {
+                // The buttons never wrap; the preset name gives way first on narrow screens.
                 Text(model.comparing ? String(localized: "Original") : model.settings.preset.localizedName).font(.subheadline).foregroundStyle(.secondary)
-                Spacer()
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                Spacer(minLength: 8)
                 if model.media.kind == .video {
                     Button { if model.clipPlaying { model.stopClip(rewind: true) } else { Task { await model.playClip() } } } label: {
                         Label(model.clipPlaying ? "Stop" : "Play 3s", systemImage: model.clipPlaying ? "stop.fill" : "play.fill")
+                            .lineLimit(1).fixedSize()
                     }.buttonStyle(.bordered).frame(minHeight: 44).disabled(!model.ready)
                         .accessibilityHint("Play three seconds from the current position, then return")
                 }
-                Button { model.comparing.toggle() } label: { Label("Compare", systemImage: model.comparing ? "eye.fill" : "eye") }
+                Button { model.comparing.toggle() } label: {
+                    Label("Compare", systemImage: model.comparing ? "eye.fill" : "eye").lineLimit(1).fixedSize()
+                }
                     .buttonStyle(.bordered).frame(minHeight: 44)
                     .accessibilityValue(model.comparing ? "Original" : "Corrected")
                     .accessibilityHint("Show original media without correction")

@@ -45,7 +45,10 @@ final class BatchModel: Identifiable {
         items = urls.map { Item(url: $0) }
     }
 
-    var readyCount: Int { items.filter { $0.analysis != nil }.count }
+    /// Photos that can still be saved. Saved photos drop out, so a second Save All has nothing stale to report.
+    var pendingCount: Int { items.filter { $0.analysis != nil && $0.state != .saved }.count }
+    /// Fixed when a save starts, so progress does not shrink as photos finish.
+    private(set) var saveTotal = 0
     func look(for item: Item) -> Look { item.override ?? shared }
     func settings(for item: Item) -> FilterSettings {
         let look = look(for: item)
@@ -104,8 +107,10 @@ final class BatchModel: Identifiable {
 
     func saveAll(purchases: PurchaseStore) {
         guard !saving else { return }
+        guard pendingCount > 0 else { return }
         saving = true
         savedCount = 0
+        saveTotal = pendingCount
         interruption = nil
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Finish batch save") { [weak self] in
             Task { @MainActor in self?.saveTask?.cancel() }

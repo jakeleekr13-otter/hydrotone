@@ -24,6 +24,7 @@ final class ExportSheetTests: XCTestCase {
         XCTAssertTrue(export.waitForExistence(timeout: 30))
         expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: export)
         waitForExpectations(timeout: 60)
+        attach(app.screenshot(), named: "editor-controls")
         export.tap()
 
         let confirm = app.buttons["export-confirm"]

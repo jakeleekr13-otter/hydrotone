@@ -78,23 +78,25 @@ struct BatchView: View {
         return VStack(spacing: 12) {
             HStack {
                 Text(model.comparing ? String(localized: "Original") : model.shared.preset.localizedName)
-                    .font(.subheadline).foregroundStyle(.secondary)
-                Spacer()
-                Button { model.comparing.toggle() } label: { Label("Compare", systemImage: model.comparing ? "eye.fill" : "eye") }
+                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                Spacer(minLength: 8)
+                Button { model.comparing.toggle() } label: {
+                    Label("Compare", systemImage: model.comparing ? "eye.fill" : "eye").lineLimit(1).fixedSize()
+                }
                     .buttonStyle(.bordered).frame(minHeight: 44)
                     .accessibilityValue(model.comparing ? "Original" : "Corrected")
             }
             LookControls(look: $model.shared)
             Button { model.saveAll(purchases: purchases) } label: {
-                Text("Save All (\(model.readyCount))").frame(maxWidth: .infinity, minHeight: 44)
-            }.buttonStyle(.borderedProminent).disabled(model.readyCount == 0)
+                Text("Save All (\(model.pendingCount))").frame(maxWidth: .infinity, minHeight: 44)
+            }.buttonStyle(.borderedProminent).disabled(model.pendingCount == 0)
         }.padding(.horizontal).padding(.vertical, 8)
     }
 
     private var savingProgress: some View {
         VStack(spacing: 20) {
-            ProgressView(value: Double(model.savedCount), total: Double(max(1, model.readyCount))).frame(width: 220)
-            Text("Saving \(model.savedCount + 1) of \(model.readyCount)…")
+            ProgressView(value: Double(model.savedCount), total: Double(max(1, model.saveTotal))).frame(width: 220)
+            Text("Saving \(min(model.savedCount + 1, model.saveTotal)) of \(model.saveTotal)…")
             Text("Keep HydroTone open until saving finishes.").font(.footnote)
             Button("Cancel") { model.saveTask?.cancel() }.frame(minHeight: 44)
         }.padding(30).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
@@ -168,7 +170,9 @@ struct BatchDetailView: View {
                                 Button("Reset to batch settings") { model.setOverride(nil, for: item.id) }
                             }
                             Spacer()
-                            Button { comparing.toggle() } label: { Label("Compare", systemImage: comparing ? "eye.fill" : "eye") }
+                            Button { comparing.toggle() } label: {
+                                Label("Compare", systemImage: comparing ? "eye.fill" : "eye").lineLimit(1).fixedSize()
+                            }
                                 .buttonStyle(.bordered).frame(minHeight: 44)
                                 .accessibilityValue(comparing ? "Original" : "Corrected")
                         }
