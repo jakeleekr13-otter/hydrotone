@@ -213,6 +213,35 @@ No separate figure is recorded here for these four. The scorecard shows the comb
 | A finer water-fit beta grid (0.05 to 0.01) | deltaE changed by 0.03 |
 | A fixed recipe, for example a +36 magenta tint | It pushes blue water violet. The rules adapt to the measured cast instead. |
 
+## Comparison with Sea-thru
+
+Sea-thru (Akkaynak and Treibitz, CVPR 2019) uses the same kind of image-formation model as our restoration kernel. Its results are much cleaner, because its inputs are different:
+
+- It uses RAW images, not camera-processed JPEGs.
+- It uses measured distance. The distance map comes from several overlapping photos and photogrammetry.
+- It re-balances white after removing the veil, so sand and grey surfaces become neutral.
+
+We measured two Sea-thru results (market pairs m5 and m6) with the harness at `b8db6df`:
+
+| Measure | m5 ours | m5 Sea-thru | m6 ours | m6 Sea-thru |
+|---|---|---|---|---|
+| deltaE to the Sea-thru result (original in brackets) | 33.1 (39.0) | (reference) | 29.5 (33.9) | (reference) |
+| Mean L* | 57.9 | 36.4 | 54.6 | 38.7 |
+| Subject red/green (`nearRG`) | 0.66 | 1.04 | 0.70 | 0.91 |
+| Neutral surface, OKLab chroma | sand 0.076 | sand 0.004 | belly 0.069 | belly 0.063 |
+
+What we can take, as our own rules:
+
+- A white reference after veil removal: find bright, low-saturation surfaces that are not open water, and move them toward neutral. In progress.
+- Brightness that respects bright subjects. A large white subject (the manta belly) must not make the whole frame brighter. In progress.
+- Neutral surfaces as a scorecard check (the harness "Neutral surfaces" section).
+
+What we cannot take into a one-photo app:
+
+- Measured distance. It needs several overlapping photos and photogrammetry.
+- Distance-dependent attenuation. It only helps with measured distance.
+- RAW input would help the photo path. It is possible later; its gain is unmeasured.
+
 ## Known limits and next steps
 
 Limits:

@@ -8,6 +8,7 @@ Open **HydroTone.xcodeproj**, select the **HydroTone** scheme and an iPhone simu
 
 - Import photos/videos with the system Photos picker; broad library access is not requested.
 - Original, Natural Dive, Tropical and Deep Dive presets; 0–100% intensity and an explicit Compare control.
+- The photo preview zooms with a pinch (up to 4x) or a double tap, and pans while zoomed. Compare keeps the zoom. Once zoomed, the preview re-renders at 3200 px so detail stays sharp. The video preview does not zoom.
 - Photo preview and export share the same engine. JPEG/HEIC input; full-resolution, orientation-normalized Display P3 SDR JPEG output. Capture dates are retained; stale thumbnails, gain maps and location metadata are not copied.
 - Video V2 analyses 10 evenly spaced frames between 10% and 90% of the clip. It drops outlier samples, averages the rest into one filter, and applies that same filter to every frame. If no usable restoration plan remains, the clip falls back to the original HydroTone correction.
 - Sequential GPU-assisted export preserves presentation timestamps and every supported audio track, supports source resolution/4K and optional 1080p without upscaling, and validates the output before offering Save to Photos.
