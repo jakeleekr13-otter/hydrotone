@@ -22,9 +22,9 @@ actor PhotoProcessor {
     private let depthEstimator = DepthEstimator()
     private let waterEstimator = WaterModelEstimator()
     private let restorationEngine = RestorationEngine()
-    private var analyzedURL: URL?
-    private var cachedAnalysis = WaterAnalysis.neutral
-    private var restorationPlan: RestorationPlan?
+    private struct Prepared { let analysis: WaterAnalysis; let plan: RestorationPlan? }
+    /// Keyed by photo so a batch can switch between photos without repeating depth analysis.
+    private var prepared: [URL: Prepared] = [:]
     private var recordedRenderFallback = false
     #if DEBUG
     private let logger = Logger(subsystem: "com.hydrotone.app", category: "photo-restoration")
@@ -41,23 +41,23 @@ actor PhotoProcessor {
     }
     func analyze(_ url: URL) async throws -> WaterAnalysis {
         let source = engine.sdr(try open(url))
-        return try await prepare(url: url, source: source)
+        return try await prepare(url: url, source: source).analysis
     }
-    func preview(_ url: URL, settings: FilterSettings, original: Bool) async throws -> CGImage {
+    func preview(_ url: URL, settings: FilterSettings, original: Bool, maxPixel: CGFloat = 1600) async throws -> CGImage {
         try Task.checkCancellation()
         let source = engine.sdr(try open(url))
-        if !original, analyzedURL != url { _ = try await prepare(url: url, source: source) }
-        let ratio = min(1, 1600 / max(source.extent.width, source.extent.height))
+        let plan = original ? nil : try await prepare(url: url, source: source).plan
+        let ratio = min(1, maxPixel / max(source.extent.width, source.extent.height))
         let small = source.transformed(by: CGAffineTransform(scaleX: ratio, y: ratio))
-        let result = original ? small : processed(small, settings: settings)
+        let result = original ? small : processed(small, settings: settings, plan: plan)
         guard let rendered = engine.context.createCGImage(result, from: result.extent, format: .RGBA8, colorSpace: FilterEngine.photoSpace) else { throw HydroError.unreadable }
         return rendered
     }
     func export(_ url: URL, settings: FilterSettings) async throws -> URL {
         try Task.checkCancellation()
         let source = engine.sdr(try open(url))
-        if analyzedURL != url { _ = try await prepare(url: url, source: source) }
-        let image = processed(source, settings: settings)
+        let plan = try await prepare(url: url, source: source).plan
+        let image = processed(source, settings: settings, plan: plan)
         let target = try TemporaryFiles.makeURL(extension: "jpg")
         do {
             guard let cg = engine.context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: FilterEngine.photoSpace),
@@ -84,12 +84,12 @@ actor PhotoProcessor {
     /// LLDB/tests can render all four variants without adding temporary production UI.
     func comparisonPreviews(_ url: URL, settings: FilterSettings) async throws -> [PhotoPipelineVariant: CGImage] {
         let source = engine.sdr(try open(url))
-        _ = try await prepare(url: url, source: source)
+        let plan = try await prepare(url: url, source: source).plan
         let ratio = min(1, 1600 / max(source.extent.width, source.extent.height))
         let small = source.transformed(by: CGAffineTransform(scaleX: ratio, y: ratio))
         var result: [PhotoPipelineVariant: CGImage] = [:]
         for variant in PhotoPipelineVariant.allCases {
-            let image = processed(small, settings: settings, debugVariant: variant)
+            let image = processed(small, settings: settings, plan: plan, debugVariant: variant)
             if let rendered = engine.context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: FilterEngine.photoSpace) {
                 result[variant] = rendered
             }
@@ -98,13 +98,14 @@ actor PhotoProcessor {
     }
     #endif
 
-    private func prepare(url: URL, source: CIImage) async throws -> WaterAnalysis {
-        if analyzedURL == url { return cachedAnalysis }
+    /// Drops a photo's cached analysis once it leaves the session.
+    func forget(_ url: URL) { prepared[url] = nil }
+
+    private func prepare(url: URL, source: CIImage) async throws -> Prepared {
+        if let cached = prepared[url] { return cached }
         let analysis = engine.analyze(source)
-        analyzedURL = url
-        cachedAnalysis = analysis
-        restorationPlan = nil
         recordedRenderFallback = false
+        var restorationPlan: RestorationPlan?
         do {
             let depth = try await depthEstimator.estimate(image: source, sourceURL: url)
             try Task.checkCancellation()
@@ -114,12 +115,9 @@ actor PhotoProcessor {
             logger.debug("Binf=(\(plan.backscatterInfinity.x),\(plan.backscatterInfinity.y),\(plan.backscatterInfinity.z)) betaD=(\(plan.betaDirect.x),\(plan.betaDirect.y),\(plan.betaDirect.z)) betaB=(\(plan.betaBackscatter.x),\(plan.betaBackscatter.y),\(plan.betaBackscatter.z)) confidence=\(plan.confidence) floorPixels=\(plan.transmissionFloorPixelPercentage)% maxGainPixels=\(plan.maximumGainPixelPercentage)%")
             #endif
         } catch is CancellationError {
-            restorationPlan = nil
-            analyzedURL = nil
             throw CancellationError()
         } catch {
             // Depth/model/fitting failures deliberately preserve the shipping HydroTone result.
-            restorationPlan = nil
             if let diagnostics {
                 await diagnostics.record(.restorationFallback(.photoAnalysis), operation: .photoRestoration)
             }
@@ -127,10 +125,12 @@ actor PhotoProcessor {
             logger.debug("Depth-aware restoration unavailable; using current HydroTone correction")
             #endif
         }
-        return analysis
+        let result = Prepared(analysis: analysis, plan: restorationPlan)
+        prepared[url] = result
+        return result
     }
 
-    private func processed(_ source: CIImage, settings: FilterSettings,
+    private func processed(_ source: CIImage, settings: FilterSettings, plan: RestorationPlan?,
                            debugVariant: PhotoPipelineVariant? = nil) -> CIImage {
         let current = engine.apply(source, settings: settings)
         #if DEBUG
@@ -140,7 +140,7 @@ actor PhotoProcessor {
         #endif
         if variant == .original { return source }
         if variant == .current { return current }
-        guard let plan = restorationPlan else { return current }
+        guard let plan else { return current }
         do {
             let rawRestoration = try restorationEngine.restore(source, plan: plan)
             if variant == .restoration {

@@ -12,6 +12,7 @@ struct ProView: View {
                     Text("One-time purchase. Every dive.").font(.title3).foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 16) {
                         Label("Unlimited photo exports", systemImage: "photo")
+                        Label(String(localized: "Batch correct up to \(BatchModel.maxPhotos) photos"), systemImage: "square.grid.2x2")
                         Label("Full-length video exports", systemImage: "video")
                         Label("4K export", systemImage: "4k.tv")
                         Label("HDR export where supported", systemImage: "sun.max")
