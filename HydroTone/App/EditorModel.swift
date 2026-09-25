@@ -34,6 +34,8 @@ final class EditorModel {
     var completedURL: URL?
     var saving = false
     var loading = true
+    /// True while scene analysis (depth + water model) runs. Export waits for it, so the file matches the preview.
+    var analyzing = false
     var ready = false
     var previewPaused = false
     private var previewFailures = 0
@@ -51,10 +53,12 @@ final class EditorModel {
         videoPreview = VideoPreview(diagnostics: diagnostics)
     }
     func load() async {
-        defer { loading = false }
+        defer { loading = false; analyzing = false }
         do {
             if media.kind == .photo {
+                analyzing = true
                 settings.analysis = try await photos.analyze(media.url)
+                analyzing = false
                 originalPreview = try await photos.preview(media.url, settings: settings, original: true)
                 await refreshPreview()
             } else {
@@ -66,6 +70,7 @@ final class EditorModel {
                 // Show the existing HydroTone preview immediately. Device benchmarking and
                 // depth analysis may continue without keeping the editor behind "Opening…".
                 loading = false
+                analyzing = true
                 capability = await ExportCapability.evaluate(url: media.url, metadata: metadata)
                 let analysis = try await videoPreview.analyze(media.url, metadata: metadata)
                 videoAnalysis = analysis

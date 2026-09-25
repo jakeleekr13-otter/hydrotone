@@ -47,7 +47,16 @@ struct EditorView: View {
             else if let preview = model.comparing ? model.originalPreview : model.preview {
                 Image(decorative: preview, scale: 1).resizable().scaledToFit().accessibilityLabel("Photo preview")
             }
-            if model.loading { ProgressView("Opening…") }
+            if model.loading {
+                if model.analyzing { ProgressView("Analyzing…") } else { ProgressView("Opening…") }
+            } else if model.analyzing {
+                // Video stays playable while the scene is analysed; the colour updates when it finishes.
+                HStack(spacing: 8) { ProgressView(); Text("Analyzing…").font(.footnote.weight(.medium)) }
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(.regularMaterial, in: Capsule())
+                    .frame(maxHeight: .infinity, alignment: .top).padding(.top, 12)
+                    .accessibilityElement(children: .combine)
+            }
         }.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
     }
     private var controls: some View {
@@ -89,7 +98,7 @@ struct EditorView: View {
                     .disabled(model.settings.preset == .original)
             }.padding(.horizontal)
             Button("Export") { Task { await model.requestExport(purchases: purchases, trial: trial) } }
-                .buttonStyle(.borderedProminent).frame(minHeight: 44).disabled(!model.ready || model.exporting)
+                .buttonStyle(.borderedProminent).frame(minHeight: 44).disabled(!model.ready || model.exporting || model.analyzing)
         }.padding(.bottom, 8)
     }
     private var exportProgress: some View {
