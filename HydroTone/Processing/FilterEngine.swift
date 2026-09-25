@@ -37,7 +37,7 @@ struct FilterSettings: Sendable, Equatable {
     var analysis: WaterAnalysis = .neutral
 }
 
-final class FilterEngine: @unchecked Sendable {
+final class FilterEngine: Sendable {
     // CIContext is thread safe. CIFilters are local to each invocation.
     let context: CIContext
     static let workingSpace = CGColorSpace(name: CGColorSpace.extendedLinearITUR_2020)!

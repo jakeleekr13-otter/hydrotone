@@ -95,6 +95,14 @@ final class VideoRestorationTests: XCTestCase {
         XCTAssertFalse(first === second, "A preset revision must invalidate AVPlayer's rendered-frame cache")
     }
 
+    func testPreviewCompositionIsTaggedAsRec709() async throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
+        let composition = try await VideoPreview().composition(asset: AVURLAsset(url: url), settings: PreviewSettings())
+        XCTAssertEqual(composition.colorPrimaries, AVVideoColorPrimaries_ITU_R_709_2)
+        XCTAssertEqual(composition.colorTransferFunction, AVVideoTransferFunction_ITU_R_709_2)
+        XCTAssertEqual(composition.colorYCbCrMatrix, AVVideoYCbCrMatrix_ITU_R_709_2)
+    }
+
     func testVideoExportContinuesWhenPhysicalAnalysisIsUnavailable() async throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
         let metadata = try await MediaInspector().inspect(url)

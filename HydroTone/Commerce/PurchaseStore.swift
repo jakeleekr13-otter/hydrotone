@@ -10,7 +10,7 @@ final class PurchaseStore {
     private(set) var busy = false
     private var entitlementGeneration = 0
     var message: String?
-    @ObservationIgnored nonisolated(unsafe) private var updates: Task<Void, Never>?
+    @ObservationIgnored private var updates: Task<Void, Never>?
     private let diagnostics: DiagnosticRecorder?
     init(diagnostics: DiagnosticRecorder? = nil) {
         self.diagnostics = diagnostics
@@ -25,7 +25,7 @@ final class PurchaseStore {
             }
         }
     }
-    deinit { updates?.cancel() }
+    isolated deinit { updates?.cancel() }
     func load() async {
         await refreshEntitlement()
         do {

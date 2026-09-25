@@ -73,7 +73,7 @@ enum RestorationMath {
     }
 }
 
-final class RestorationEngine: @unchecked Sendable {
+final class RestorationEngine: Sendable {
     private let kernel: CIColorKernel?
 
     init() {

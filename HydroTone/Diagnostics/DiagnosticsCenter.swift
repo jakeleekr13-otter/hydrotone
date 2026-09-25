@@ -13,7 +13,7 @@ final class DiagnosticsCenter {
 }
 
 // MXMetricManager supports the iOS 26 minimum; the newer MetricManager requires iOS 27.
-private final class MetricSubscriber: NSObject, MXMetricManagerSubscriber, @unchecked Sendable {
+private final class MetricSubscriber: NSObject, MXMetricManagerSubscriber, Sendable {
     private let recorder: DiagnosticRecorder
     init(recorder: DiagnosticRecorder) {
         self.recorder = recorder

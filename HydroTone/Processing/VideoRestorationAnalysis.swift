@@ -15,7 +15,7 @@ struct InitialRestorationEnvironment: Sendable, Equatable {
     let confidence: Float
 }
 
-struct VideoRestorationAnalysis: @unchecked Sendable {
+struct VideoRestorationAnalysis: Sendable {
     let legacyAnalysis: WaterAnalysis
     let representativeFrame: CGImage
     let representativeTime: Double

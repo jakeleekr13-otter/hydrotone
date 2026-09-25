@@ -12,7 +12,7 @@ configs = {}
 for scope in ['project', 'app', 'tests', 'uitests']:
     refs = []
     for config in ['Debug', 'Release']:
-        settings = {'SWIFT_VERSION':'5.0','IPHONEOS_DEPLOYMENT_TARGET':'26.0','SDKROOT':'iphoneos','TARGETED_DEVICE_FAMILY':'1','CLANG_ENABLE_MODULES':'YES','SWIFT_STRICT_CONCURRENCY':'targeted'}
+        settings = {'SWIFT_VERSION':'6.0','IPHONEOS_DEPLOYMENT_TARGET':'26.0','SDKROOT':'iphoneos','TARGETED_DEVICE_FAMILY':'1','CLANG_ENABLE_MODULES':'YES','SWIFT_APPROACHABLE_CONCURRENCY':'YES'}
         if scope == 'project':
             settings.update({'SWIFT_OPTIMIZATION_LEVEL':'-Onone' if config=='Debug' else '-O','DEBUG_INFORMATION_FORMAT':'dwarf' if config=='Debug' else 'dwarf-with-dsym','ENABLE_TESTABILITY':'YES' if config=='Debug' else 'NO','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG' if config=='Debug' else ''})
             if config == 'Release': settings.update({'SWIFT_COMPILATION_MODE':'wholemodule','VALIDATE_PRODUCT':'YES','DEAD_CODE_STRIPPING':'YES','COPY_PHASE_STRIP':'YES','ENABLE_NS_ASSERTIONS':'NO'})
@@ -27,7 +27,18 @@ for scope in ['project', 'app', 'tests', 'uitests']:
     configs[scope] = add(scope+'configlist',f'isa = XCConfigurationList; buildConfigurations = ({",".join(refs)},); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;')
 products=[]; groups=[]; targets=[]
 for scope,name,kind in [('app','HydroTone','application'),('tests','HydroToneTests','bundle.unit-test'),('uitests','HydroToneUITests','bundle.ui-testing')]:
-    group=add(scope+'group',f'isa = PBXFileSystemSynchronizedRootGroup; path = {name}; sourceTree = "<group>";')
+    exceptions=''
+    if scope=='tests':
+        # Local-only photo samples (gitignored, ~1.4 GB) must never ship in the test bundle.
+        # Synchronized groups ignore folder paths and EXCLUDED_SOURCE_FILE_NAMES, so list each file.
+        samples=Path(name,'Fixtures/developersfile/samples')
+        files=sorted(str(f.relative_to(name)) for f in samples.rglob('*') if f.is_file()) if samples.is_dir() else []
+        if files:
+            listed=' '.join('"'+f.replace('\\','\\\\').replace('"','\\"')+'",' for f in files)
+            target=ident(scope+'target')
+            exception=add('testsexceptions',f'isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = ({listed}); target = {target};')
+            exceptions=f'exceptions = ({exception},); '
+    group=add(scope+'group',f'isa = PBXFileSystemSynchronizedRootGroup; {exceptions}path = {name}; sourceTree = "<group>";')
     groups.append(group)
     ext='app' if scope=='app' else 'xctest'
     product=add(scope+'product',f'isa = PBXFileReference; explicitFileType = {"wrapper.application" if scope=="app" else "wrapper.cfbundle"}; path = {name}.{ext}; sourceTree = BUILT_PRODUCTS_DIR;')

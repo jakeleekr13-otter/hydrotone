@@ -49,18 +49,9 @@ actor DepthEstimator {
         context.render(resized, to: input, bounds: CGRect(origin: .zero, size: Self.modelSize),
                        colorSpace: CGColorSpace(name: CGColorSpace.sRGB))
 
-        let loaded = try await modelStore.model(computeUnits: computeUnits)
-        let provider = try MLDictionaryFeatureProvider(dictionary: ["image": MLFeatureValue(pixelBuffer: input)])
-        let start = ContinuousClock.now
-        let prediction = try await loaded.prediction(from: provider)
-        let elapsed = ContinuousClock.now - start
-        guard let buffer = prediction.featureValue(for: "depth")?.imageBufferValue else {
-            throw RestorationError.invalidDepth
-        }
-        let milliseconds = elapsed.components.seconds.doubleValue * 1_000
-            + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000
+        let (samples, milliseconds) = try await modelStore.depth(from: input, computeUnits: computeUnits)
         // Depth Anything V2's relative output is inverse-depth-like: larger values are nearer.
-        return try normalize(buffer: buffer, source: .monocular, fartherIsLarger: false,
+        return try normalize(samples, source: .monocular, fartherIsLarger: false,
                              baseConfidence: 0.72, inferenceMilliseconds: milliseconds)
     }
 
@@ -80,7 +71,7 @@ actor DepthEstimator {
                 converted = depth
             }
             let reduced = try reducedDepthBuffer(converted.depthDataMap)
-            return try normalize(buffer: reduced, source: .embedded, fartherIsLarger: converted.depthDataType == kCVPixelFormatType_DepthFloat16 || converted.depthDataType == kCVPixelFormatType_DepthFloat32,
+            return try normalize(DepthSamples(reduced), source: .embedded, fartherIsLarger: converted.depthDataType == kCVPixelFormatType_DepthFloat16 || converted.depthDataType == kCVPixelFormatType_DepthFloat32,
                                  baseConfidence: converted.depthDataAccuracy == .absolute ? 0.96 : 0.88,
                                  inferenceMilliseconds: nil)
         }
@@ -100,10 +91,10 @@ actor DepthEstimator {
         return destination
     }
 
-    private func normalize(buffer: CVPixelBuffer, source: DepthSource, fartherIsLarger: Bool,
+    private func normalize(_ samples: DepthSamples, source: DepthSource, fartherIsLarger: Bool,
                            baseConfidence: Float, inferenceMilliseconds: Double?) throws -> DepthEstimate {
-        let width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer)
-        let raw = try values(from: buffer)
+        let width = samples.width, height = samples.height
+        let raw = samples.values
         let finite = raw.filter { $0.isFinite && (source == .monocular || $0 > 0) }.sorted()
         guard finite.count >= max(16, raw.count / 3) else { throw RestorationError.invalidDepth }
         let minimum = finite.first!, maximum = finite.last!
@@ -130,31 +121,7 @@ actor DepthEstimator {
                              confidence: confidence, inferenceMilliseconds: inferenceMilliseconds)
     }
 
-    private func values(from buffer: CVPixelBuffer) throws -> [Float] {
-        CVPixelBufferLockBaseAddress(buffer, .readOnly)
-        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
-        guard let base = CVPixelBufferGetBaseAddress(buffer) else { throw RestorationError.invalidDepth }
-        let width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer)
-        let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
-        let format = CVPixelBufferGetPixelFormatType(buffer)
-        var result = [Float](repeating: .nan, count: width * height)
-        for y in 0..<height {
-            let row = base.advanced(by: y * bytesPerRow)
-            switch format {
-            case kCVPixelFormatType_OneComponent16Half, kCVPixelFormatType_DepthFloat16, kCVPixelFormatType_DisparityFloat16:
-                let values = row.assumingMemoryBound(to: UInt16.self)
-                for x in 0..<width { result[y * width + x] = Float(Float16(bitPattern: values[x])) }
-            case kCVPixelFormatType_DepthFloat32, kCVPixelFormatType_DisparityFloat32, kCVPixelFormatType_OneComponent32Float:
-                let values = row.assumingMemoryBound(to: Float.self)
-                for x in 0..<width { result[y * width + x] = values[x] }
-            default:
-                throw RestorationError.invalidDepth
-            }
-        }
-        return result
-    }
-
-    private func makePixelBuffer(width: Int, height: Int, pixelFormat: OSType) throws -> CVPixelBuffer {
+    private nonisolated func makePixelBuffer(width: Int, height: Int, pixelFormat: OSType) throws -> CVPixelBuffer {
         var buffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [kCVPixelBufferIOSurfacePropertiesKey: [:], kCVPixelBufferMetalCompatibilityKey: true]
         guard CVPixelBufferCreate(kCFAllocatorDefault, width, height, pixelFormat, attributes as CFDictionary, &buffer) == kCVReturnSuccess,
@@ -179,7 +146,28 @@ actor DepthModelStore {
     private var allModel: MLModel?
     private var neuralEngineModel: MLModel?
 
-    func model(computeUnits: MLComputeUnits) async throws -> MLModel {
+    /// Runs inference here so the non-Sendable model never leaves this actor; only Sendable samples do.
+    func depth(from input: sending CVPixelBuffer,
+               computeUnits: MLComputeUnits) async throws -> (samples: DepthSamples, milliseconds: Double) {
+        let loaded = try await model(computeUnits: computeUnits)
+        let provider = try MLDictionaryFeatureProvider(dictionary: ["image": MLFeatureValue(pixelBuffer: input)])
+        let start = ContinuousClock.now
+        let prediction = try predict(loaded, provider)
+        let elapsed = ContinuousClock.now - start
+        guard let buffer = prediction.featureValue(for: "depth")?.imageBufferValue else {
+            throw RestorationError.invalidDepth
+        }
+        let milliseconds = elapsed.components.seconds.doubleValue * 1_000
+            + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000
+        return (try DepthSamples(buffer), milliseconds)
+    }
+
+    /// Synchronous on purpose: the async overload is @concurrent and would send the model off this actor.
+    private func predict(_ model: MLModel, _ provider: MLFeatureProvider) throws -> MLFeatureProvider {
+        try model.prediction(from: provider)
+    }
+
+    private func model(computeUnits: MLComputeUnits) async throws -> MLModel {
         if computeUnits == .cpuAndNeuralEngine, let neuralEngineModel { return neuralEngineModel }
         if computeUnits != .cpuAndNeuralEngine, let allModel { return allModel }
         let bundles = [Bundle(for: ModelBundleToken.self), .main]
@@ -192,6 +180,39 @@ actor DepthModelStore {
         if computeUnits == .cpuAndNeuralEngine { neuralEngineModel = loaded }
         else { allModel = loaded }
         return loaded
+    }
+}
+
+/// Single-channel depth copied out of a pixel buffer, so it can cross actor boundaries.
+struct DepthSamples: Sendable {
+    let width: Int
+    let height: Int
+    let values: [Float]
+
+    init(_ buffer: CVPixelBuffer) throws {
+        CVPixelBufferLockBaseAddress(buffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddress(buffer) else { throw RestorationError.invalidDepth }
+        let width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer)
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+        let format = CVPixelBufferGetPixelFormatType(buffer)
+        var result = [Float](repeating: .nan, count: width * height)
+        for y in 0..<height {
+            let row = base.advanced(by: y * bytesPerRow)
+            switch format {
+            case kCVPixelFormatType_OneComponent16Half, kCVPixelFormatType_DepthFloat16, kCVPixelFormatType_DisparityFloat16:
+                let values = row.assumingMemoryBound(to: UInt16.self)
+                for x in 0..<width { result[y * width + x] = Float(Float16(bitPattern: values[x])) }
+            case kCVPixelFormatType_DepthFloat32, kCVPixelFormatType_DisparityFloat32, kCVPixelFormatType_OneComponent32Float:
+                let values = row.assumingMemoryBound(to: Float.self)
+                for x in 0..<width { result[y * width + x] = values[x] }
+            default:
+                throw RestorationError.invalidDepth
+            }
+        }
+        self.width = width
+        self.height = height
+        self.values = result
     }
 }
 

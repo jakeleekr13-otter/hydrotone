@@ -1,5 +1,6 @@
 import XCTest
 import AVFoundation
+import Synchronization
 @testable import HydroTone
 
 final class DiagnosticsTests: XCTestCase {
@@ -22,11 +23,14 @@ final class DiagnosticsTests: XCTestCase {
     }
 
     func testReadRetryIsBoundedAndOnlyRetriesTransientFailures() async throws {
-        final class Counter: @unchecked Sendable { var count = 0 }
+        final class Counter: Sendable {
+            private let value = Mutex(0)
+            var count: Int { value.withLock { $0 } }
+            @discardableResult func increment() -> Int { value.withLock { $0 += 1; return $0 } }
+        }
         let transient = Counter()
         let result: String = try await SafeReadRetry(maximumAttempts: 3).run(operation: .inspection) {
-            transient.count += 1
-            if transient.count < 3 { throw URLError(.networkConnectionLost) }
+            if transient.increment() < 3 { throw URLError(.networkConnectionLost) }
             return "ok"
         }
         XCTAssertEqual(result, "ok")
@@ -35,7 +39,7 @@ final class DiagnosticsTests: XCTestCase {
         let permanent = Counter()
         do {
             let _: String = try await SafeReadRetry(maximumAttempts: 3).run(operation: .inspection) {
-                permanent.count += 1
+                permanent.increment()
                 throw HydroError.unsupported
             }
             XCTFail("Permanent failure unexpectedly succeeded")
