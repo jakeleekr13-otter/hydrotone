@@ -81,6 +81,52 @@ final class RestorationTests: XCTestCase {
         XCTAssertGreaterThan(plain.sum() / bright.sum(), RestorationMath.darkHigh)
     }
 
+    /// Scene values measured on a neon-blue dive photo (a pale wrasse near the camera). At the
+    /// video path's constant far depth the veil takes nearly all of the fish's blue.
+    private let neonBlue = (infinity: SIMD3<Float>(0.042, 0.057, 0.727), betaDirect: SIMD3<Float>(1.55, 0.9, 0.311),
+                            betaBackscatter: SIMD3<Float>(2.47, 0.52, 1.52), recover: SIMD3<Float>(0.08, 1, 1),
+                            limits: RestorationLimits(maximumGain: .init(1.377, 1.55, 1.45)))
+    private let paleFish = SIMD3<Float>(0.147, 0.229, 0.345)
+
+    func testNearPaleFishAtFarDepthStaysBlueNotLime() {
+        let restored = RestorationMath.inverse(observed: paleFish, depth: 0.93, backscatterInfinity: neonBlue.infinity,
+            betaDirect: neonBlue.betaDirect, betaBackscatter: neonBlue.betaBackscatter, limits: neonBlue.limits,
+            recoverability: neonBlue.recover).color
+        // Blue stays the largest channel: no lime, green or yellow.
+        XCTAssertGreaterThanOrEqual(restored.z, restored.y)
+        XCTAssertGreaterThanOrEqual(restored.z, restored.x)
+        XCTAssertEqual(restored.y / restored.z, paleFish.y / paleFish.z, accuracy: 0.02)
+        // Far blue water in the same scene keeps its ordinary restoration.
+        let water = SIMD3<Float>(0.039, 0.010, 0.806)
+        let far = RestorationMath.inverse(observed: water, depth: 0.93, backscatterInfinity: neonBlue.infinity,
+            betaDirect: neonBlue.betaDirect, betaBackscatter: neonBlue.betaBackscatter, limits: neonBlue.limits,
+            recoverability: neonBlue.recover).color
+        assertEqual(RestorationMath.keepBlueFamily(source: water, restored: far), far, accuracy: 1e-6)
+    }
+
+    func testBlueFamilyGuardActsOnlyOnBluePixelsThatTurnGreen() {
+        // Blue source, blue wiped out: the source hue comes back at the restored level (channel sum).
+        let lime = SIMD3<Float>(0.145, 0.317, 0.006)
+        let kept = RestorationMath.keepBlueFamily(source: paleFish, restored: lime)
+        XCTAssertGreaterThan(kept.z, kept.y)
+        XCTAssertGreaterThan(kept.z, kept.x)
+        XCTAssertEqual(kept.sum(), lime.sum(), accuracy: 1e-5)
+        // Ordinary colour recovery of a blue pixel (green/blue grows less than four times) is untouched.
+        let recovered = SIMD3<Float>(0.2, 0.4, 0.3)
+        assertEqual(RestorationMath.keepBlueFamily(source: .init(0.1, 0.3, 0.45), restored: recovered), recovered, accuracy: 1e-6)
+        // Green and yellow sources stay green or yellow, and neutral sources are untouched.
+        for (source, restored): (SIMD3<Float>, SIMD3<Float>) in [
+            (.init(0.1, 0.4, 0.2), .init(0.05, 0.5, 0.02)),   // green weed
+            (.init(0.4, 0.4, 0.1), .init(0.5, 0.45, 0.01)),   // yellow fish
+            (.init(0.3, 0.3, 0.3), .init(0.2, 0.35, 0.03)),   // grey sand
+            (.init(0.12, 0.14, 0.13), .init(0.08, 0.16, 0.01))] { // pale cyan, green just above blue
+            assertEqual(RestorationMath.keepBlueFamily(source: source, restored: restored), restored, accuracy: 1e-6)
+        }
+        // Zero and non-finite values stay finite.
+        let edge = RestorationMath.keepBlueFamily(source: .zero, restored: .init(0.1, 0.2, 0))
+        XCTAssertTrue(edge.x.isFinite && edge.y.isFinite && edge.z.isFinite)
+    }
+
     func testRestorationKernelMatchesCPUMirror() throws {
         let engine = FilterEngine(), restoration = RestorationEngine()
         let infinity = SIMD3<Float>(0.043, 0.086, 0.121), direct = SIMD3<Float>(1.2, 0.6, 0.4), back = SIMD3<Float>(1.2, 1.6, 1.6)
@@ -102,6 +148,24 @@ final class RestorationTests: XCTestCase {
                     betaDirect: direct, betaBackscatter: back, limits: plan.limits, recoverability: recover).color
                 assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
             }
+        }
+        // The blue-family guard: a near pale fish at far depth (guarded), the far water and a
+        // green pixel (not guarded), in the neon-blue scene.
+        let map = try NormalizedDepthMap(width: 4, height: 4, values: .init(repeating: 0.93, count: 16))
+        let plan = RestorationPlan(depth: map, depthSource: .monocular, depthStatistics: .init(minimum: 0.93, maximum: 0.93, median: 0.93),
+            backscatterInfinity: neonBlue.infinity, betaDirect: neonBlue.betaDirect, betaBackscatter: neonBlue.betaBackscatter,
+            confidence: 0.8, limits: neonBlue.limits, transmissionFloorPixelPercentage: 0, maximumGainPixelPercentage: 0,
+            channelRecoverability: neonBlue.recover)
+        for color: SIMD3<Float> in [paleFish, .init(0.039, 0.010, 0.806), .init(0.1, 0.4, 0.2), .init(0.2, 0.3, 0.42)] {
+            let image = CIImage(color: CIColor(red: CGFloat(color.x), green: CGFloat(color.y), blue: CGFloat(color.z),
+                                               colorSpace: FilterEngine.workingSpace)!).cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+            var pixel = [Float](repeating: 0, count: 4)
+            engine.context.render(try restoration.restore(image, plan: plan), toBitmap: &pixel, rowBytes: 16,
+                                  bounds: CGRect(x: 1, y: 1, width: 1, height: 1), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            let expected = RestorationMath.inverse(observed: color, depth: 0.93, backscatterInfinity: neonBlue.infinity,
+                betaDirect: neonBlue.betaDirect, betaBackscatter: neonBlue.betaBackscatter, limits: plan.limits,
+                recoverability: neonBlue.recover).color
+            assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
         }
     }
 

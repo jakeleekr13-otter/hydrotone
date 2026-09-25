@@ -48,6 +48,7 @@ enum RestorationMath {
         let recovery = SIMD3(min(1, max(0, recoverability.x)), min(1, max(0, recoverability.y)),
                              min(1, max(0, recoverability.z)))
         corrected = keepHueWhereDark(source: source, restored: source + (corrected - source) * recovery)
+        corrected = keepBlueFamily(source: source, restored: corrected)
         return RestorationPixelResult(color: finite(corrected), hitTransmissionFloor: hitFloor, hitMaximumGain: hitGain)
     }
 
@@ -63,6 +64,26 @@ enum RestorationMath {
         return finite(restored + (pointwiseMax(source, .zero) * kept - restored) * dark)
     }
     static let darkLow: Float = 0.3, darkHigh: Float = 0.6
+
+    /// A near, pale subject in blue water (a silver fish) read at far-water depth, as the video
+    /// path's one constant depth does, loses nearly all its blue to the veil and turns lime.
+    /// So a blue pixel (blue above red and green) that comes out green (green above blue) only
+    /// because its green/blue ratio grew several times keeps its source hue, at the restored
+    /// level (channel sum). Green, yellow and grey sources, and ordinary colour recovery
+    /// (a smaller ratio change), are untouched. The Metal kernel mirrors it.
+    static func keepBlueFamily(source: SIMD3<Float>, restored: SIMD3<Float>) -> SIMD3<Float> {
+        let lit = pointwiseMax(source, .zero), now = pointwiseMax(restored, .zero)
+        guard lit.sum() > 1e-5 else { return restored }
+        let blue = smoothstep(blueLow, blueHigh, lit.z / max(max(lit.x, lit.y), 1e-4))
+        let greenBlue = now.y / max(now.z, 1e-4)
+        let green = smoothstep(greenLow, greenHigh, greenBlue)
+        let growth = smoothstep(growthLow, growthHigh, greenBlue / max(lit.y / max(lit.z, 1e-4), 1e-4))
+        let amount = blue * green * growth
+        return finite(restored + (lit * (now.sum() / lit.sum()) - restored) * amount)
+    }
+    static let blueLow: Float = 1.0, blueHigh: Float = 1.1
+    static let greenLow: Float = 1.1, greenHigh: Float = 1.4
+    static let growthLow: Float = 4, growthHigh: Float = 8
 
     static func confidenceBlend(current: SIMD3<Float>, restored: SIMD3<Float>, confidence: Float) -> SIMD3<Float> {
         let amount = safe(confidence, fallback: 0, range: 0...1)
@@ -127,6 +148,17 @@ final class RestorationEngine: Sendable {
             const float3 now = max(restored, float3(0.0f));
             const float kept = (now.r + now.g + now.b) / before;
             restored = mix(restored, lit * kept, 1.0f - smoothstep(0.3f, 0.6f, kept));
+        }
+        // A blue source pixel that turned green only because the veil took nearly all its blue
+        // (green/blue grew 4-8 times) keeps its source hue at the restored level.
+        // RestorationMath.keepBlueFamily mirrors it.
+        if (before > 1e-5f) {
+            const float3 now = max(restored, float3(0.0f));
+            const float blueness = smoothstep(1.0f, 1.1f, lit.b / max(max(lit.r, lit.g), 1e-4f));
+            const float greenBlue = now.g / max(now.b, 1e-4f);
+            const float growth = greenBlue / max(lit.g / max(lit.b, 1e-4f), 1e-4f);
+            const float amount = blueness * smoothstep(1.1f, 1.4f, greenBlue) * smoothstep(4.0f, 8.0f, growth);
+            restored = mix(restored, lit * ((now.r + now.g + now.b) / before), amount);
         }
         if (!all(isfinite(restored))) { restored = max(source.rgb, float3(0.0f)); }
         return float4(restored, source.a);

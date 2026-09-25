@@ -473,6 +473,7 @@ struct ColorCorrection: Sendable, Equatable {
             restored[channel] = mean[channel] + (max(0, mean[channel] - veil) * gain - mean[channel]) * recovery
         }
         restored = RestorationMath.keepHueWhereDark(source: mean, restored: restored)
+        restored = RestorationMath.keepBlueFamily(source: mean, restored: restored)
         return restored.x.isFinite && restored.y.isFinite && restored.z.isFinite ? restored : mean
     }
 
