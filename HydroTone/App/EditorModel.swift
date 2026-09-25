@@ -72,16 +72,28 @@ final class EditorModel {
                 loading = false
                 analyzing = true
                 capability = await ExportCapability.evaluate(url: media.url, metadata: metadata)
-                let analysis = try await videoPreview.analyze(media.url, metadata: metadata)
+                // The video is already open and playing here. A failed scene analysis only loses the
+                // scene correction, so record it as a restoration fallback, not as "couldn't open".
+                let analysis: VideoRestorationAnalysis
+                do {
+                    analysis = try await videoPreview.analyze(media.url, metadata: metadata)
+                } catch is CancellationError { return } catch {
+                    let fallback = Failure.restorationFallback(.videoSceneAnalysis)
+                    Task { await diagnostics.record(fallback, operation: .videoRestoration) }
+                    if notice == nil { notice = fallback.message }
+                    return
+                }
                 videoAnalysis = analysis
                 settings.analysis = analysis.legacyAnalysis
                 previewSettings.update(settings, comparing: comparing)
                 if let item = player?.currentItem {
                     let generation = previewGeneration.begin()
-                    let composition = try await videoPreview.composition(asset: item.asset,
-                                                                         settings: previewSettings,
-                                                                         analysis: analysis)
-                    if previewGeneration.accepts(generation) { item.videoComposition = composition }
+                    do {
+                        let composition = try await videoPreview.composition(asset: item.asset,
+                                                                             settings: previewSettings,
+                                                                             analysis: analysis)
+                        if previewGeneration.accepts(generation) { item.videoComposition = composition }
+                    } catch is CancellationError { return } catch { report(error, operation: .preview) }
                 }
             }
             ready = media.kind == .photo ? preview != nil : player != nil

@@ -26,6 +26,7 @@ actor PhotoProcessor {
     /// Keyed by photo so a batch can switch between photos without repeating depth analysis.
     private var prepared: [URL: Prepared] = [:]
     private var recordedRenderFallback = false
+    private var recordedKernelFallback = false
     #if DEBUG
     private let logger = Logger(subsystem: "com.hydrotone.app", category: "photo-restoration")
     #endif
@@ -107,6 +108,17 @@ actor PhotoProcessor {
         #if DEBUG
         logger.debug("current values(natural): \(ColorCorrection.make(analysis: analysis, preset: .natural).logDescription, privacy: .public)")
         #endif
+        if let diagnostics {
+            // A real measurement never equals .neutral; it means no usable pixels were found.
+            if analysis == .neutral {
+                await diagnostics.record(.restorationFallback(.photoNoUsablePixels), operation: .photoRestoration)
+            }
+            // A missing finishing kernel silently weakens every output, so report it once per processor.
+            if !engine.finishingKernelAvailable, !recordedKernelFallback {
+                recordedKernelFallback = true
+                await diagnostics.record(.restorationFallback(.finishKernel), operation: .photoRestoration)
+            }
+        }
         recordedRenderFallback = false
         var restorationPlan: RestorationPlan?
         do {
@@ -123,7 +135,9 @@ actor PhotoProcessor {
         } catch {
             // Depth/model/fitting failures deliberately preserve the shipping HydroTone result.
             if let diagnostics {
-                await diagnostics.record(.restorationFallback(.photoAnalysis), operation: .photoRestoration)
+                let failure = (error as? RestorationError).map { Failure.restorationFallback(.photoAnalysis, cause: $0) }
+                    ?? .restorationFallback(.photoAnalysis)
+                await diagnostics.record(failure, operation: .photoRestoration)
             }
             #if DEBUG
             logger.debug("Depth-aware restoration unavailable; using current HydroTone correction")

@@ -550,6 +550,9 @@ final class FilterEngine: Sendable {
     // CIContext is thread safe. CIFilters are local to each invocation.
     let context: CIContext
     private let colorKernel: CIColorKernel?
+    /// False when the finishing kernel failed to compile. Output then uses the weaker colour-matrix
+    /// fallback, so owners with a DiagnosticRecorder report it.
+    var finishingKernelAvailable: Bool { colorKernel != nil }
     static let workingSpace = CGColorSpace(name: CGColorSpace.extendedLinearITUR_2020)!
     static let photoSpace = CGColorSpace(name: CGColorSpace.displayP3)!
     init() {

@@ -36,6 +36,24 @@ This is aligned with Apple's guidance to use Unified Logging with privacy contro
 
 Automatic retry is limited to idempotent reads. Photo saving, purchases, restore, trial commitment and exports are not automatically repeated because doing so could duplicate a user-visible side effect or consume resources unexpectedly.
 
+## Restoration fallback codes
+
+`kind = restorationFallback`, `domain = HydroTone`. The code tells which step fell back to the standard correction. Codes are stable; new stages only append.
+
+| Code | Stage | Meaning |
+|---|---|---|
+| 1 | photoAnalysis | Photo depth or water-model fit failed (older builds; cause unknown) |
+| 11-15 | photoAnalysis + cause | The same, with the cause: 1 missing model, 2 invalid depth, 3 depth too flat, 4 water fit failed, 5 restoration kernel unavailable |
+| 2 | photoRender | Photo restoration render failed |
+| 3 | videoInitialAnalysis | One video sample's depth or water fit failed |
+| 4 | videoTemporalAnalysis | Older builds only (per-frame video analysis) |
+| 5 | videoRender | Video preview or export restoration render failed |
+| 6 | videoSceneAnalysis | The whole video scene analysis failed; the clip used the standard correction |
+| 7 | finishKernel | The finishing colour kernel did not compile; every output used the plain colour-matrix fallback |
+| 8 | photoNoUsablePixels | The photo had no usable pixels for analysis (very dark or blown out) |
+
+Memory-pressure and thermal events are saved immediately, and the whole summary is saved when the app moves to the background.
+
 ## Operational checklist
 
 Before release:

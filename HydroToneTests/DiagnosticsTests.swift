@@ -89,4 +89,37 @@ final class DiagnosticsTests: XCTestCase {
         XCTAssertFalse(text.contains("localizedDescription"))
         XCTAssertFalse(text.contains("userInfo"))
     }
+
+    func testRestorationFallbackCodesStayStableAndDistinct() {
+        // Old reports use codes 1-5; new stages and causes must never reuse them.
+        XCTAssertEqual(Failure.restorationFallback(.photoAnalysis).code, 1)
+        XCTAssertEqual(Failure.restorationFallback(.videoRender).code, 5)
+        XCTAssertEqual(Failure.restorationFallback(.videoSceneAnalysis).code, 6)
+        XCTAssertEqual(Failure.restorationFallback(.finishKernel).code, 7)
+        XCTAssertEqual(Failure.restorationFallback(.photoNoUsablePixels).code, 8)
+        let causes: [RestorationError] = [.missingModel, .invalidDepth, .insufficientDepthVariation,
+                                          .waterModelFitFailed, .kernelUnavailable]
+        let codes = causes.map { Failure.restorationFallback(.photoAnalysis, cause: $0).code }
+        XCTAssertEqual(codes, [11, 12, 13, 14, 15])
+        XCTAssertEqual(Failure.restorationFallback(.photoAnalysis, cause: .missingModel).kind, .restorationFallback)
+    }
+
+    func testMemoryPressureIsSavedImmediately() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let recorder = DiagnosticRecorder(directory: directory)
+        let time = Date(timeIntervalSince1970: 1_000_000)
+        // The first record writes; the next ordinary record within 30 s stays in memory only.
+        await recorder.record(Failure(kind: .network, domain: NSURLErrorDomain, code: 1), operation: .importing, now: time)
+        await recorder.record(Failure(kind: .unreadable, domain: "HydroTone", code: 0), operation: .inspection,
+                              now: time.addingTimeInterval(1))
+        func saved() throws -> [DiagnosticRecorder.Event] {
+            try JSONDecoder().decode([DiagnosticRecorder.Event].self,
+                                     from: Data(contentsOf: directory.appendingPathComponent("events.json")))
+        }
+        XCTAssertEqual(try saved().count, 1)
+        await recorder.record(Failure(kind: .memoryPressure, domain: "HydroTone", code: 0), operation: .export,
+                              now: time.addingTimeInterval(2))
+        XCTAssertEqual(try saved().map(\.failure.kind), [.network, .unreadable, .memoryPressure])
+    }
 }

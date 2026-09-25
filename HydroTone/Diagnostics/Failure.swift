@@ -46,10 +46,27 @@ struct Failure: Error, Codable, Sendable, Equatable {
         case videoInitialAnalysis = 3
         case videoTemporalAnalysis = 4
         case videoRender = 5
+        /// The whole video scene analysis failed; the clip uses the standard correction only.
+        case videoSceneAnalysis = 6
+        /// The finishing colour kernel is unavailable; every output uses the plain colour-matrix fallback.
+        case finishKernel = 7
+        /// Analysis found no usable pixels (very dark or blown-out source), so no cast correction applies.
+        case photoNoUsablePixels = 8
     }
 
     static func restorationFallback(_ stage: RestorationStage) -> Self {
         Self(kind: .restorationFallback, domain: "HydroTone", code: stage.rawValue)
+    }
+    /// The code is stage × 10 + cause, so a missing model is told apart from a flat scene.
+    static func restorationFallback(_ stage: RestorationStage, cause: RestorationError) -> Self {
+        let causeCode = switch cause {
+        case .missingModel: 1
+        case .invalidDepth: 2
+        case .insufficientDepthVariation: 3
+        case .waterModelFitFailed: 4
+        case .kernelUnavailable: 5
+        }
+        return Self(kind: .restorationFallback, domain: "HydroTone", code: stage.rawValue * 10 + causeCode)
     }
     static func classify(_ error: Error, operation: Operation) -> Self {
         if let failure = error as? Self { return failure }

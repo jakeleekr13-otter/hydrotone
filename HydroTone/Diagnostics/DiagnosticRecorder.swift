@@ -40,7 +40,10 @@ actor DiagnosticRecorder {
             // All public values are a fixed operation/kind/domain allowlist or numeric code.
             logger.error("operation=\(operation.rawValue, privacy: .public) kind=\(failure.kind.rawValue, privacy: .public) domain=\(failure.domain, privacy: .public) code=\(failure.code)")
         }
-        if now.timeIntervalSince(lastWrite) >= 30 { flush(now: now) }
+        // Memory and thermal events often come just before the system ends the app, so save them now.
+        if failure.kind == .memoryPressure || failure.kind == .thermal || now.timeIntervalSince(lastWrite) >= 30 {
+            flush(now: now)
+        }
     }
     func snapshot() -> [Event] { events }
     func flush(now: Date = Date()) {

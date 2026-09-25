@@ -5,6 +5,7 @@ struct HydroToneApp: App {
     @State private var diagnostics: DiagnosticsCenter
     @State private var purchases: PurchaseStore
     @State private var trial: TrialStore
+    @Environment(\.scenePhase) private var scenePhase
     init() {
         let diagnostics = DiagnosticsCenter()
         _diagnostics = State(initialValue: diagnostics)
@@ -24,6 +25,10 @@ struct HydroToneApp: App {
             HomeView().preferredColorScheme(.dark).tint(.mint)
                 .environment(purchases).environment(trial).environment(diagnostics)
                 .task { await purchases.load() }
+                // The recorder batches writes for 30 s; save before the system may end a backgrounded app.
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .background { Task { await diagnostics.recorder.flush() } }
+                }
         }
     }
 }
