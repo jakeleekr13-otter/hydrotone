@@ -7,6 +7,9 @@ struct VideoExportResult: Sendable {
     let url: URL
     let metadata: VideoMetadata
     let frames: Int
+    /// Wall time for the whole export and for the frame loop alone. The difference is fixed setup and checking cost.
+    let elapsedSeconds: Double
+    let frameLoopSeconds: Double
 }
 
 actor VideoExporter {
@@ -104,6 +107,7 @@ actor VideoExporter {
         guard writer.startWriting() else { throw writer.error ?? HydroError.exportFailed }
         writer.startSession(atSourceTime: .zero)
         guard reader.startReading() else { throw reader.error ?? HydroError.unreadable }
+        let loopStartedAt = Date()
         var videoDone = false
         var audioDone = Set<Int>()
         var frames = 0
@@ -180,6 +184,7 @@ actor VideoExporter {
                 try await Task.sleep(for: .milliseconds(2))
             }
         }
+        let frameLoopSeconds = Date().timeIntervalSince(loopStartedAt)
         try Task.checkCancellation()
         guard frames > 0, reader.status != .failed else { throw reader.error ?? HydroError.unreadable }
         writer.endSession(atSourceTime: end)
@@ -193,6 +198,20 @@ actor VideoExporter {
         logger.debug("frames=\(frames) seconds=\(elapsed) exportFPS=\(Double(frames) / elapsed) millisecondsPerFrame=\(elapsed * 1000 / Double(max(1, frames)))")
         #endif
         succeeded = true
-        return VideoExportResult(url: target, metadata: result, frames: frames)
+        return VideoExportResult(url: target, metadata: result, frames: frames,
+                                 elapsedSeconds: Date().timeIntervalSince(startedAt), frameLoopSeconds: frameLoopSeconds)
+    }
+
+    /// Exports a short probe with the real pipeline and scales its frame-loop time to the full length.
+    func estimateSeconds(url: URL, metadata: VideoMetadata, settings: FilterSettings, options: ExportOptions,
+                         restorationAnalysis: VideoRestorationAnalysis?) async throws -> Double {
+        let length = min(metadata.duration, options.durationLimit ?? metadata.duration)
+        var probe = options
+        probe.durationLimit = min(1, length)
+        let result = try await export(url: url, metadata: metadata, settings: settings, options: probe,
+                                      restorationAnalysis: restorationAnalysis) { _ in }
+        TemporaryFiles.remove(result.url)
+        let setup = max(0, result.elapsedSeconds - result.frameLoopSeconds)
+        return setup + result.frameLoopSeconds * length / min(1, length)
     }
 }

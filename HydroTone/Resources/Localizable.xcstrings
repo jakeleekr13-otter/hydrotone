@@ -876,6 +876,41 @@
         }
       }
     },
+    "Estimated time is measured with a short test export on this device.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated time is measured with a short test export on this device."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "예상 시간은 이 기기에서 짧은 테스트 내보내기로 측정합니다."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "予想時間は、このデバイスで短いテスト書き出しを行って測定します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预计时间通过在此设备上进行简短的测试导出测得。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預估時間透過在此裝置上進行簡短的測試匯出測得。"
+          }
+        }
+      }
+    },
     "Export": {
       "extractionState": "manual",
       "localizations": {

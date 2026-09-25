@@ -12,10 +12,17 @@ struct ExportView: View {
                     Section("Resolution") {
                         Picker("Resolution", selection: $model.options.resolution) {
                             ForEach(ExportOptions.Resolution.allCases) { resolution in
-                                Text(resolution.localizedName).tag(resolution).disabled(!purchases.isPro && resolution == .source && max(metadata.displaySize.width, metadata.displaySize.height) > 1920)
+                                HStack {
+                                    Text(resolution.localizedName)
+                                    Spacer()
+                                    if let seconds = model.estimates[resolution] {
+                                        Text("~" + Self.format(seconds)).monospacedDigit().foregroundStyle(.secondary)
+                                    } else if model.estimating { ProgressView() }
+                                }.tag(resolution).disabled(!purchases.isPro && resolution == .source && max(metadata.displaySize.width, metadata.displaySize.height) > 1920)
                             }
-                        }
+                        }.pickerStyle(.inline).labelsHidden()
                         Text(model.options.summary(for: metadata)).font(.footnote).foregroundStyle(.secondary)
+                        Text("Estimated time is measured with a short test export on this device.").font(.footnote).foregroundStyle(.secondary)
                     }
                     Section("Color") {
                         Picker("Color", selection: $model.options.range) {
@@ -34,10 +41,22 @@ struct ExportView: View {
                         Text("Failed or cancelled exports don’t use your trial.").font(.footnote).foregroundStyle(.secondary)
                     }
                 }
-                Section { Button("Export") { model.startExport(purchases: purchases, trial: trial) }.frame(maxWidth: .infinity) }
             }.navigationTitle("Export").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
-        }.presentationDetents([.medium, .large])
+                // Pinned so the action stays visible however far the options scroll.
+                .safeAreaInset(edge: .bottom) {
+                    Button { model.startExport(purchases: purchases, trial: trial) } label: {
+                        Text("Export").frame(maxWidth: .infinity, minHeight: 44)
+                    }.buttonStyle(.borderedProminent).accessibilityIdentifier("export-confirm").padding(.horizontal).padding(.vertical, 8).background(.bar)
+                }
+        }.presentationDetents([.large])
+            .task { if model.media.kind == .video { model.estimateExportTimes() } }
+            .onChange(of: model.options.range) { if model.media.kind == .video { model.estimateExportTimes() } }
+            .onDisappear { model.cancelEstimates() }
+    }
+    static func format(_ seconds: Double) -> String {
+        let rounded = seconds < 60 ? max(5, (seconds / 5).rounded(.up) * 5) : (seconds / 60).rounded(.up) * 60
+        return Duration.seconds(rounded).formatted(.units(allowed: [.minutes, .seconds], width: .abbreviated))
     }
 }
 struct ExportCompleteView: View {

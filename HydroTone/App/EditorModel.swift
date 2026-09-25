@@ -23,6 +23,10 @@ final class EditorModel {
     let previewSettings = PreviewSettings()
     var options = ExportOptions()
     var showExportOptions = false
+    var estimates: [ExportOptions.Resolution: Double] = [:]
+    var estimating = false
+    private var estimateTask: Task<Void, Never>?
+    private let estimator = VideoExporter()
     var optionsDismissing = false
     var showPro = false
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
@@ -150,19 +154,38 @@ final class EditorModel {
         } else { options.durationLimit = nil }
         showExportOptions = true
     }
-    func requestExport(purchases: PurchaseStore, trial: TrialStore) async {
-        await purchases.refreshEntitlement()
-        if !purchases.isPro {
-            guard trial.available else { report(HydroError.trialUnavailable); return }
-            guard trial.canExport(media.kind) else { showPro = true; return }
-            options.range = .sdr
-            options.resolution = .hd
-            options.durationLimit = TrialStore.videoSeconds
-        } else { options.durationLimit = nil }
-        showExportOptions = true
+    /// Measures each resolution on this device with the current preset and color range.
+    func estimateExportTimes() {
+        estimateTask?.cancel()
+        estimates = [:]
+        guard let metadata, !exporting else { return }
+        let url = media.url, settings = settings, analysis = videoAnalysis, base = options
+        estimating = true
+        estimateTask = Task {
+            defer { if !Task.isCancelled { estimating = false } }
+            var measured: [String: Double] = [:]
+            for resolution in ExportOptions.Resolution.allCases {
+                var options = base
+                options.resolution = resolution
+                let size = options.size(for: metadata.displaySize)
+                let key = "\(size.width)x\(size.height)"
+                do {
+                    let seconds: Double
+                    if let known = measured[key] { seconds = known } else {
+                        seconds = try await estimator.estimateSeconds(url: url, metadata: metadata, settings: settings,
+                                                                      options: options, restorationAnalysis: analysis)
+                    }
+                    try Task.checkCancellation()
+                    measured[key] = seconds
+                    estimates[resolution] = seconds
+                } catch { return }
+            }
+        }
     }
+    func cancelEstimates() { estimateTask?.cancel(); estimateTask = nil; estimating = false }
     func startExport(purchases: PurchaseStore, trial: TrialStore) {
         guard !exporting else { return }
+        cancelEstimates()
         exporting = true
         progress = 0
         stopClip(rewind: false)
@@ -254,5 +277,5 @@ final class EditorModel {
         // Keep one actionable alert visible instead of presenting a stream of duplicates.
         if self.error == nil { self.error = failure.message }
     }
-    func close() { stopClip(rewind: false); player?.pause(); exportTask?.cancel(); discardCompleted(); TemporaryFiles.remove(media.url) }
+    func close() { cancelEstimates(); stopClip(rewind: false); player?.pause(); exportTask?.cancel(); discardCompleted(); TemporaryFiles.remove(media.url) }
 }
