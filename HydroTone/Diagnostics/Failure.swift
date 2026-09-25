@@ -4,12 +4,16 @@ import Photos
 import Security
 import StoreKit
 
-enum Operation: String, Codable, Sendable { case importing, inspection, preview, export, save, purchase, restore, trial, hdrProbe, productLoading }
+enum Operation: String, Codable, Sendable {
+    case importing, inspection, preview, export, save, purchase, restore, trial, hdrProbe, productLoading
+    case photoRestoration, videoRestoration
+}
 
 struct Failure: Error, Codable, Sendable, Equatable {
     enum Kind: String, Codable, Sendable {
         case cancelled, storage, permission, network, unreadable, unsupported, temporarilyUnavailable
         case exportFailed, invalidOutput, trialUnavailable, storeUnavailable, thermal, memoryPressure
+        case restorationFallback
     }
     let kind: Kind
     let domain: String
@@ -30,7 +34,22 @@ struct Failure: Error, Codable, Sendable, Equatable {
         case .storeUnavailable: String(localized: "The App Store couldn’t complete this request. Check your connection and try again.")
         case .memoryPressure: String(localized: "Memory is low. Try a smaller photo or a lower video resolution.")
         case .thermal: String(localized: "Your iPhone needs to cool down before exporting. Wait a moment and try again.")
+        case .restorationFallback: String(localized: "Depth-aware restoration was unavailable, so HydroTone used its standard correction.")
         }
+    }
+
+    /// Stable, privacy-safe stages for restoration fallback diagnostics. Never encode the
+    /// underlying model error because it can contain a media path or framework message.
+    enum RestorationStage: Int, Sendable {
+        case photoAnalysis = 1
+        case photoRender = 2
+        case videoInitialAnalysis = 3
+        case videoTemporalAnalysis = 4
+        case videoRender = 5
+    }
+
+    static func restorationFallback(_ stage: RestorationStage) -> Self {
+        Self(kind: .restorationFallback, domain: "HydroTone", code: stage.rawValue)
     }
     static func classify(_ error: Error, operation: Operation) -> Self {
         if let failure = error as? Self { return failure }

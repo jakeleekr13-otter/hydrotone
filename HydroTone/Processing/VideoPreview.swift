@@ -1,6 +1,23 @@
 import AVFoundation
 import CoreImage
 
+private final class VideoRestorationDiagnosticGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedRenderFallback = false
+
+    func recordRenderFallback(using diagnostics: DiagnosticRecorder?) {
+        lock.lock()
+        let shouldRecord = !recordedRenderFallback
+        recordedRenderFallback = true
+        lock.unlock()
+        guard shouldRecord, let diagnostics else { return }
+        Task {
+            await diagnostics.record(.restorationFallback(.videoRender),
+                                     operation: .videoRestoration)
+        }
+    }
+}
+
 final class PreviewSettings: @unchecked Sendable {
     private let lock = NSLock()
     private var value = FilterSettings()
@@ -30,7 +47,14 @@ enum VideoDebugVariant: String, CaseIterable, Sendable {
 struct VideoPreview {
     let engine = FilterEngine()
     let restorationEngine = RestorationEngine()
-    let analyzer = VideoRestorationAnalyzer()
+    let analyzer: VideoRestorationAnalyzer
+    private let diagnostics: DiagnosticRecorder?
+    private let diagnosticGate = VideoRestorationDiagnosticGate()
+
+    init(diagnostics: DiagnosticRecorder? = nil) {
+        self.diagnostics = diagnostics
+        analyzer = VideoRestorationAnalyzer(diagnostics: diagnostics)
+    }
 
     func analyze(_ url: URL, metadata: VideoMetadata) async throws -> VideoRestorationAnalysis {
         try await analyzer.analyze(url: url, metadata: metadata)
@@ -55,8 +79,14 @@ struct VideoPreview {
             guard let plan = analysis?.previewPlan(at: request.compositionTime.seconds) else {
                 request.finish(with: fallback, context: engine.context); return
             }
-            let output = (try? restorationEngine.combined(request.sourceImage, plan: plan,
-                                                           settings: current, filter: engine)) ?? fallback
+            let output: CIImage
+            do {
+                output = try restorationEngine.combined(request.sourceImage, plan: plan,
+                                                         settings: current, filter: engine)
+            } catch {
+                diagnosticGate.recordRenderFallback(using: diagnostics)
+                output = fallback
+            }
             request.finish(with: output, context: engine.context)
         })
         composition.colorPrimaries = AVVideoColorPrimaries_ITU_R_709_2

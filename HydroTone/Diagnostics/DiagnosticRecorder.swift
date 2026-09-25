@@ -27,14 +27,15 @@ actor DiagnosticRecorder {
             events = Array(decoded.suffix(Self.maxEvents))
         }
     }
-    func record(_ failure: Failure, operation: Operation, now: Date = Date()) {
-        guard failure.kind != .cancelled else { return }
+    func record(_ failure: Failure, operation: Operation, occurrences: Int = 1, now: Date = Date()) {
+        guard failure.kind != .cancelled, occurrences > 0 else { return }
         let minute = Int(now.timeIntervalSince1970 / window)
         events.removeAll { $0.minute < minute - 7 * 24 * 60 }
         if let last = events.lastIndex(where: { $0.minute == minute && $0.operation == operation && $0.failure == failure }) {
-            events[last].count = min(1_000_000, events[last].count + 1)
+            events[last].count = min(1_000_000, events[last].count + occurrences)
         } else {
-            events.append(Event(minute: minute, operation: operation, failure: failure, count: 1))
+            events.append(Event(minute: minute, operation: operation, failure: failure,
+                                count: min(1_000_000, occurrences)))
             if events.count > Self.maxEvents { events.removeFirst(events.count - Self.maxEvents) }
             // All public values are a fixed operation/kind/domain allowlist or numeric code.
             logger.error("operation=\(operation.rawValue, privacy: .public) kind=\(failure.kind.rawValue, privacy: .public) domain=\(failure.domain, privacy: .public) code=\(failure.code)")

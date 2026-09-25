@@ -12,10 +12,16 @@ struct VideoExportResult: Sendable {
 actor VideoExporter {
     private let engine = FilterEngine()
     private let restorationEngine = RestorationEngine()
+    private let diagnostics: DiagnosticRecorder?
     private let signposter = OSSignposter(subsystem: "com.hydrotone.app", category: "export")
     #if DEBUG
     private let logger = Logger(subsystem: "com.hydrotone.app", category: "video-performance")
     #endif
+
+    init(diagnostics: DiagnosticRecorder? = nil) {
+        self.diagnostics = diagnostics
+    }
+
     func export(url: URL, metadata: VideoMetadata, settings: FilterSettings, options: ExportOptions,
                 restorationAnalysis: VideoRestorationAnalysis? = nil,
                 progress: @escaping @Sendable (Double) async -> Void) async throws -> VideoExportResult {
@@ -27,7 +33,7 @@ actor VideoExporter {
         let hdr = options.range == .hdr
         guard !hdr || (metadata.isHDR && (metadata.dynamicRange == .hlg || metadata.dynamicRange == .pq) && (metadata.bitDepth ?? 0) >= 10) else { throw HydroError.unsupported }
         let temporalSession = settings.preset == .original ? nil : restorationAnalysis.map {
-            TemporalRestorationSession(analysis: $0, preservesHDR: hdr)
+            TemporalRestorationSession(analysis: $0, preservesHDR: hdr, diagnostics: diagnostics)
         }
         let asset = AVURLAsset(url: url)
         guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw HydroError.unreadable }
@@ -101,6 +107,7 @@ actor VideoExporter {
         var videoDone = false
         var audioDone = Set<Int>()
         var frames = 0
+        var recordedRenderFallback = false
         var lastProgress = -1.0
         var lastActivity = Date()
         while !videoDone || audioDone.count < audio.count {
@@ -133,8 +140,17 @@ actor VideoExporter {
                     if let temporalSession,
                        let plan = await temporalSession.plan(for: frame.0, at: frame.1.seconds,
                                                              runtime: .current) {
-                        corrected = (try? restorationEngine.combined(frame.0, plan: plan,
-                                                                      settings: settings, filter: engine)) ?? fallback
+                        do {
+                            corrected = try restorationEngine.combined(frame.0, plan: plan,
+                                                                        settings: settings, filter: engine)
+                        } catch {
+                            corrected = fallback
+                            if !recordedRenderFallback, let diagnostics {
+                                recordedRenderFallback = true
+                                await diagnostics.record(.restorationFallback(.videoRender),
+                                                         operation: .videoRestoration)
+                            }
+                        }
                     } else { corrected = fallback }
                     engine.context.render(corrected, to: destination, bounds: CGRect(origin: .zero, size: size),
                                           colorSpace: VideoColorPipeline.colorSpace(hdr: hdr, pq: metadata.dynamicRange == .pq))

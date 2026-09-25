@@ -59,4 +59,30 @@ final class DiagnosticsTests: XCTestCase {
         XCTAssertFalse(text.contains("\"minute\""))
         XCTAssertLessThan(text.utf8.count, 128_000)
     }
+
+    func testRestorationFallbacksAreAggregatedWithoutUnderlyingErrorDetails() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let recorder = DiagnosticRecorder(directory: directory)
+        await recorder.record(.restorationFallback(.videoInitialAnalysis),
+                              operation: .videoRestoration, occurrences: 3)
+        await recorder.record(.restorationFallback(.videoInitialAnalysis),
+                              operation: .videoRestoration, occurrences: 2)
+
+        let events = await recorder.snapshot()
+        XCTAssertEqual(events.count, 1)
+        XCTAssertEqual(events.first?.operation, .videoRestoration)
+        XCTAssertEqual(events.first?.failure.kind, .restorationFallback)
+        XCTAssertEqual(events.first?.failure.domain, "HydroTone")
+        XCTAssertEqual(events.first?.failure.code,
+                       Failure.RestorationStage.videoInitialAnalysis.rawValue)
+        XCTAssertEqual(events.first?.count, 5)
+
+        let report = try await recorder.exportReport()
+        defer { TemporaryFiles.remove(report); try? FileManager.default.removeItem(at: directory) }
+        let text = try String(contentsOf: report, encoding: .utf8)
+        XCTAssertTrue(text.contains("videoRestoration"))
+        XCTAssertTrue(text.contains("restorationFallback"))
+        XCTAssertFalse(text.contains("localizedDescription"))
+        XCTAssertFalse(text.contains("userInfo"))
+    }
 }

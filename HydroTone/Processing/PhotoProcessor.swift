@@ -18,15 +18,21 @@ enum PhotoPipelineVariant: String, CaseIterable, Sendable {
 
 actor PhotoProcessor {
     let engine = FilterEngine()
+    private let diagnostics: DiagnosticRecorder?
     private let depthEstimator = DepthEstimator()
     private let waterEstimator = WaterModelEstimator()
     private let restorationEngine = RestorationEngine()
     private var analyzedURL: URL?
     private var cachedAnalysis = WaterAnalysis.neutral
     private var restorationPlan: RestorationPlan?
+    private var recordedRenderFallback = false
     #if DEBUG
     private let logger = Logger(subsystem: "com.hydrotone.app", category: "photo-restoration")
     #endif
+
+    init(diagnostics: DiagnosticRecorder? = nil) {
+        self.diagnostics = diagnostics
+    }
 
     func open(_ url: URL) throws -> CIImage {
         guard let image = CIImage(contentsOf: url, options: [.applyOrientationProperty: true, .expandToHDR: true]),
@@ -98,6 +104,7 @@ actor PhotoProcessor {
         analyzedURL = url
         cachedAnalysis = analysis
         restorationPlan = nil
+        recordedRenderFallback = false
         do {
             let depth = try await depthEstimator.estimate(image: source, sourceURL: url)
             try Task.checkCancellation()
@@ -113,6 +120,9 @@ actor PhotoProcessor {
         } catch {
             // Depth/model/fitting failures deliberately preserve the shipping HydroTone result.
             restorationPlan = nil
+            if let diagnostics {
+                await diagnostics.record(.restorationFallback(.photoAnalysis), operation: .photoRestoration)
+            }
             #if DEBUG
             logger.debug("Depth-aware restoration unavailable; using current HydroTone correction")
             #endif
@@ -143,6 +153,10 @@ actor PhotoProcessor {
             // Low-confidence fits approach the exact existing HydroTone output.
             return engine.blend(current, depthAware, amount: plan.confidence)
         } catch {
+            if !recordedRenderFallback, let diagnostics {
+                recordedRenderFallback = true
+                Task { await diagnostics.record(.restorationFallback(.photoRender), operation: .photoRestoration) }
+            }
             #if DEBUG
             logger.debug("Restoration render failed; using current HydroTone correction")
             #endif

@@ -65,12 +65,17 @@ actor VideoRestorationAnalyzer {
     private let engine = FilterEngine()
     private let waterEstimator = WaterModelEstimator()
     private let profiler: DeviceCapabilityProfiler
+    private let diagnostics: DiagnosticRecorder?
     private let signposter = OSSignposter(subsystem: "com.hydrotone.app", category: "video-analysis")
     #if DEBUG
     private let logger = Logger(subsystem: "com.hydrotone.app", category: "video-analysis")
     #endif
 
-    init(profiler: DeviceCapabilityProfiler = DeviceCapabilityProfiler()) { self.profiler = profiler }
+    init(profiler: DeviceCapabilityProfiler = DeviceCapabilityProfiler(),
+         diagnostics: DiagnosticRecorder? = nil) {
+        self.profiler = profiler
+        self.diagnostics = diagnostics
+    }
 
     func analyze(url: URL, metadata: VideoMetadata) async throws -> VideoRestorationAnalysis {
         let interval = signposter.beginInterval("Initial five-frame analysis")
@@ -95,6 +100,7 @@ actor VideoRestorationAnalyzer {
 
         var legacySamples: [WaterAnalysis] = []
         var plans: [TimedRestorationPlan] = []
+        var restorationFailures = 0
         for fraction in [0.1, 0.3, 0.5, 0.7, 0.9] {
             try Task.checkCancellation()
             let requested = max(0, min(metadata.duration, metadata.duration * fraction))
@@ -111,10 +117,16 @@ actor VideoRestorationAnalyzer {
                 plans.append(TimedRestorationPlan(time: requested, plan: plan))
             } catch is CancellationError { throw CancellationError() }
             catch {
+                restorationFailures += 1
                 #if DEBUG
                 logger.debug("sample=\(fraction) physical-restoration unavailable; retaining HydroTone fallback")
                 #endif
             }
+        }
+        if restorationFailures > 0, let diagnostics {
+            await diagnostics.record(.restorationFallback(.videoInitialAnalysis),
+                                     operation: .videoRestoration,
+                                     occurrences: restorationFailures)
         }
         plans.sort { $0.time < $1.time }
         let environment = aggregate(plans.map(\.plan))

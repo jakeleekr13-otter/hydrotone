@@ -5,7 +5,7 @@ import AVFoundation
 final class EditorModel {
     let diagnostics: DiagnosticRecorder
     let media: ImportedMedia
-    let photos = PhotoProcessor()
+    let photos: PhotoProcessor
     var settings = FilterSettings()
     var preview: CGImage?
     var originalPreview: CGImage?
@@ -14,8 +14,8 @@ final class EditorModel {
     var metadata: VideoMetadata?
     var videoAnalysis: VideoRestorationAnalysis?
     var capability = ExportCapability.photo
-    let video = VideoExporter()
-    let videoPreview = VideoPreview()
+    let video: VideoExporter
+    let videoPreview: VideoPreview
     let previewSettings = PreviewSettings()
     var options = ExportOptions()
     var showExportOptions = false
@@ -35,7 +35,13 @@ final class EditorModel {
     var error: String?
     var notice: String?
     var exportTask: Task<Void, Never>?
-    init(media: ImportedMedia, diagnostics: DiagnosticRecorder) { self.media = media; self.diagnostics = diagnostics }
+    init(media: ImportedMedia, diagnostics: DiagnosticRecorder) {
+        self.media = media
+        self.diagnostics = diagnostics
+        photos = PhotoProcessor(diagnostics: diagnostics)
+        video = VideoExporter(diagnostics: diagnostics)
+        videoPreview = VideoPreview(diagnostics: diagnostics)
+    }
     func load() async {
         defer { loading = false }
         do {

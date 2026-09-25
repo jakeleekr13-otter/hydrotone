@@ -57,6 +57,7 @@ final class TemporalRestorationSession {
     private let device: DeviceCapabilityProfile
     private let source: VideoSourceProfile
     private let preservesHDR: Bool
+    private let diagnostics: DiagnosticRecorder?
     private var policy: ProcessingPolicy
     private var detector = RestorationEnvironmentDetector()
     private var currentDepth: NormalizedDepthMap?
@@ -78,15 +79,18 @@ final class TemporalRestorationSession {
     private var nextEnvironmentCheckTime: Double = 0
     private var lastThermalState: RuntimeThermalState
     private var inferenceCount = 0
+    private var recordedInferenceFallback = false
     #if DEBUG
     private let logger = Logger(subsystem: "com.hydrotone.app", category: "video-restoration")
     #endif
 
-    init(analysis: VideoRestorationAnalysis, preservesHDR: Bool) {
+    init(analysis: VideoRestorationAnalysis, preservesHDR: Bool,
+         diagnostics: DiagnosticRecorder? = nil) {
         device = analysis.deviceProfile
         source = analysis.sourceProfile
         policy = analysis.exportPolicy
         self.preservesHDR = preservesHDR
+        self.diagnostics = diagnostics
         lastThermalState = RuntimeThermalState(ProcessInfo.processInfo.thermalState)
         depthEstimator = DepthEstimator(computeUnits: analysis.exportPolicy.computePolicy.coreML)
         if let environment = analysis.initialEnvironment {
@@ -186,6 +190,11 @@ final class TemporalRestorationSession {
         } catch {
             currentConfidence *= 0.85
             temporalConfidence *= 0.85
+            if !recordedInferenceFallback, let diagnostics {
+                recordedInferenceFallback = true
+                await diagnostics.record(.restorationFallback(.videoTemporalAnalysis),
+                                         operation: .videoRestoration)
+            }
             #if DEBUG
             logger.debug("time=\(time) physical analysis failed; continuing HydroTone fallback")
             #endif
