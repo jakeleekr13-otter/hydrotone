@@ -166,14 +166,14 @@ Custom is the user preset (gear tile). It starts from the Natural values and ren
 |---|---|---|
 | Brightness | `midLift` down, `shadowLift` up | -0.25 / +0.075 |
 | Contrast | `toneCurve` | -0.10 / +0.02 |
-| Saturation | `saturation`, before the water chroma ceiling reads it | -0.10 / +0.08 x (1 - neon) |
+| Saturation | `saturation`; the water chroma ceiling ignores it, so the water shows it too | -0.45 / +0.35 x (1 - 0.6 x neon) |
 | Clarity | `clarity` and `definition`, as a factor | x0 / x1.75 |
-| Temperature | `warmth` | -100 K / +100 K |
+| Temperature | `warmth`; a cool shift gets no tint | -1500 K / +1500 K |
 
 - The up moves of Brightness, Contrast and Saturation share one budget. When their sum is above 1, each is scaled down (`CustomAdjustments.budgeted`).
 - The offsets enter before the guards and the white reference that read them. The highlight shoulder still runs last.
-- Saturation moves the water tone, so `subjectRed` and the red gate follow the toned water.
-- The caps are provisional (`CustomAdjustments.Caps`). They were measured before the white reference and the highlight shoulder landed. See [Verification](Verification.md).
+- Saturation does not move the water tone, the red gate or `subjectRed`. It acts at the `CIColorControls` step, on the water too: at +1 the water gains at most about a third more chroma.
+- The caps are provisional (`CustomAdjustments.Caps`). Brightness, Contrast and Clarity were measured before the white reference and the highlight shoulder landed. Saturation and Temperature were widened on 25 Sep 2026 after an iPhone test, without a render measurement. See [Verification](Verification.md).
 - One saved slot in UserDefaults (`customAdjustments.v1`) holds the five positions. The editor, batch and video share it.
 - Custom gets no preset terms, so with every slider at 0 it equals Natural at full strength.
 

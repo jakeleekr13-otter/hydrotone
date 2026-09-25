@@ -2,6 +2,10 @@
 
 This page lists the checks that are still open. The product owner decided to finish the implementation first and run every check in one final round (25 Sep 2026). Each change already has its own unit tests.
 
+## Open work (do first)
+
+- **The three built-in presets look almost the same.** The product owner found this on the iPhone on 25 Sep 2026. The preset tuning (`e02c19e`) made each preset match its name, but it kept the changes small to stay inside the guards. Next: make Natural, Tropical and Deep Dive clearly different at the default intensity, then check them with the other presets items below.
+
 ## Changes waiting for the final round
 
 | Commit | Change |
@@ -9,6 +13,7 @@ This page lists the checks that are still open. The product owner decided to fin
 | `a439df0` | Highlight shoulder: highlights roll off instead of clipping |
 | `13ffbee` | Custom user preset: five saved sliders for photo, batch and video |
 | `e02c19e` | Tropical and Deep Dive tuned to match their names |
+| `7651372` | Custom Saturation and Temperature made visible (wider ranges) |
 
 ## Final round checklist
 
@@ -25,7 +30,7 @@ This page lists the checks that are still open. The product owner decided to fin
 4. **Custom slider ranges.** The caps in `CustomAdjustments.Caps` were measured before the white reference and the highlight shoulder. Measure them again on the current code:
    - all five sliders at -1 and +1, at full strength
    - the joint budget for Brightness, Contrast and Saturation
-   - Temperature: ±100 K may be too small to see. Find the widest range that keeps water out of indigo and green. Before the preset tuning commit, a positive value cooled the image; check the direction on a real photo.
+   - Saturation and Temperature: on 25 Sep 2026 the product owner found Saturation very weak and Temperature not visible on the iPhone. `7651372` widened both. Check on the iPhone that both are clearly visible at ±50 and ±100, that + Temperature warms and - cools, and that water never turns neon, indigo or green.
    - one SDR clip and one HDR clip
 5. **Real video on the iPhone.** Use 2 or 3 real dive clips, including 1 SDR and 1 HDR. Check:
    - colour stays stable from frame to frame
