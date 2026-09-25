@@ -201,7 +201,7 @@ final class RestorationEngine: Sendable {
         let values = corrections(settings: settings, plan: plan)
         let current = filter.apply(image, correction: values.current, intensity: amount)
         let physicallyRestored = try restore(image, plan: plan)
-        let finished = filter.finishing(physicallyRestored, correction: values.restored)
+        let finished = filter.finishing(physicallyRestored, correction: values.restored, reference: image)
         let depthAware = filter.blend(image, finished, amount: amount)
         // Low-confidence fits approach the exact current HydroTone output.
         return filter.blend(current, depthAware, amount: values.restored.physicalWeight)

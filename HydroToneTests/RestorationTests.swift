@@ -265,7 +265,8 @@ final class RestorationTests: XCTestCase {
             var pixel = [Float](repeating: 0, count: 4)
             engine.context.render(engine.finishing(image, correction: values), toBitmap: &pixel, rowBytes: 16,
                                   bounds: CGRect(x: 1, y: 1, width: 1, height: 1), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
-            let expected = FinishingMath.color(color, correction: values)
+            // finishing ends with the highlight shoulder; its reference is the input itself.
+            let expected = FinishingMath.shoulder(FinishingMath.color(color, correction: values), reference: color)
             // The working format is half float, so the tolerance grows with the value.
             assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
         }
@@ -761,7 +762,7 @@ final class RestorationTests: XCTestCase {
             var pixel = [Float](repeating: 0, count: 4)
             engine.context.render(engine.finishing(image, correction: values), toBitmap: &pixel, rowBytes: 16,
                                   bounds: CGRect(x: 1, y: 1, width: 1, height: 1), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
-            let expected = FinishingMath.color(color, correction: values)
+            let expected = FinishingMath.shoulder(FinishingMath.color(color, correction: values), reference: color)
             assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
         }
         // The belly takes the reference, the water does not.
@@ -790,6 +791,111 @@ final class RestorationTests: XCTestCase {
         let plain = FilterEngine().analyze(water)
         XCTAssertEqual(plain.neutralShare, 0)
         XCTAssertEqual(plain.highShare, 0)
+    }
+
+    // MARK: Highlight shoulder
+
+    func testHighlightShoulderStopsABrightPixelFromClippingAndKeepsItsHue() {
+        // Mint sand pushed past white in green, as in a teal-sand photo: display green is above one.
+        let mint = SIMD3<Float>(0.55, 1.05, 0.9)
+        XCTAssertGreaterThan(FinishingMath.display(mint).max(), 1)
+        let out = FinishingMath.shoulder(mint, reference: .init(0.3, 0.7, 0.6))
+        let shown = FinishingMath.display(out)
+        XCTAssertLessThan(shown.max(), 0.991) // below sRGB code value 254
+        XCTAssertGreaterThan(shown.max(), 1 - FinishingMath.shoulderWidth)
+        // The whole pixel is scaled, so the channel ratios and the hue stay.
+        assertEqual(out / out.max(), mint / mint.max(), accuracy: 1e-5)
+        XCTAssertEqual(oklch(out).z, oklch(mint).z, accuracy: 0.5)
+        // Brighter input stays brighter and never passes white (only a far overshoot reaches it).
+        var last: Float = 0
+        for scale in stride(from: Float(0.8), through: 3, by: 0.1) {
+            let peak = FinishingMath.display(FinishingMath.shoulder(mint * scale, reference: .zero)).max()
+            XCTAssertGreaterThanOrEqual(peak, last - 1e-6)
+            XCTAssertLessThanOrEqual(peak, 1 + 1e-5)
+            last = peak
+        }
+    }
+
+    func testHighlightShoulderLeavesPixelsBelowTheShoulderUnchanged() {
+        for color: SIMD3<Float> in [.init(0.02, 0.2, 0.55), .init(0.3, 0.25, 0.2), .init(0.5, 0.5, 0.5),
+                                    .init(0.84, 0.84, 0.84), .init(0.4, 0.7, 0.65), .zero] {
+            XCTAssertLessThanOrEqual(FinishingMath.display(color).max(), 1 - FinishingMath.shoulderWidth)
+            XCTAssertEqual(FinishingMath.shoulder(color, reference: color), color)
+            XCTAssertEqual(FinishingMath.shoulder(color, reference: .one), color)
+        }
+    }
+
+    func testHighlightShoulderTurnsATintedBlownHighlightWhite() {
+        // The sun after the red gains: bright in every channel and tinted pink. It turns white, not salmon.
+        let sun = FinishingMath.display(FinishingMath.shoulder(.init(1.9, 1.2, 1.15), reference: .one))
+        XCTAssertLessThan(sun.max() - sun.min(), 0.02)
+        XCTAssertLessThan(sun.max(), 1)
+    }
+
+    func testHighlightShoulderKeepsHDRHighlightsAboveWhite() {
+        // An HDR highlight at about three times white: its own source peak is the ceiling.
+        let highlight = SIMD3<Float>(2.6, 3, 3.2)
+        XCTAssertGreaterThan(FinishingMath.display(FinishingMath.shoulder(highlight, reference: highlight)).max(), 3)
+    }
+
+    func testHighlightShoulderKernelMatchesCPUMirror() {
+        let engine = FilterEngine()
+        let values = colorOnly { $0.castGains = .init(1.5, 1.1, 0.95) }
+        // Below the shoulder, mint sand past white, a pink sun, an HDR highlight, and a restored pixel
+        // brighter than its source (the reference), as on the restored path.
+        let cases: [(SIMD3<Float>, SIMD3<Float>)] = [
+            (.init(0.1, 0.3, 0.4), .init(0.1, 0.3, 0.4)), (.init(0.4, 0.95, 0.8), .init(0.3, 0.6, 0.5)),
+            (.init(1.2, 1, 0.95), .one), (.init(2.6, 3, 3.2), .init(2.6, 3, 3.2)),
+            (.init(0.5, 1.1, 0.9), .init(0.3, 0.6, 0.55))]
+        func image(_ c: SIMD3<Float>) -> CIImage {
+            CIImage(color: CIColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z),
+                                   colorSpace: FilterEngine.workingSpace)!).cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+        }
+        for (color, reference) in cases {
+            var pixel = [Float](repeating: 0, count: 4)
+            engine.context.render(engine.finishing(image(color), correction: values, reference: image(reference)),
+                                  toBitmap: &pixel, rowBytes: 16, bounds: CGRect(x: 1, y: 1, width: 1, height: 1),
+                                  format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            let expected = FinishingMath.shoulder(FinishingMath.color(color, correction: values), reference: reference)
+            assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
+        }
+    }
+
+    func testNeutralRampStaysNeutralThroughTheShoulderOnBothPaths() throws {
+        // A grey ramp up to pure white, through the whole chain (RestorationEngine.combined), with a
+        // per-pixel depth (photo) and one constant depth (video). No pixel may take a tint or clip.
+        let grey = WaterAnalysis(redLoss: 0, cyanDominance: 0, exposure: 0.05, contrast: 0.6, saturation: 0,
+                                 meanRed: 0.2, meanGreen: 0.2, meanBlue: 0.2, midLuminance: 0.2,
+                                 waterRed: 0.1, waterGreen: 0.1, waterBlue: 0.1)
+        let width = 64, height = 16
+        let ramp = (0..<(width * height)).map { Float($0 % width) / Float(width - 1) }
+        var rgba = [Float](); rgba.reserveCapacity(ramp.count * 4)
+        for value in ramp { rgba += [value, value, value, 1] }
+        let source = CIImage(bitmapData: rgba.withUnsafeBytes { Data($0) }, bytesPerRow: width * 16,
+                             size: CGSize(width: width, height: height), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+        let map = try NormalizedDepthMap(width: width, height: height, values: ramp)
+        let depth = DepthEstimate(map: map, source: .monocular, statistics: .init(minimum: 0, maximum: 1, median: 0.5),
+                                  confidence: 0.9, inferenceMilliseconds: nil)
+        let engine = FilterEngine()
+        let plan = try WaterModelEstimator().estimate(image: source, depth: depth, legacy: grey, context: engine.context)
+        var settings = FilterSettings(); settings.analysis = grey
+        for p in [plan, try plan.sceneLevel()] {
+            let out = try RestorationEngine().combined(source, plan: p, settings: settings, filter: engine)
+            var pixels = [Float](repeating: 0, count: width * height * 4)
+            engine.context.render(out, toBitmap: &pixels, rowBytes: width * 16, bounds: source.extent,
+                                  format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            for i in stride(from: 0, to: pixels.count, by: 4) {
+                let c = SIMD3(pixels[i], pixels[i + 1], pixels[i + 2])
+                XCTAssertLessThan(ColorCorrection.lightnessChromaHue(c).y, 1)
+                XCTAssertLessThan(FinishingMath.display(c).max(), 0.991)
+            }
+        }
+        // The CPU mirror agrees, up to white.
+        let values = ColorCorrection.make(analysis: grey, preset: .natural, plan: plan)
+        for level: Float in [0.5, 0.8, 0.9, 1] {
+            let out = FinishingMath.shoulder(FinishingMath.color(.init(repeating: level), correction: values), reference: .init(repeating: level))
+            XCTAssertEqual(ColorCorrection.lightnessChromaHue(out).y, 0, accuracy: 1)
+        }
     }
 
     private func makePlan(depth: Float, confidence: Float) throws -> RestorationPlan {

@@ -641,6 +641,38 @@ enum FinishingMath {
         }
         return c.x.isFinite && c.y.isFinite && c.z.isFinite ? c : input
     }
+    /// Highlight shoulder, the last finishing step. The HydroToneHighlightShoulder kernel mirrors it.
+    /// The largest channel is read as a BT.709 / sRGB display shows it (`display`), because the
+    /// smallest output gamut clips first. The ceiling is white (1), or the reference pixel's own
+    /// display peak when that is higher (an HDR highlight), so HDR headroom stays.
+    /// - Below `ceiling - shoulderWidth` a pixel is unchanged.
+    /// - Above it the whole pixel is scaled, so its largest channel rolls off smoothly toward the
+    ///   ceiling and never reaches it. The hue stays.
+    /// - A pixel that is bright in every channel (its smallest display channel `paleLow` to
+    ///   `paleHigh` of the ceiling), or pushed far past the ceiling (`whiteLow` to `whiteHigh` times),
+    ///   is a light source or a blown highlight. Its tint came from the gains, so it moves toward
+    ///   white at the same peak. Without this the sun would show a pink ring.
+    static func shoulder(_ c: SIMD3<Float>, reference: SIMD3<Float>) -> SIMD3<Float> {
+        func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {
+            let t = min(1, max(0, (x - low) / max(1e-5, high - low)))
+            return t * t * (3 - 2 * t)
+        }
+        let shown = display(c), peak = shown.max(), ceiling = max(1, display(reference).max())
+        let knee = ceiling - shoulderWidth
+        guard peak.isFinite, peak > knee else { return c }
+        let rolled = knee + shoulderWidth * (1 - exp(-(peak - knee) / shoulderWidth))
+        let white = max(smoothstep(whiteLow, whiteHigh, peak / ceiling), smoothstep(paleLow, paleHigh, shown.min() / ceiling))
+        let out = c * (rolled / peak) * (1 - white) + SIMD3(repeating: rolled) * white
+        return out.x.isFinite && out.y.isFinite && out.z.isFinite ? out : c
+    }
+    static let shoulderWidth: Float = 0.15, whiteLow: Float = 1.3, whiteHigh: Float = 2
+    static let paleLow: Float = 0.65, paleHigh: Float = 0.9
+    /// Linear BT.2020 (the working space) to linear BT.709 / sRGB primaries. Standard colorimetry.
+    static func display(_ c: SIMD3<Float>) -> SIMD3<Float> {
+        SIMD3(1.660491 * c.x - 0.587641 * c.y - 0.072850 * c.z,
+              -0.124550 * c.x + 1.132900 * c.y - 0.008349 * c.z,
+              -0.018151 * c.x - 0.100579 * c.y + 1.118730 * c.z)
+    }
     /// 0...1: how much the white reference acts on a colour (after the cast gains). Water-like
     /// pixels get none, unless they are 1.3 to 1.8 times brighter than the water and of another
     /// chromaticity (a pale belly). Brighter water of the water's own chromaticity gets none.
@@ -679,6 +711,7 @@ final class FilterEngine: Sendable {
     // CIContext is thread safe. CIFilters are local to each invocation.
     let context: CIContext
     private let colorKernel: CIColorKernel?
+    private let shoulderKernel: CIColorKernel?
     /// False when the finishing kernel failed to compile. Output then uses the weaker colour-matrix
     /// fallback, so owners with a DiagnosticRecorder report it.
     var finishingKernelAvailable: Bool { colorKernel != nil }
@@ -690,6 +723,7 @@ final class FilterEngine: Sendable {
         else { context = CIContext(options: options) }
         let kernels = try? CIKernel.kernels(withMetalString: Self.colorSource)
         colorKernel = kernels?.first { $0.name == "HydroToneFinishColor" } as? CIColorKernel
+        shoulderKernel = kernels?.first { $0.name == "HydroToneHighlightShoulder" } as? CIColorKernel
     }
 
     // Scene-level colour stage: cast gains, water tone, hue-gated red rebuild, mid-tone lift, luminance S-curve.
@@ -755,6 +789,27 @@ final class FilterEngine: Sendable {
         if (!all(isfinite(c))) { c = input; }
         return float4(c, source.a);
     }
+
+    // Highlight shoulder, the last finishing step. FinishingMath.shoulder is the CPU mirror.
+    // The peak is read in BT.709 primaries; the ceiling is white or the reference's own (HDR) peak.
+    // shape: x = shoulder width, y and z = the overshoot range, w = the start of the pale range.
+    // pale.x = the end of the pale range. Both ranges move a pixel toward white.
+    [[stitchable]] float4 HydroToneHighlightShoulder(coreimage::sample_t source, coreimage::sample_t reference, float4 shape, float4 pale) {
+        const float3x3 display = float3x3(float3(1.660491f, -0.124550f, -0.018151f),
+                                          float3(-0.587641f, 1.132900f, -0.100579f),
+                                          float3(-0.072850f, -0.008349f, 1.118730f));
+        const float3 c = source.rgb;
+        const float3 d = display * c, r = display * reference.rgb;
+        const float peak = max(d.r, max(d.g, d.b));
+        const float ceiling = max(1.0f, max(r.r, max(r.g, r.b)));
+        const float width = max(shape.x, 1e-4f), knee = ceiling - width;
+        if (!(peak > knee) || !isfinite(peak)) { return source; }
+        const float rolled = knee + width * (1.0f - exp(-(peak - knee) / width));
+        const float white = max(smoothstep(shape.y, shape.z, peak / ceiling),
+                                smoothstep(shape.w, pale.x, min(d.r, min(d.g, d.b)) / ceiling));
+        const float3 out = mix(c * (rolled / peak), float3(rolled), white);
+        return all(isfinite(out)) ? float4(out, source.a) : source;
+    }
     """
 
     func apply(_ image: CIImage, settings: FilterSettings) -> CIImage {
@@ -772,7 +827,9 @@ final class FilterEngine: Sendable {
         return finishing(image, correction: .make(analysis: settings.analysis, preset: settings.preset))
     }
     /// Applies correction values at full strength. No values are derived here.
-    func finishing(_ image: CIImage, correction v: ColorCorrection) -> CIImage {
+    /// `reference` is the source image the highlight shoulder takes its ceiling from; it defaults to
+    /// `image`. The restored path passes the unrestored source, so restoration cannot raise the ceiling.
+    func finishing(_ image: CIImage, correction v: ColorCorrection, reference: CIImage? = nil) -> CIImage {
         guard v != .identity else { return image }
         var corrected = colorStage(image, v)
 
@@ -810,6 +867,15 @@ final class FilterEngine: Sendable {
         vibrance.inputImage = corrected
         vibrance.amount = v.vibrance
         corrected = vibrance.outputImage ?? corrected
+        // Every step above can push highlights past white, and none rolls them off, so the shoulder runs last.
+        if let shoulderKernel {
+            corrected = shoulderKernel.apply(extent: image.extent, arguments: [
+                corrected, reference ?? image,
+                CIVector(x: CGFloat(FinishingMath.shoulderWidth), y: CGFloat(FinishingMath.whiteLow),
+                         z: CGFloat(FinishingMath.whiteHigh), w: CGFloat(FinishingMath.paleLow)),
+                CIVector(x: CGFloat(FinishingMath.paleHigh), y: 0, z: 0, w: 0)
+            ]) ?? corrected
+        }
         return corrected.cropped(to: image.extent)
     }
     private func colorStage(_ image: CIImage, _ v: ColorCorrection) -> CIImage {

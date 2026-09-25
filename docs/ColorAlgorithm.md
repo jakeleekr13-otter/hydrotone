@@ -18,6 +18,7 @@ This page describes how HydroTone corrects underwater colour. It is for develope
 4. `RestorationEngine.combined` builds two results:
    - `current`: the finishing stage (`FilterEngine.finishing`) on the source image, blended by intensity.
    - `depthAware` (the restored path): the restoration kernel, then the finishing stage, blended by intensity.
+   - The finishing stage ends with the [highlight shoulder](#highlight-shoulder) on both paths.
 5. The output blends `current` into `depthAware` by `physicalWeight`, which is the plan confidence. A low-confidence fit gives almost exactly `current`.
 
 If there is no plan, or the restoration render fails, the output is `FilterEngine.apply` alone (`PhotoProcessor.processed`). Fallback codes are in [Diagnostics](Diagnostics.md#restoration-fallback-codes).
@@ -130,6 +131,18 @@ The kernel applies the gains by `FinishingMath.neutralWeight`. Water-like pixels
 
 Radii are shares of the short image side, so every size looks the same.
 
+### Highlight shoulder
+
+Every finishing step can push a highlight past white, and none rolls it off. Before this rule, bright sand clipped in one channel and turned flat mint (r14). So the last finishing step is a shoulder: kernel `HydroToneHighlightShoulder`, CPU mirror `FinishingMath.shoulder`.
+
+- The peak is the largest channel in BT.709 / sRGB primaries (`FinishingMath.display`). The smallest output gamut clips first.
+- The ceiling is 1, or the source pixel's own peak when that is higher. So HDR highlights keep their headroom. The restored path passes the unrestored source, so restoration cannot raise the ceiling.
+- Below the knee (ceiling - 0.15) a pixel is unchanged.
+- Above the knee the whole pixel is scaled, so its largest channel rolls off toward the ceiling. The hue stays.
+- A pixel bright in every channel (smallest channel 0.65 to 0.9 of the ceiling), or 1.3 to 2 x over the ceiling, moves toward white at the same peak. Without this, the sun got a pink ring.
+
+The pure white of an SDR image ends near 250 of 255 at intensity 0.8, because the shoulder never reaches the ceiling.
+
 ## Restoration kernel
 
 The kernel is `HydroToneRestoration` in `RestorationEngine.swift`. `RestorationMath` is its CPU mirror.
@@ -161,6 +174,7 @@ The kernels run in Metal. The CPU mirrors must give the same result:
 |---|---|---|
 | `HydroToneFinishColor` | `FinishingMath.color`, `waterLike`, `neutralWeight` | `testFinishingKernelMatchesCPUMirror`, `testFinishingKernelMatchesCPUMirrorWithWhiteReference` |
 | `HydroToneRestoration` | `RestorationMath.inverse` | `testRestorationKernelMatchesCPUMirror` |
+| `HydroToneHighlightShoulder` | `FinishingMath.shoulder` | `testHighlightShoulderKernelMatchesCPUMirror` |
 
 `ColorCorrection.restoredMean` also mirrors the restoration kernel on one colour, at the plan's mean depth or at a given depth. It skips highlight protection and the output clamp. It predicts the restored water and scene mean. Change it with the kernel.
 
@@ -174,6 +188,7 @@ Other guards in `HydroToneTests/RestorationTests.swift`:
 - `testCyanCastSurfaceBecomesNearlyNeutral`, `testWhiteReferenceDoesNotNeutraliseTheWater`, `testSceneWithoutNeutralSurfacesIsUnchangedByTheWhiteReference`, `testNeutralRampStaysNeutralWithWhiteReferenceOnBothPaths`
 - `testLargeBrightSubjectGetsLessLift`
 - `testSceneInliersKeepFramesWithAndWithoutANeutralSurface`, `testSceneMeanAveragesTheNeutralColourOnlyWhereItWasFound`
+- `testHighlightShoulderStopsABrightPixelFromClippingAndKeepsItsHue`, `testHighlightShoulderLeavesPixelsBelowTheShoulderUnchanged`, `testHighlightShoulderTurnsATintedBlownHighlightWhite`, `testHighlightShoulderKeepsHDRHighlightsAboveWhite`, `testNeutralRampStaysNeutralThroughTheShoulderOnBothPaths`
 
 Video averaging treats the white reference apart. `sceneInliers` judges frames by `sceneFields`, the water values only. A white surface or a bright subject comes and goes within one dive, so a frame without one is not odd. `sceneMean` takes the white surface colour only from frames that found one, weighted by `neutralShare`. `neutralShare` itself is the plain mean, so a surface seen in few frames counts for less.
 
@@ -304,6 +319,8 @@ Limits:
 - m5 stays much brighter than Sea-thru (mean L* 58.3 against 36.4). Its original is already bright (60.1).
 - On m6 the reef under the manta is olive-green (photo path) or yellow-green (video path). On Sea-thru it is brown.
 - The white reference on real video is unmeasured. The harness has no video; only unit tests cover the averaging.
+- The highlight shoulder on HDR export is unmeasured. It reads its peak in BT.709, so saturated Display P3 colours are held a little lower than P3 needs.
+- On the video path r14's sand stays mint-green. The restoration kernel's own limit flattens that colour before finishing.
 - A blue remainder never gets the white reference, so a truly blue subject keeps its colour. A strongly blue candidate, such as a silver fish in blue light, also gets none.
 - The particle filter and temporal denoiser are prototypes in `Prototypes/VideoCleanup`. They are not wired in.
 
