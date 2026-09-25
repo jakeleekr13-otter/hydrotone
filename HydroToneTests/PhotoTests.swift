@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 final class PhotoTests: XCTestCase {
     let engine = FilterEngine()
     func testPresetListStaysCompactAndDistinct() {
-        XCTAssertEqual(DivePreset.allCases, [.original, .natural, .tropical, .deep])
+        XCTAssertEqual(DivePreset.allCases, [.original, .natural, .tropical, .deep, .custom])
     }
     func pixel(_ image: CIImage) -> [Float] {
         var result = [Float](repeating: 0, count: 4)

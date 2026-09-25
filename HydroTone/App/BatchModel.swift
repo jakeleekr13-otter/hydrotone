@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Pro-only batch correction. Every photo gets its own water analysis. One shared look
-/// (preset + intensity) applies to all, and a photo may override it.
+/// (preset + intensity) applies to all, and a photo may override it. Custom uses the one saved
+/// set of CustomAdjustments for every photo.
 @MainActor @Observable
 final class BatchModel: Identifiable {
     nonisolated static let maxPhotos = 10
@@ -10,6 +11,8 @@ final class BatchModel: Identifiable {
     struct Look: Equatable, Sendable {
         var preset: DivePreset = .natural
         var intensity: Float = 0.8
+        /// Custom renders at full strength, so two Custom looks match whatever their intensity.
+        static func == (a: Self, b: Self) -> Bool { a.preset == b.preset && (a.preset == .custom || a.intensity == b.intensity) }
     }
     enum State: Equatable { case loading, ready, failed, saved, saveFailed }
     struct Item: Identifiable {
@@ -29,6 +32,9 @@ final class BatchModel: Identifiable {
     let photos: PhotoProcessor
     var items: [Item]
     var shared = Look()
+    private let adjustmentStore: CustomAdjustmentsStore
+    /// The saved Custom sliders, shared with the editor. Written back on every change.
+    var adjustments: CustomAdjustments { didSet { if adjustments != oldValue { adjustmentStore.save(adjustments) } } }
     var comparing = false
     var saving = false
     var savedCount = 0
@@ -39,8 +45,10 @@ final class BatchModel: Identifiable {
     private var interruption: String?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
-    init(urls: [URL], diagnostics: DiagnosticRecorder) {
+    init(urls: [URL], diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init()) {
         self.diagnostics = diagnostics
+        self.adjustmentStore = adjustmentStore
+        adjustments = adjustmentStore.load()
         photos = PhotoProcessor(diagnostics: diagnostics)
         items = urls.map { Item(url: $0) }
     }
@@ -52,7 +60,8 @@ final class BatchModel: Identifiable {
     func look(for item: Item) -> Look { item.override ?? shared }
     func settings(for item: Item) -> FilterSettings {
         let look = look(for: item)
-        return FilterSettings(preset: look.preset, intensity: look.intensity, analysis: item.analysis ?? .neutral)
+        return FilterSettings(preset: look.preset, intensity: look.intensity, analysis: item.analysis ?? .neutral,
+                              adjustments: look.preset == .custom ? adjustments : .zero)
     }
 
     /// Analyses one photo at a time, so peak memory does not grow with the selection size.
@@ -80,11 +89,11 @@ final class BatchModel: Identifiable {
         }
     }
 
-    /// Re-renders thumbnails that follow the shared look, or only the given photo.
+    /// Re-renders thumbnails that follow the shared look or use Custom (the sliders are shared), or only the given photo.
     func refreshThumbnails(only id: Item.ID? = nil) async {
         for index in items.indices where items[index].analysis != nil {
             if let id, items[index].id != id { continue }
-            if id == nil, items[index].override != nil { continue }
+            if id == nil, let override = items[index].override, override.preset != .custom { continue }
             do {
                 let image = try await photos.preview(items[index].url, settings: settings(for: items[index]),
                                                      original: false, maxPixel: Self.thumbnailPixels)

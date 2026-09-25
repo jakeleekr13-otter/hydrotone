@@ -19,7 +19,7 @@ struct BatchView: View {
         .navigationBarBackButtonHidden(model.saving)
         .disabled(model.saving)
         .task { await model.load() }
-        .task(id: model.shared) { await model.refreshThumbnails() }
+        .task(id: ThumbnailKey(look: model.shared, adjustments: model.adjustments)) { await model.refreshThumbnails() }
         .onDisappear { model.close() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in model.memoryWarning() }
         .overlay { if model.saving { savingProgress } }
@@ -87,6 +87,10 @@ struct BatchView: View {
                     .accessibilityValue(model.comparing ? "Original" : "Corrected")
             }
             LookControls(look: $model.shared)
+            if model.shared.preset == .custom {
+                // The bar sits over the grid, so the five sliders scroll instead of covering it.
+                ScrollView { CustomAdjustmentControls(adjustments: $model.adjustments) }.frame(maxHeight: 200)
+            }
             Button { model.saveAll(purchases: purchases) } label: {
                 Text("Save All (\(model.pendingCount))").frame(maxWidth: .infinity, minHeight: 44)
             }.buttonStyle(.borderedProminent).disabled(model.pendingCount == 0)
@@ -104,8 +108,10 @@ struct BatchView: View {
 }
 
 private struct DetailID: Identifiable { let id: BatchModel.Item.ID }
+private struct ThumbnailKey: Equatable { let look: BatchModel.Look; let adjustments: CustomAdjustments }
 
 /// Preset chips and intensity slider shared by the batch grid and the single-photo detail.
+/// Custom has no intensity, so its slider is hidden.
 struct LookControls: View {
     @Binding var look: BatchModel.Look
     var body: some View {
@@ -124,11 +130,13 @@ struct LookControls: View {
                     }
                 }
             }
-            HStack {
-                Text("Intensity")
-                Slider(value: $look.intensity, in: 0...1).accessibilityLabel("Filter intensity")
-                    .disabled(look.preset == .original)
-                Text(look.intensity, format: .percent.precision(.fractionLength(0))).monospacedDigit().frame(width: 48, alignment: .trailing)
+            if look.preset != .custom {
+                HStack {
+                    Text("Intensity")
+                    Slider(value: $look.intensity, in: 0...1).accessibilityLabel("Filter intensity")
+                        .disabled(look.preset == .original)
+                    Text(look.intensity, format: .percent.precision(.fractionLength(0))).monospacedDigit().frame(width: 48, alignment: .trailing)
+                }
             }
         }
     }

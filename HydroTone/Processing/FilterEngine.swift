@@ -7,25 +7,27 @@ import simd
 enum DivePreset: String, CaseIterable, Identifiable, Sendable {
     case original = "Original", natural = "Natural Dive"
     case tropical = "Tropical", deep = "Deep Dive"
+    /// The user preset: the automatic (Natural) result plus the user's CustomAdjustments, at full strength.
+    case custom = "Custom"
     var id: String { rawValue }
     var localizedName: String { String(localized: String.LocalizationValue(rawValue)) }
     var restoration: Float {
-        switch self { case .original: 0; case .natural: 0.45; case .tropical: 0.42; case .deep: 0.50 }
+        switch self { case .original: 0; case .natural, .custom: 0.45; case .tropical: 0.42; case .deep: 0.50 }
     }
     var vibrance: Float {
-        switch self { case .original: 0; case .natural: 0.18; case .tropical: 0.30; case .deep: 0.24 }
+        switch self { case .original: 0; case .natural, .custom: 0.18; case .tropical: 0.30; case .deep: 0.24 }
     }
     var castRemoval: Float {
-        switch self { case .original: 0; case .natural: 0.16; case .tropical: 0.12; case .deep: 0.18 }
+        switch self { case .original: 0; case .natural, .custom: 0.16; case .tropical: 0.12; case .deep: 0.18 }
     }
     var contrast: Float {
-        switch self { case .original: 1; case .natural: 1.04; case .tropical: 1.06; case .deep: 1.10 }
+        switch self { case .original: 1; case .natural, .custom: 1.04; case .tropical: 1.06; case .deep: 1.10 }
     }
     var saturation: Float {
-        switch self { case .original: 1; case .natural: 1.08; case .tropical: 1.18; case .deep: 1.14 }
+        switch self { case .original: 1; case .natural, .custom: 1.08; case .tropical: 1.18; case .deep: 1.14 }
     }
     var clarity: Float {
-        switch self { case .original: 0; case .natural: 0.16; case .tropical: 0.19; case .deep: 0.25 }
+        switch self { case .original: 0; case .natural, .custom: 0.16; case .tropical: 0.19; case .deep: 0.25 }
     }
     var symbolName: String {
         switch self {
@@ -33,6 +35,7 @@ enum DivePreset: String, CaseIterable, Identifiable, Sendable {
         case .natural: "water.waves"
         case .tropical: "sun.max.fill"
         case .deep: "drop.fill"
+        case .custom: "gearshape"
         }
     }
 }
@@ -140,6 +143,50 @@ struct FilterSettings: Sendable, Equatable {
     var preset: DivePreset = .natural
     var intensity: Float = 0.8
     var analysis: WaterAnalysis = .neutral
+    /// Used only by the Custom preset. Every other preset ignores them.
+    var adjustments = CustomAdjustments()
+    /// Custom has no intensity slider. It renders at this strength.
+    static let customStrength: Float = 1
+    /// The strength the pipelines blend with: the slider value, or customStrength for Custom.
+    var appliedIntensity: Float { preset == .custom ? Self.customStrength : intensity }
+}
+
+/// The Custom preset's five sliders. Each is a position in -1...1 (shown as -100...+100).
+/// Zero is the automatic result. ColorCorrection.make turns them into correction values.
+struct CustomAdjustments: Sendable, Equatable {
+    var brightness: Float = 0
+    var contrast: Float = 0
+    var saturation: Float = 0
+    var clarity: Float = 0
+    var temperature: Float = 0
+    static let zero = Self()
+    /// Change at a full slider (position -1 or +1). Provisional: these caps will be re-measured.
+    enum Caps {
+        static let brightnessDown: Float = 0.25     // taken from midLift
+        static let brightnessUp: Float = 0.075      // added to shadowLift
+        static let contrastDown: Float = 0.10       // toneCurve
+        static let contrastUp: Float = 0.02
+        static let saturationDown: Float = 0.10     // saturation
+        static let saturationUp: Float = 0.08       // times (1 - neon)
+        static let clarityDown: Float = 1           // relative change of clarity and definition
+        static let clarityUp: Float = 0.75
+        static let temperature: Float = 100         // kelvin added to warmth
+    }
+    /// Every position in -1...1. A value that is not finite becomes 0.
+    var clamped: Self {
+        func fix(_ x: Float) -> Float { x.isFinite ? min(1, max(-1, x)) : 0 }
+        return Self(brightness: fix(brightness), contrast: fix(contrast), saturation: fix(saturation),
+                    clarity: fix(clarity), temperature: fix(temperature))
+    }
+    /// Brightness, contrast and saturation up all brighten or add colour, so their positive parts share
+    /// one budget: when their sum is above one, each positive part is scaled by 1 / sum.
+    var budgeted: Self {
+        var v = clamped
+        let sum = max(0, v.brightness) + max(0, v.contrast) + max(0, v.saturation)
+        guard sum > 1 else { return v }
+        for key in [\Self.brightness, \.contrast, \.saturation] where v[keyPath: key] > 0 { v[keyPath: key] /= sum }
+        return v
+    }
 }
 
 /// Scene-level correction values. Analysis makes them once per photo or video scene, and
@@ -202,8 +249,13 @@ struct ColorCorrection: Sendable, Equatable {
     /// The one place that turns measurements into correction values. Pure and deterministic.
     /// Without a plan it describes the current path (the source image). With a plan it describes
     /// finishing of the restored image, which lost the veil light and so needs a mid-tone lift.
-    static func make(analysis: WaterAnalysis, preset: DivePreset, plan: RestorationPlan? = nil) -> Self {
+    /// `adjustments` act only for the Custom preset. They enter before the guards and the white
+    /// reference that read them, so those still run on the user's result.
+    static func make(analysis: WaterAnalysis, preset: DivePreset, plan: RestorationPlan? = nil,
+                     adjustments: CustomAdjustments = .zero) -> Self {
         guard preset != .original else { return .identity }
+        let user = preset == .custom ? adjustments.budgeted : .zero
+        typealias Caps = CustomAdjustments.Caps
         var v = Self()
         // Base cast gains come from the source colour on both paths. A plan-based estimate of the
         // restored scene mean was tried and is biased: it read violet restored water as green.
@@ -236,6 +288,8 @@ struct ColorCorrection: Sendable, Equatable {
         // Neon water (very high source chroma) gets no extra saturation, and a little less.
         let neon = min(1, max(0, (oklch(water).y - 0.12) / 0.1))
         v.saturation = 1 + (preset.saturation + haze * 0.10 - 1) * (1 - neon) - 0.12 * neon
+        // User saturation enters here, before the water chroma ceiling reads v.saturation. Neon water gets no raise.
+        v.saturation += user.saturation * (user.saturation < 0 ? Caps.saturationDown : Caps.saturationUp * (1 - neon))
         let seenInput = plan.map { restoredWater(water, plan: $0) } ?? water
         v.violetGuard = waterPlausibility(oklch(water))
         // The kernel judges "water-like" before the guard, so the weights use the unguarded colour.
@@ -285,6 +339,7 @@ struct ColorCorrection: Sendable, Equatable {
         let bright = min(1, max(0, (analysis.midLuminance - 0.25) / 0.15))
         // 0.3 keeps the curve monotonic for any pivot in 0.3...0.6.
         v.toneCurve = min(0.3, max(0, (preset.contrast - 1) * 2 + 0.12 + haze * 0.12)) * (1 - 0.5 * bright)
+        v.toneCurve = min(0.3, max(0, v.toneCurve + user.contrast * (user.contrast < 0 ? Caps.contrastDown : Caps.contrastUp)))
         // Highlight rule: a large bright area (a white belly, sunlit sand; highShare 0.02 to 0.07)
         // already lights the scene. Such scenes get less brightness, haze shadow lift and mid-tone lift.
         // It fades out in dark scenes (median 0.18 down to 0.1), where a few bright spots do not light
@@ -296,13 +351,16 @@ struct ColorCorrection: Sendable, Equatable {
         v.contrast = preset.contrast + haze * 0.05
         // Global contrast alone can bury a dark diver or reef, so lift the lower tones.
         v.shadowLift = 0.28 + haze * 0.22 * (1 - 0.6 * highlight) + bright * 0.1
+        v.shadowLift += max(0, user.brightness) * Caps.brightnessUp
         v.highlightAmount = 0.92
         // Clarity restores local separation lost to backscatter without inventing texture.
         // Definition works at a broader scale, on the veil over distant water and reef.
         v.clarity = preset.clarity * (0.65 + haze * 0.35) * 1.2
         v.clarityRadius = (5 + haze * 3) / 480
         v.definition = preset.clarity * (0.5 + haze * 0.8)
-        v.warmth = preset == .tropical ? 300 : 0
+        let sharpen = 1 + user.clarity * (user.clarity < 0 ? Caps.clarityDown : Caps.clarityUp)
+        v.clarity *= sharpen; v.definition *= sharpen
+        v.warmth = (preset == .tropical ? 300 : 0) + user.temperature * Caps.temperature
         v.vibrance = preset.vibrance * max(0.3, 1 - analysis.saturation) * (1 - neon)
         if let plan {
             v.physicalWeight = plan.confidence
@@ -319,6 +377,8 @@ struct ColorCorrection: Sendable, Equatable {
             let ceiling = 0.22 * (1 - 0.4 * highlight)
             v.midLift = midLift(from: restoredMid, to: min(goal, max(restoredMid, ceiling)))
         }
+        // Brightness down lowers the mid-tones on both paths. The white reference below sees the result.
+        v.midLift = min(0.9, max(minimumMidLift, v.midLift + min(0, user.brightness) * Caps.brightnessDown))
         v.waterLit = lit
         v.neutralGains = whiteReference(analysis, correction: v, plan: plan)
         return v.sanitized()
@@ -576,6 +636,9 @@ struct ColorCorrection: Sendable, Equatable {
         return restored.x.isFinite && restored.y.isFinite && restored.z.isFinite ? restored : mean
     }
 
+    /// Lowest mid-tone lift. The curve stays monotonic down to -1; Brightness down reaches this.
+    static let minimumMidLift: Float = -0.25
+
     /// Lift strength that moves linear luminance `from` to `to` with y = x + lift * x * (1 - x) in
     /// gamma space. Capped at 0.9 so the curve stays monotonic; zero when no lift is needed.
     static func midLift(from: Float, to: Float) -> Float {
@@ -595,7 +658,7 @@ struct ColorCorrection: Sendable, Equatable {
         if !(v.waterTone.x.isFinite && v.waterTone.y.isFinite && v.waterTone.z.isFinite) { v.waterTone = fallback.waterTone }
         if !(v.waterLit.x.isFinite && v.waterLit.y.isFinite && v.waterLit.z.isFinite) { v.waterLit = fallback.waterLit }
         if !(v.neutralGains.x.isFinite && v.neutralGains.y.isFinite && v.neutralGains.z.isFinite) { v.neutralGains = fallback.neutralGains }
-        v.midLift = min(0.9, max(0, v.midLift))
+        v.midLift = min(0.9, max(Self.minimumMidLift, v.midLift))
         v.toneCurve = min(0.3, max(0, v.toneCurve))
         v.physicalWeight = min(1, max(0, v.physicalWeight))
         return v
@@ -634,7 +697,7 @@ enum FinishingMath {
         let l = (c * ColorCorrection.luma).sum()
         if l > 1e-5 && l < 1 {
             var x = pow(l, 1 / 2.2)
-            x += max(0, v.midLift) * x * (1 - x)
+            x += max(ColorCorrection.minimumMidLift, v.midLift) * x * (1 - x)
             let y = min(1, max(0, x + 4 * v.toneCurve * (x - v.tonePivot) * x * (1 - x)))
             let peak = c.max()
             c *= min(pow(y, 2.2) / l, max(1, peak) / max(peak, 1e-5))
@@ -780,7 +843,8 @@ final class FilterEngine: Sendable {
         const float l = dot(c, float3(0.2126f, 0.7152f, 0.0722f));
         if (l > 1e-5f && l < 1.0f) {
             float x = pow(l, 1.0f / 2.2f);
-            x += max(tone.z, 0.0f) * x * (1.0f - x);
+            // A negative lift (Brightness down) darkens; -0.25 is ColorCorrection.minimumMidLift.
+            x += max(tone.z, -0.25f) * x * (1.0f - x);
             const float y = clamp(x + 4.0f * tone.x * (x - tone.y) * x * (1.0f - x), 0.0f, 1.0f);
             const float peak = max(c.r, max(c.g, c.b));
             // Cap the gain so no channel crosses one, and HDR peaks above one never grow.
@@ -814,7 +878,8 @@ final class FilterEngine: Sendable {
 
     func apply(_ image: CIImage, settings: FilterSettings) -> CIImage {
         guard settings.preset != .original else { return image }
-        return apply(image, correction: .make(analysis: settings.analysis, preset: settings.preset), intensity: settings.intensity)
+        return apply(image, correction: .make(analysis: settings.analysis, preset: settings.preset, adjustments: settings.adjustments),
+                     intensity: settings.appliedIntensity)
     }
     func apply(_ image: CIImage, correction: ColorCorrection, intensity: Float) -> CIImage {
         let amount = min(1, max(0, intensity.isFinite ? intensity : 0))
@@ -824,7 +889,7 @@ final class FilterEngine: Sendable {
     /// Applies a preset at full strength. Callers choose what the final intensity blends against.
     func finishing(_ image: CIImage, settings: FilterSettings) -> CIImage {
         guard settings.preset != .original else { return image }
-        return finishing(image, correction: .make(analysis: settings.analysis, preset: settings.preset))
+        return finishing(image, correction: .make(analysis: settings.analysis, preset: settings.preset, adjustments: settings.adjustments))
     }
     /// Applies correction values at full strength. No values are derived here.
     /// `reference` is the source image the highlight shoulder takes its ceiling from; it defaults to

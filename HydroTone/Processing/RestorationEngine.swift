@@ -196,7 +196,7 @@ final class RestorationEngine: Sendable {
 
     func combined(_ image: CIImage, plan: RestorationPlan, settings: FilterSettings,
                   filter: FilterEngine) throws -> CIImage {
-        let amount = min(1, max(0, settings.intensity))
+        let amount = min(1, max(0, settings.appliedIntensity))
         guard settings.preset != .original, amount > 0 else { return image }
         let values = corrections(settings: settings, plan: plan)
         let current = filter.apply(image, correction: values.current, intensity: amount)
@@ -209,7 +209,7 @@ final class RestorationEngine: Sendable {
 
     /// The correction values combined applies: one set for the source image, one for the restored image.
     func corrections(settings: FilterSettings, plan: RestorationPlan) -> (current: ColorCorrection, restored: ColorCorrection) {
-        (ColorCorrection.make(analysis: settings.analysis, preset: settings.preset),
-         ColorCorrection.make(analysis: settings.analysis, preset: settings.preset, plan: plan))
+        (ColorCorrection.make(analysis: settings.analysis, preset: settings.preset, adjustments: settings.adjustments),
+         ColorCorrection.make(analysis: settings.analysis, preset: settings.preset, plan: plan, adjustments: settings.adjustments))
     }
 }

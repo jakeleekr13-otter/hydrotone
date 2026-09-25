@@ -6,7 +6,11 @@ final class EditorModel {
     let diagnostics: DiagnosticRecorder
     let media: ImportedMedia
     let photos: PhotoProcessor
-    var settings = FilterSettings()
+    private let adjustmentStore: CustomAdjustmentsStore
+    /// The saved Custom sliders are written back on every change.
+    var settings = FilterSettings() {
+        didSet { if settings.adjustments != oldValue.adjustments { adjustmentStore.save(settings.adjustments) } }
+    }
     var preview: CGImage?
     var originalPreview: CGImage?
     /// Long side of the photo preview. It doubles once the user zooms in, so fine detail stays sharp.
@@ -48,12 +52,14 @@ final class EditorModel {
     var error: String?
     var notice: String?
     var exportTask: Task<Void, Never>?
-    init(media: ImportedMedia, diagnostics: DiagnosticRecorder) {
+    init(media: ImportedMedia, diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init()) {
         self.media = media
         self.diagnostics = diagnostics
+        self.adjustmentStore = adjustmentStore
         photos = PhotoProcessor(diagnostics: diagnostics)
         video = VideoExporter(diagnostics: diagnostics)
         videoPreview = VideoPreview(diagnostics: diagnostics)
+        settings.adjustments = adjustmentStore.load()
     }
     func load() async {
         defer { loading = false; analyzing = false }

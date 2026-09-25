@@ -99,11 +99,16 @@ struct EditorView: View {
                     }
                 }.padding(.horizontal)
             }
-            VStack {
-                HStack { Text("Intensity"); Spacer(); Text(model.settings.intensity, format: .percent.precision(.fractionLength(0))).monospacedDigit() }
-                Slider(value: $model.settings.intensity, in: 0...1).accessibilityLabel("Filter intensity")
-                    .disabled(model.settings.preset == .original)
-            }.padding(.horizontal)
+            if model.settings.preset == .custom {
+                // Custom has no intensity: it renders at full strength and has its own sliders.
+                CustomAdjustmentControls(adjustments: $model.settings.adjustments).padding(.horizontal)
+            } else {
+                VStack {
+                    HStack { Text("Intensity"); Spacer(); Text(model.settings.intensity, format: .percent.precision(.fractionLength(0))).monospacedDigit() }
+                    Slider(value: $model.settings.intensity, in: 0...1).accessibilityLabel("Filter intensity")
+                        .disabled(model.settings.preset == .original)
+                }.padding(.horizontal)
+            }
             Button("Export") { Task { await model.requestExport(purchases: purchases, trial: trial) } }
                 .buttonStyle(.borderedProminent).frame(minHeight: 44).disabled(!model.ready || model.exporting || model.analyzing)
         }.padding(.bottom, 8)
