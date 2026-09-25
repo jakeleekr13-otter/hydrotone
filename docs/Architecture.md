@@ -15,13 +15,11 @@ The initial directory was empty. Development proceeded through building the foun
 
 A reused Metal-backed CIContext works in extended linear Rec.2020 with half-float intermediates. Photos retain wide color through processing and are converted to Display P3 at JPEG output. Orientation is baked and EXIF orientation normalized.
 
-The automatic estimator samples a small float thumbnail, omits very dark/bright values, measures channel imbalance, luminance distribution and saturation, and bounds restoration. Red reconstruction is a convex combination of existing channels rather than a large red multiplier. Neutral whites remain neutral under red restoration. Presets use conservative vibrance and warmth. Intensity dissolves the complete original/corrected results, with exact zero/original behavior.
+Analysis measures a small thumbnail: scene and water colour, red loss, luminance spread and saturation. `ColorCorrection.make` turns these into named values, and `FilterEngine` only applies them. `RestorationEngine.combined` removes the water veil with a depth-aware kernel, then applies the finishing values. Intensity and plan confidence blend the result, so a weak fit gives the plain correction. Photo, batch and video share this path; see [Colour algorithm](ColorAlgorithm.md).
 
 Video analyzes ten evenly spaced samples from 10% to 90% of the clip, rejects scene outliers, and averages the retained samples into one constant scene plan. Preview and sequential export share this plan, including a uniform 2x2 depth map. This deliberately prioritizes short processing times and consistent colour for recreational dive clips over adaptation to changing scenes. If no retained sample has a usable depth fit, both paths use the legacy colour correction; rejected samples must never supply a replacement physical plan.
 
 Device and source profiles select the initial analysis compute policy and retained depth-map size. The policy cadence fields and environment-change detector are not used for per-frame analysis in the current export path. No per-frame depth inference or optical flow is performed, and analysis policy never changes output resolution, frame rate or SDR/HDR selection. Restoration confidence and per-channel recoverability bound the physical contribution independently of device performance.
-
-Water toning uses a gradual redness transition. Chroma-based subject protection fades out in low-chroma, murky water, where small compressed colour differences cannot reliably distinguish water from a subject. Strongly coloured water still protects less colourful subjects such as silver fish. This is part of the existing colour kernel, with no added inference, blur pass or frame buffer.
 
 ## Video
 
