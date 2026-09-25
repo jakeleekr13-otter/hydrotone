@@ -581,6 +581,31 @@ final class RestorationTests: XCTestCase {
         XCTAssertEqual(WaterAnalysis.sceneMean([], keeping: []), .neutral)
     }
 
+    func testSceneInliersKeepFramesWithAndWithoutANeutralSurface() {
+        // The same water in every frame; sand shows in 7 of 10 frames. "No surface" is not an odd frame.
+        let samples = (0..<10).map { index -> WaterAnalysis in
+            var s = sample(Float(index) * 0.003)
+            if index >= 3 { s.neutralRed = 0.4; s.neutralGreen = 0.5; s.neutralBlue = 0.5; s.neutralShare = 0.05 }
+            s.highShare = index == 5 ? 0.12 : 0.01
+            return s
+        }
+        XCTAssertEqual(WaterAnalysis.sceneInliers(samples), Array(0..<10))
+    }
+
+    func testSceneMeanAveragesTheNeutralColourOnlyWhereItWasFound() {
+        var found = sample(0), strong = sample(0), none = sample(0)
+        found.neutralRed = 0.4; found.neutralGreen = 0.5; found.neutralBlue = 0.5; found.neutralShare = 0.02
+        strong.neutralRed = 0.1; strong.neutralGreen = 0.2; strong.neutralBlue = 0.2; strong.neutralShare = 0.06
+        let mean = WaterAnalysis.sceneMean([found, strong, none], keeping: [0, 1, 2])
+        // Weighted by evidence; the frame without a surface does not darken the colour.
+        XCTAssertEqual(mean.neutralRed, (0.4 * 0.02 + 0.1 * 0.06) / 0.08, accuracy: 1e-6)
+        XCTAssertEqual(mean.neutralGreen, (0.5 * 0.02 + 0.2 * 0.06) / 0.08, accuracy: 1e-6)
+        XCTAssertEqual(mean.neutralBlue, (0.5 * 0.02 + 0.2 * 0.06) / 0.08, accuracy: 1e-6)
+        // The evidence itself is the plain mean, so a surface seen in few frames counts for less.
+        XCTAssertEqual(mean.neutralShare, 0.08 / 3, accuracy: 1e-6)
+        XCTAssertEqual(WaterAnalysis.sceneMean([none, none], keeping: [0, 1]).neutralColor, .zero)
+    }
+
     func testSceneAverageUsesKeptPlansAndOneConstantDepth() throws {
         let plans = [try makePlan(depth: 0.4, confidence: 0.5), try makePlan(depth: 0.6, confidence: 0.7),
                      try makePlan(depth: 1.0, confidence: 0.1)]
@@ -598,6 +623,173 @@ final class RestorationTests: XCTestCase {
         // trigger the existing fallback instead of using that unrelated environment.
         let rejected = try makePlan(depth: 1, confidence: 0.9)
         XCTAssertThrowsError(try RestorationPlan.sceneAverage([rejected], keeping: []))
+    }
+
+    // MARK: White reference and highlight rule
+
+    /// A shallow blue scene with pale sand under a strong cyan cast (numbers close to market pair m5).
+    private func sandScene(share: Float = 0.2) -> WaterAnalysis {
+        var analysis = scene(water: .init(0.01, 0.23, 0.65), mid: 0.2, contrast: 0.3)
+        analysis.neutralRed = 0.28; analysis.neutralGreen = 0.59; analysis.neutralBlue = 0.67
+        analysis.neutralShare = share; analysis.highShare = 0.3
+        return analysis
+    }
+
+    private func finishedChroma(_ c: SIMD3<Float>, _ values: ColorCorrection) -> Float {
+        oklch(FinishingMath.color(c, correction: values)).y
+    }
+
+    func testCyanCastSurfaceBecomesNearlyNeutral() throws {
+        let analysis = sandScene(), sand = analysis.neutralColor
+        let current = ColorCorrection.make(analysis: analysis, preset: .natural)
+        var without = current; without.neutralGains = .one
+        XCTAssertGreaterThan(finishedChroma(sand, without), 0.05)
+        XCTAssertLessThan(finishedChroma(sand, current), 0.02)
+        // Restored path: the sand is seen after veil removal, at the plan's (constant) depth.
+        // Near sand keeps a cyan cast after restoration; the rule removes it.
+        var acted = false
+        for depth: Float in [0.1, 0.5] {
+            let plan = try makePlan(depth: depth, confidence: 0.7)
+            let restored = ColorCorrection.make(analysis: analysis, preset: .natural, plan: plan)
+            let seen = RestorationMath.inverse(observed: sand, depth: depth, backscatterInfinity: plan.backscatterInfinity,
+                                               betaDirect: plan.betaDirect, betaBackscatter: plan.betaBackscatter,
+                                               limits: plan.limits, recoverability: plan.channelRecoverability).color
+            var restoredWithout = restored; restoredWithout.neutralGains = .one
+            XCTAssertLessThan(finishedChroma(seen, restored), 0.02)
+            XCTAssertLessThanOrEqual(finishedChroma(seen, restored), finishedChroma(seen, restoredWithout) + 1e-6)
+            if finishedChroma(seen, restoredWithout) > 0.04 { acted = true }
+        }
+        XCTAssertTrue(acted, "no restored case kept a cast for the rule to remove")
+        // Red goes up, blue goes down, and green never rises more than 5%.
+        XCTAssertGreaterThan(current.neutralGains.x, 1)
+        XCTAssertLessThan(current.neutralGains.z, 1)
+        XCTAssertLessThanOrEqual(current.neutralGains.y, 1.05 + 1e-5)
+    }
+
+    func testWhiteReferenceDoesNotNeutraliseTheWater() {
+        let analysis = sandScene(), water = analysis.waterColor
+        let values = ColorCorrection.make(analysis: analysis, preset: .natural)
+        XCTAssertNotEqual(values.neutralGains, .one)
+        var without = values; without.neutralGains = .one
+        // Open water, and brighter water of the same colour, keep exactly their colour.
+        for pixel in [water, water * 1.6] {
+            let with = FinishingMath.color(pixel, correction: values), plain = FinishingMath.color(pixel, correction: without)
+            assertEqual(with, plain, accuracy: 1e-3 * max(1, plain.max()))
+            let lch = oklch(with)
+            XCTAssertGreaterThan(lch.y, 0.03)          // still coloured
+            XCTAssertGreaterThan(lch.z, 180)           // cyan to blue, not indigo
+            XCTAssertLessThan(lch.z, 270)
+        }
+        // A strongly blue "reference" looks like pale water near the surface, so it is ignored.
+        var paleWater = analysis
+        paleWater.neutralRed = 0.16; paleWater.neutralGreen = 0.34; paleWater.neutralBlue = 0.72
+        XCTAssertEqual(ColorCorrection.make(analysis: paleWater, preset: .natural).neutralGains, .one)
+    }
+
+    func testSceneWithoutNeutralSurfacesIsUnchangedByTheWhiteReference() throws {
+        let plan = try makePlan(depth: 0.6, confidence: 0.6)
+        var none = sandScene(); none.neutralRed = 0; none.neutralGreen = 0; none.neutralBlue = 0; none.neutralShare = 0
+        let tooFew = sandScene(share: 0.005)       // a few pixels: not enough evidence
+        var warm = sandScene()                     // a warm surface is a real colour, not a cast
+        warm.neutralRed = 0.6; warm.neutralGreen = 0.45; warm.neutralBlue = 0.3
+        for analysis in [none, tooFew, warm] {
+            for values in [ColorCorrection.make(analysis: analysis, preset: .natural),
+                           ColorCorrection.make(analysis: analysis, preset: .natural, plan: plan)] {
+                XCTAssertEqual(values.neutralGains, .one)
+                var reference = values; reference.neutralGains = .one
+                XCTAssertEqual(values, reference)
+            }
+        }
+        // Gains of one leave every pixel as it was without the rule.
+        let values = ColorCorrection.make(analysis: none, preset: .natural)
+        for pixel: SIMD3<Float> in [.init(0.3, 0.33, 0.38), .init(0.02, 0.2, 0.6), .init(0.5, 0.3, 0.2)] {
+            var plain = values; plain.waterLit = .zero
+            assertEqual(FinishingMath.color(pixel, correction: values), FinishingMath.color(pixel, correction: plain), accuracy: 1e-6)
+        }
+    }
+
+    func testLargeBrightSubjectGetsLessLift() throws {
+        // The same hazy scene with and without a large bright subject (a white belly).
+        let plain = scene(water: .init(0.02, 0.25, 0.4), mid: 0.2, contrast: 0.18)
+        var belly = plain; belly.highShare = 0.12
+        let plan = try makePlan(depth: 0.6, confidence: 0.7)
+        let without = ColorCorrection.make(analysis: plain, preset: .natural, plan: plan)
+        let with = ColorCorrection.make(analysis: belly, preset: .natural, plan: plan)
+        XCTAssertGreaterThan(without.midLift, 0)
+        XCTAssertLessThan(with.midLift, without.midLift)
+        XCTAssertLessThan(with.brightness, without.brightness)
+        XCTAssertLessThan(with.shadowLift, without.shadowLift)
+        // A dark scene with a few bright spots keeps its lift: there the spots do not light the scene.
+        let dark = scene(water: .init(0.01, 0.05, 0.08), mid: 0.05, contrast: 0.1)
+        var spots = dark; spots.highShare = 0.12
+        XCTAssertEqual(ColorCorrection.make(analysis: spots, preset: .natural, plan: plan),
+                       ColorCorrection.make(analysis: dark, preset: .natural, plan: plan))
+    }
+
+    func testNeutralRampStaysNeutralWithWhiteReferenceOnBothPaths() throws {
+        // A grey scene whose bright grey surfaces are found as the reference: nothing may tint it.
+        var grey = WaterAnalysis(redLoss: 0, cyanDominance: 0, exposure: 0, contrast: 0.6, saturation: 0,
+                                 meanRed: 0.2, meanGreen: 0.2, meanBlue: 0.2, midLuminance: 0.2,
+                                 waterRed: 0.1, waterGreen: 0.1, waterBlue: 0.1)
+        grey.neutralRed = 0.5; grey.neutralGreen = 0.5; grey.neutralBlue = 0.5; grey.neutralShare = 0.2; grey.highShare = 0.3
+        let plan = try makePlan(depth: 0.5, confidence: 0.7)
+        let uniform = try plan.sceneLevel()
+        for values in [ColorCorrection.make(analysis: grey, preset: .natural),
+                       ColorCorrection.make(analysis: grey, preset: .natural, plan: plan),
+                       ColorCorrection.make(analysis: grey, preset: .natural, plan: uniform)] {
+            for level: Float in [0.05, 0.2, 0.5, 0.8] {
+                let out = FinishingMath.color(.init(repeating: level), correction: values)
+                XCTAssertEqual(ColorCorrection.lightnessChromaHue(out).y, 0, accuracy: 1)
+            }
+        }
+    }
+
+    func testFinishingKernelMatchesCPUMirrorWithWhiteReference() {
+        let engine = FilterEngine()
+        let values = colorOnly { $0.castGains = .init(1.2, 0.97, 0.97); $0.redRebuild = 0.3; $0.subjectRed = 0.3
+            $0.redGateLow = 0.6; $0.redGateHigh = 1.0; $0.midLift = 0.3; $0.toneCurve = 0.2; $0.tonePivot = 0.45
+            $0.waterTone = .init(0.9, 1.05, 0.95); $0.waterRedness = 0.03; $0.waterSaturation = 0.8
+            $0.waterChroma = 0.9; $0.violetGuard = 0.8
+            $0.neutralGains = .init(1.6, 0.95, 0.8); $0.waterLit = .init(0.01, 0.25, 0.4) }
+        // Water, brighter water of the same colour, a pale belly (bright, other hue), sand, a reddish
+        // subject, a dark pixel and an HDR peak.
+        for color: SIMD3<Float> in [.init(0.01, 0.25, 0.4), .init(0.016, 0.4, 0.64), .init(0.03, 0.48, 0.49),
+                                    .init(0.28, 0.59, 0.67), .init(0.3, 0.25, 0.2), .init(0.01, 0.03, 0.05),
+                                    .init(1.5, 2, 2.2)] {
+            let image = CIImage(color: CIColor(red: CGFloat(color.x), green: CGFloat(color.y), blue: CGFloat(color.z),
+                                               colorSpace: FilterEngine.workingSpace)!).cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+            var pixel = [Float](repeating: 0, count: 4)
+            engine.context.render(engine.finishing(image, correction: values), toBitmap: &pixel, rowBytes: 16,
+                                  bounds: CGRect(x: 1, y: 1, width: 1, height: 1), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            let expected = FinishingMath.color(color, correction: values)
+            assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
+        }
+        // The belly takes the reference, the water does not.
+        XCTAssertGreaterThan(FinishingMath.neutralWeight(.init(0.03, 0.48, 0.49) * values.castGains, correction: values), 0.9)
+        XCTAssertLessThan(FinishingMath.neutralWeight(.init(0.016, 0.4, 0.64) * values.castGains, correction: values), 0.1)
+    }
+
+    func testAnalysisFindsBrightNeutralSurfacesAndBrightShare() {
+        // Left: blue water. Right: pale sand under the cast, brighter than the water.
+        let width = 48, height = 48
+        var rgba = [Float]()
+        for _ in 0..<height { for x in 0..<width {
+            rgba += x < 30 ? [0.02, 0.2, 0.55, 1] : [0.3, 0.6, 0.66, 1]
+        } }
+        let data = rgba.withUnsafeBytes { Data($0) }
+        let image = CIImage(bitmapData: data, bytesPerRow: width * 16, size: CGSize(width: width, height: height),
+                            format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+        let analysis = FilterEngine().analyze(image)
+        XCTAssertGreaterThan(analysis.neutralShare, 0.1)
+        XCTAssertGreaterThan(analysis.neutralGreen, analysis.waterGreen)
+        XCTAssertGreaterThan(analysis.neutralRed, 0.2)
+        XCTAssertGreaterThan(analysis.highShare, 0.3)
+        // Water only: no reference and no bright area.
+        let water = CIImage(color: CIColor(red: 0.02, green: 0.2, blue: 0.55, colorSpace: FilterEngine.workingSpace)!)
+            .cropped(to: CGRect(x: 0, y: 0, width: 48, height: 48))
+        let plain = FilterEngine().analyze(water)
+        XCTAssertEqual(plain.neutralShare, 0)
+        XCTAssertEqual(plain.highShare, 0)
     }
 
     private func makePlan(depth: Float, confidence: Float) throws -> RestorationPlan {
