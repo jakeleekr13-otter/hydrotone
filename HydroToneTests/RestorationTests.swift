@@ -433,6 +433,39 @@ final class RestorationTests: XCTestCase {
         XCTAssertLessThan(oklch(out).y, 0.04)
     }
 
+    func testSimilarMurkyWaterColoursDoNotBecomeContrastingPatches() {
+        // Two compressed water colours differ by at most five sRGB code values.
+        // Previously the subject mask amplified their difference to about 16 deltaE,
+        // creating visible grey/blue blocks beside otherwise smooth water.
+        let values = colorOnly {
+            $0.castGains = .init(1.16, 0.97, 1.01); $0.waterTone = .init(0.98, 0.92, 1.59)
+            $0.waterRedness = 0.26; $0.waterChroma = 0.54; $0.waterSaturation = 1.6
+            $0.redRebuild = 0.24; $0.redGateLow = 0.52; $0.redGateHigh = 0.92; $0.subjectRed = 0.4
+            $0.toneCurve = 0.3; $0.tonePivot = 0.3
+        }
+        let engine = FilterEngine(), sRGB = CGColorSpace(name: CGColorSpace.sRGB)!
+        var labs: [SIMD3<Float>] = [], display: [[UInt8]] = []
+        for rgb: SIMD3<Float> in [.init(29, 70, 72), .init(34, 73, 70)] {
+            let source = CIImage(color: CIColor(red: CGFloat(rgb.x / 255), green: CGFloat(rgb.y / 255),
+                                                blue: CGFloat(rgb.z / 255), colorSpace: sRGB)!)
+                .cropped(to: CGRect(x: 0, y: 0, width: 8, height: 8))
+            let result = engine.finishing(source, correction: values)
+            var linear = [Float](repeating: 0, count: 4), encoded = [UInt8](repeating: 0, count: 4)
+            let bounds = CGRect(x: 4, y: 4, width: 1, height: 1)
+            engine.context.render(result, toBitmap: &linear, rowBytes: 16, bounds: bounds,
+                                  format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            engine.context.render(result, toBitmap: &encoded, rowBytes: 4, bounds: bounds,
+                                  format: .RGBA8, colorSpace: sRGB)
+            labs.append(ColorCorrection.lab(.init(linear[0], linear[1], linear[2])))
+            display.append(encoded)
+        }
+        let difference = labs[0] - labs[1]
+        XCTAssertLessThan(sqrt((difference * difference).sum()), 8)
+        for channel in 0..<3 {
+            XCTAssertLessThanOrEqual(abs(Int(display[0][channel]) - Int(display[1][channel])), 24)
+        }
+    }
+
     func testRebuiltRedStopsAtGreen() {
         let values = colorOnly { $0.castGains = .init(repeating: 1); $0.redRebuild = 3; $0.subjectRed = 0.1; $0.redCeiling = 1.05 }
         let reef = SIMD3<Float>(0.05, 0.3, 0.35)      // inside the gate, lots of red to rebuild
@@ -555,9 +588,16 @@ final class RestorationTests: XCTestCase {
         XCTAssertTrue(average.depth.values.allSatisfy { abs($0 - 0.5) < 1e-6 })
         XCTAssertEqual(average.confidence, 0.6, accuracy: 1e-5)
         assertEqual(average.betaDirect, plans[0].betaDirect, accuracy: 1e-6)
-        XCTAssertEqual(try RestorationPlan.sceneAverage(plans, keeping: [42]).confidence,
-                       (0.5 + 0.7 + 0.1) / 3, accuracy: 1e-5)  // invalid indices fall back to all plans
+        XCTAssertEqual(try RestorationPlan.sceneAverage(plans, keeping: [42, 1]).confidence, 0.7, accuracy: 1e-5)
+        XCTAssertThrowsError(try RestorationPlan.sceneAverage(plans, keeping: [42]))
         XCTAssertThrowsError(try RestorationPlan.sceneAverage([], keeping: []))
+    }
+
+    func testSceneAverageDoesNotRestoreRejectedPlansWhenAcceptedDepthFitsFailed() throws {
+        // The only successful fit belongs to a rejected sample. Keeping no plan must
+        // trigger the existing fallback instead of using that unrelated environment.
+        let rejected = try makePlan(depth: 1, confidence: 0.9)
+        XCTAssertThrowsError(try RestorationPlan.sceneAverage([rejected], keeping: []))
     }
 
     private func makePlan(depth: Float, confidence: Float) throws -> RestorationPlan {

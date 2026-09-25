@@ -517,11 +517,14 @@ enum FinishingMath {
         let input = SIMD3(source.x.isFinite ? max(0, source.x) : 0, source.y.isFinite ? max(0, source.y) : 0,
                           source.z.isFinite ? max(0, source.z) : 0)
         var c = input * SIMD3(max(0, v.castGains.x), max(0, v.castGains.y), max(0, v.castGains.z))
-        // Water-like: as unred as the water and about as coloured. Greyer pixels are subjects.
+        // Chroma separates silver subjects from strongly coloured water, but is unreliable
+        // in murky water. Fading that test prevents small compression steps becoming grey patches.
         let redness = c.x / max(c.y + c.z, 1e-4)
         let top = c.max(), pixelChroma = top > 1e-4 ? (top - c.min()) / top : 0
-        let waterLike = (1 - smoothstep(v.waterRedness, v.waterRedness * 1.3 + 0.06, redness))
-            * smoothstep(v.waterChroma * 0.5, v.waterChroma * 0.85, pixelChroma)
+        let chromaConfidence = smoothstep(0.55, 0.8, v.waterChroma)
+        let chromaMatch = smoothstep(v.waterChroma * 0.5, v.waterChroma * 0.85, pixelChroma)
+        let waterLike = (1 - smoothstep(v.waterRedness, v.waterRedness + max(0.3, v.waterRedness * 0.6), redness))
+            * (1 - (1 - chromaMatch) * chromaConfidence)
         c = ColorCorrection.violetGuard(c, input: input, waterLike: waterLike, strength: v.violetGuard)
         let lum = (c * ColorCorrection.luma).sum(), scale = 1 + (max(0, v.waterSaturation) - 1) * waterLike
         c = pointwiseMax(SIMD3(repeating: lum) + (c - SIMD3(repeating: lum)) * scale, .zero)
@@ -567,13 +570,16 @@ final class FilterEngine: Sendable {
     [[stitchable]] float4 HydroToneFinishColor(coreimage::sample_t source, float4 gains, float4 water, float4 shape, float4 red, float4 tone) {
         const float3 input = max(source.rgb, float3(0.0f));
         float3 c = input * max(gains.rgb, float3(0.0f));
-        // Tone only pixels as unred as the open water (water.w) and about as coloured
-        // (shape.y), so subjects, silver fish and sand keep their colour.
+        // Redder subjects stay protected, with a broad transition through similar water colours.
+        // Only strongly coloured water (shape.y) reliably separates silver subjects by chroma.
+        // In murky water, fading that test avoids amplifying compressed colour steps into patches.
         const float redness = c.r / max(c.g + c.b, 1e-4f);
         const float top = max(c.r, max(c.g, c.b));
         const float pixelChroma = top > 1e-4f ? (top - min(c.r, min(c.g, c.b))) / top : 0.0f;
-        const float waterLike = (1.0f - smoothstep(water.w, water.w * 1.3f + 0.06f, redness))
-            * smoothstep(shape.y * 0.5f, max(shape.y * 0.85f, shape.y * 0.5f + 1e-5f), pixelChroma);
+        const float chromaConfidence = smoothstep(0.55f, 0.8f, shape.y);
+        const float chromaMatch = smoothstep(shape.y * 0.5f, max(shape.y * 0.85f, shape.y * 0.5f + 1e-5f), pixelChroma);
+        const float waterLike = (1.0f - smoothstep(water.w, water.w + max(0.3f, water.w * 0.6f), redness))
+            * (1.0f - (1.0f - chromaMatch) * chromaConfidence);
         // In a blue pixel, red above green reads violet: gains may not lift red past green or the
         // pixel's own red. In water-like pixels (weighted by shape.w) red stops at green.
         const float blue = smoothstep(1.3f, 2.0f, c.b / max(max(c.r, c.g), 1e-4f));

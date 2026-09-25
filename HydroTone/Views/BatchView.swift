@@ -21,6 +21,7 @@ struct BatchView: View {
         .task { await model.load() }
         .task(id: model.shared) { await model.refreshThumbnails() }
         .onDisappear { model.close() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in model.memoryWarning() }
         .overlay { if model.saving { savingProgress } }
         .sheet(isPresented: $model.showPro) { ProView() }
         .fullScreenCover(item: Binding(get: { detail.map(DetailID.init) }, set: { detail = $0?.id })) { start in
@@ -48,16 +49,27 @@ struct BatchView: View {
             .contentShape(Rectangle())
             .onTapGesture { if item.analysis != nil { detail = item.id } }
             .onLongPressGesture(minimumDuration: 0.25, perform: {}, onPressingChanged: { pressed = $0 ? item.id : nil })
-            .accessibilityElement().accessibilityLabel(showOriginal ? "Original" : "Corrected")
+            .accessibilityElement().accessibilityLabel(label(item, showOriginal: showOriginal))
             .accessibilityValue(item.override == nil ? "" : String(localized: "Edited"))
             .accessibilityAddTraits(.isButton)
+    }
+
+    private func label(_ item: BatchModel.Item, showOriginal: Bool) -> String {
+        switch item.state {
+        case .failed: String(localized: "Couldn’t open this photo")
+        case .saveFailed: String(localized: "Couldn’t save this photo")
+        default: item.previewFailed ? String(localized: "Preview unavailable")
+            : showOriginal ? String(localized: "Original") : String(localized: "Corrected")
+        }
     }
 
     @ViewBuilder private func badge(_ item: BatchModel.Item) -> some View {
         switch item.state {
         case .failed, .saveFailed: Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
         case .saved: Image(systemName: "checkmark.circle.fill").foregroundStyle(.mint)
-        default: if item.override != nil { Image(systemName: "slider.horizontal.3").foregroundStyle(.white) }
+        default:
+            if item.previewFailed { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow) }
+            else if item.override != nil { Image(systemName: "slider.horizontal.3").foregroundStyle(.white) }
         }
     }
 
@@ -127,6 +139,7 @@ struct BatchDetailView: View {
     @State var selection: BatchModel.Item.ID
     @State private var preview: CGImage?
     @State private var originalPreview: CGImage?
+    @State private var previewFailed = false
     @State private var comparing = false
 
     private var item: BatchModel.Item? { model.items.first { $0.id == selection } }
@@ -139,7 +152,10 @@ struct BatchDetailView: View {
                     ForEach(ready) { page in
                         ZStack {
                             Color.black
-                            if page.id == selection, let image = comparing ? (originalPreview ?? page.original) : (preview ?? page.corrected) {
+                            // A failed render must not fall back to the thumbnail: it may show an older look.
+                            if page.id == selection, previewFailed, !comparing {
+                                Label("Preview unavailable", systemImage: "exclamationmark.triangle").foregroundStyle(.secondary)
+                            } else if page.id == selection, let image = comparing ? (originalPreview ?? page.original) : (preview ?? page.corrected) {
                                 Image(decorative: image, scale: 1).resizable().scaledToFit().accessibilityLabel("Photo preview")
                             }
                         }.tag(page.id)
@@ -178,11 +194,13 @@ struct BatchDetailView: View {
     private func renderOriginal() async {
         originalPreview = nil
         guard let item else { return }
-        originalPreview = try? await model.photos.preview(item.url, settings: .init(), original: true)
+        do { originalPreview = try await model.photos.preview(item.url, settings: .init(), original: true) }
+        catch is CancellationError {} catch { await model.recordPreviewFailure(error) }
     }
 
     private func render() async {
         preview = nil
+        previewFailed = false
         guard let item else { return }
         let settings = model.settings(for: item)
         do {
@@ -190,6 +208,9 @@ struct BatchDetailView: View {
             try Task.checkCancellation()
             preview = image
             await model.refreshThumbnails(only: item.id)
-        } catch {}
+        } catch is CancellationError {} catch {
+            previewFailed = true
+            await model.recordPreviewFailure(error)
+        }
     }
 }

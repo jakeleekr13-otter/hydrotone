@@ -122,10 +122,10 @@ extension RestorationPlan {
     /// One scene plan from the kept sample plans: the mean of every scene-level value and one
     /// constant depth (the mean of the per-plan median depths). Use the same kept indices as
     /// WaterAnalysis.sceneMean, from WaterAnalysis.sceneInliers. Invalid indices are ignored;
-    /// none left means all plans.
+    /// An empty selection fails so rejected samples cannot re-enter the physical correction.
     static func sceneAverage(_ plans: [RestorationPlan], keeping: [Int]) throws -> RestorationPlan {
         let valid = keeping.filter { plans.indices.contains($0) }
-        let chosen = (valid.isEmpty ? Array(plans.indices) : valid).map { plans[$0] }
+        let chosen = valid.map { plans[$0] }
         guard let first = chosen.first else { throw RestorationError.waterModelFitFailed }
         let count = Float(chosen.count)
         func mean(_ key: (RestorationPlan) -> Float) -> Float { chosen.reduce(Float(0)) { $0 + key($1) } / count }

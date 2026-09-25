@@ -139,11 +139,10 @@ actor VideoRestorationAnalyzer {
         // One kept-sample list drives both averages. Plan indices differ when a depth fit failed.
         let kept = WaterAnalysis.sceneInliers(legacySamples)
         let keptPlans = plans.indices.filter { kept.contains(plans[$0].sample) }
-        let chosenPlans = keptPlans.isEmpty ? Array(plans.indices) : keptPlans
         // sceneLevel() shrinks the constant depth map to 2x2, so each frame uploads 16 bytes, not a full map.
-        let scenePlan = plans.isEmpty ? nil
-            : try? RestorationPlan.sceneAverage(plans.map(\.plan), keeping: chosenPlans).sceneLevel()
-        let environment = aggregate(chosenPlans.map { plans[$0].plan })
+        // If every accepted sample's depth fit failed, retain only the legacy correction.
+        let scenePlan = try? RestorationPlan.sceneAverage(plans.map(\.plan), keeping: keptPlans).sceneLevel()
+        let environment = aggregate(keptPlans.map { plans[$0].plan })
         #if DEBUG
         logger.debug("samples=\(legacySamples.count) kept=\(kept.count) plans=\(plans.count) workload=\(source.workload.rawValue, privacy: .public) previewDepth=\(previewPolicy.depthMapMaxDimension) exportDepth=\(exportPolicy.depthMapMaxDimension) exportCadence=\(exportPolicy.depthInferencesPerSecond) opticalFlow=\(exportPolicy.useOpticalFlow)")
         #endif
