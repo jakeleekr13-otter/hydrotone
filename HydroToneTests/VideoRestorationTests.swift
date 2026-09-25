@@ -132,11 +132,11 @@ final class VideoRestorationTests: XCTestCase {
         throw XCTSkip("Compressed Depth Anything analysis requires a physical Apple device")
         #else
         let suite = "HydroTone.VideoV2.Tests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        // UserDefaults is not Sendable: the profiler actor owns its instance, cleanup uses another.
+        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
         let metadata = try await MediaInspector().inspect(url)
-        let profiler = DeviceCapabilityProfiler(defaults: defaults)
+        let profiler = DeviceCapabilityProfiler(defaults: try XCTUnwrap(UserDefaults(suiteName: suite)))
         let analyzer = VideoRestorationAnalyzer(profiler: profiler)
         let started = Date()
         let analysis = try await analyzer.analyze(url: url, metadata: metadata)
