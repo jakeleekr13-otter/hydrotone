@@ -39,8 +39,11 @@ If there is no plan, or the restoration render fails, the output is `FilterEngin
 | `meanRed/Green/Blue` | Scene mean colour (linear) | Green-to-blue cast shift, `castStrength`, exposure-neutral gains, restored-path `subjectRed` and `midLift` |
 | `midLuminance` | Median luminance | `deep`, `bright`, `tonePivot`, `midLift` goal |
 | `waterRed/Green/Blue` | Mean of the least red third of pixels (mostly open water) | `waterType`, water tone target, `neon`, `violetGuard`, `waterRedness`, `waterChroma`, red gate |
+| `neutralRed/Green/Blue` | Mean colour of the white-reference candidates (see [White reference](#white-reference)). Zero means none were found. | `neutralGains` |
+| `neutralShare` | Share of analysed pixels behind that colour | Evidence for `neutralGains` |
+| `highShare` | Share of lit pixels (luminance above 0.015) at luminance 0.35 or above. Clipped pixels count too. | The highlight rule in `brightness`, `shadowLift` and `midLift` |
 
-Derived values: `greenOverBlue`, `waterColor` and `castStrength`. `waterColor` falls back to the scene mean. `castStrength` is 0 for a neutral scene mean and 1 for a clear cast.
+Derived values: `greenOverBlue`, `waterColor`, `neutralColor` and `castStrength`. `waterColor` falls back to the scene mean. `castStrength` is 0 for a neutral scene mean and 1 for a clear cast.
 
 ## ColorCorrection values
 
@@ -73,19 +76,50 @@ The water-like weight uses a chroma test. The test is off below `waterChroma` 0.
 
 The rebuild also fades out for strongly green pixels, from green/blue 1.35 to 2.2. So weed does not turn yellow.
 
+### White reference
+
+Sand, rock or a white belly should come out near grey. `ColorCorrection.whiteReference` finds gains that do this.
+
+A candidate pixel for the reference must be:
+
+- outside the least red third, so not open water
+- in the brightest 20% of the scene
+- at least 1.25 x as bright as the water
+- no more colourful than the water: OKLab chroma at most 1.1 x the water's, and at most 0.2
+
+| Value | Meaning |
+|---|---|
+| `neutralGains` | Gains that move `neutralColor`, as the finishing stage sees it, toward grey. One means no reference. Red may rise up to 3x. Green may rise at most 5%, because extra green turns fish lime. Luminance is kept. |
+| `waterLit` | The water colour after the cast gains. The kernel uses it to find lit subjects inside water-like pixels. |
+
+The gains act only when all of these hold:
+
+- Evidence: from 1% of the scene, full at 6%.
+- What is left on the surface after the normal correction is a pale water cast: OKLab hue 150 to 235 (green to cyan-blue) and chroma under 0.10. A warm or blue remainder is a real colour and is kept.
+- The candidate is not strongly blue (blue at most 1.4 to 1.8 x green and red). Such a candidate looks the same as pale water near the surface.
+
+On the restored path the candidate is first restored at the depth that 35% of the depth map lies below, because a lit surface is usually nearer than the water. The 35% is a simple rule, not a measured one.
+
+The kernel applies the gains by `FinishingMath.neutralWeight`. Water-like pixels get none, so the water keeps its colour. The exception is a pixel 1.3 to 1.8 x brighter than the water and of another chromaticity, like the manta belly. Brighter water of the water's own colour gets none.
+
 ### Tone and brightness
 
 | Value | Meaning |
 |---|---|
-| `midLift` | Restored path only. Gives back light lost with the veil, the backscatter haze that the water adds. It never lifts the median luminance above 0.22. |
+| `midLift` | Restored path only. Gives back light lost with the veil, the backscatter haze that the water adds. It never lifts the median luminance above 0.22. The highlight rule lowers that ceiling to 0.132. |
 | `toneCurve`, `tonePivot` | S-curve on gamma luminance around the scene median. Weaker for bright scenes, capped at 0.3. |
-| `brightness` | `exposure` x 0.45 (`CIColorControls`). |
+| `brightness` | `exposure` x 0.45 (`CIColorControls`). The highlight rule halves it. |
 | `contrast` | Preset contrast plus haze (`CIColorControls`). |
 | `saturation` | Preset saturation plus haze. Neon water gets a little less. |
-| `shadowLift`, `highlightAmount` | `CIHighlightShadowAdjust`. Lifts dark subjects after the global contrast. |
+| `shadowLift`, `highlightAmount` | `CIHighlightShadowAdjust`. Lifts dark subjects after the global contrast. The highlight rule keeps 40% of its haze part. |
 | `warmth` | +300 K for Tropical only. |
 | `vibrance` | Preset vibrance, lower for colourful or neon scenes. |
 | `physicalWeight` | Restored path only: the plan confidence. |
+
+**Highlight rule.** A large bright area (a white belly, sunlit sand) already lights the scene. So the scene gets less lift. The rule's weight rises from `highShare` 0.02 to 0.07. It fades out in two cases:
+
+- dark scenes (median luminance 0.18 down to 0.10), where a few bright spots do not light the scene
+- contrasty scenes (`contrast` 0.35 to 0.5), whose deep shadows need the lift
 
 ### Clarity
 
@@ -125,10 +159,10 @@ The kernels run in Metal. The CPU mirrors must give the same result:
 
 | Kernel | CPU mirror | Test that compares them |
 |---|---|---|
-| `HydroToneFinishColor` | `FinishingMath.color` | `testFinishingKernelMatchesCPUMirror` |
+| `HydroToneFinishColor` | `FinishingMath.color`, `waterLike`, `neutralWeight` | `testFinishingKernelMatchesCPUMirror`, `testFinishingKernelMatchesCPUMirrorWithWhiteReference` |
 | `HydroToneRestoration` | `RestorationMath.inverse` | `testRestorationKernelMatchesCPUMirror` |
 
-`ColorCorrection.restoredMean` also mirrors the restoration kernel on one colour, at the plan's mean depth. It skips highlight protection and the output clamp. It predicts the restored water and scene mean. Change it with the kernel.
+`ColorCorrection.restoredMean` also mirrors the restoration kernel on one colour, at the plan's mean depth or at a given depth. It skips highlight protection and the output clamp. It predicts the restored water and scene mean. Change it with the kernel.
 
 Other guards in `HydroToneTests/RestorationTests.swift`:
 
@@ -137,6 +171,11 @@ Other guards in `HydroToneTests/RestorationTests.swift`:
 - `testWaterTargetNeverPointsTowardIndigoOrViolet`, `testVioletGuardKeepsBlueWaterFromTurningViolet`
 - `testSimilarMurkyWaterColoursDoNotBecomeContrastingPatches`
 - `testWaterAnalysisFieldListCoversEveryStoredValue`
+- `testCyanCastSurfaceBecomesNearlyNeutral`, `testWhiteReferenceDoesNotNeutraliseTheWater`, `testSceneWithoutNeutralSurfacesIsUnchangedByTheWhiteReference`, `testNeutralRampStaysNeutralWithWhiteReferenceOnBothPaths`
+- `testLargeBrightSubjectGetsLessLift`
+- `testSceneInliersKeepFramesWithAndWithoutANeutralSurface`, `testSceneMeanAveragesTheNeutralColourOnlyWhereItWasFound`
+
+Video averaging treats the white reference apart. `sceneInliers` judges frames by `sceneFields`, the water values only. A white surface or a bright subject comes and goes within one dive, so a frame without one is not odd. `sceneMean` takes the white surface colour only from frames that found one, weighted by `neutralShare`. `neutralShare` itself is the plain mean, so a surface seen in few frames counts for less.
 
 A change to one kernel needs the same change in its mirror.
 
@@ -155,20 +194,20 @@ Water hue uses OKLab. CIELAB hue cannot separate azure (273), pure blue (306) an
 
 ## Current scorecard
 
-Colour code as of `b8db6df`. `97941be` did not change colour output.
+Colour code as of `6fd84cf`, which added the white reference and the highlight rule.
 
 **Market pairs** (m1-m4: private before/after pairs the product owner chose as the target look; see the harness README), deltaE to the market "after":
 
 | Pair | Original | Ours |
 |---|---|---|
-| m1 | 34.0 | 24.0 |
+| m1 | 34.0 | 23.3 |
 | m2 | 32.7 | 15.3 |
 | m3 | 17.5 | 22.0 |
-| m4 | 25.0 | 19.3 |
+| m4 | 25.0 | 18.3 |
 
 m3 gets worse. It is a mood grade and needs a preset.
 
-**UIEB dev, 40 images:** deltaE 20.09. It was 24.16 before the 25 Sep 2026 changes. The original images score 24.51. Indigo or violet water: 0. Green water left: 1 of 6. Beats the original on 78%.
+**UIEB dev, 40 images:** deltaE 19.35. It was 20.09 at `b8db6df` and 24.16 before the 25 Sep 2026 changes. The original images score 24.51. Indigo or violet water: 0. Green water left: 1 of 6. Beats the original on 85%.
 
 **UIEB holdout, 40 images:**
 
@@ -177,13 +216,22 @@ m3 gets worse. It is a mood grade and needs a preset.
 | Original image | 22.96 |
 | `f548c29` | 20.00 |
 | `f9b073d` | 20.60 |
-| `b8db6df` (current) | 21.01 |
+| `b8db6df` | 21.01 |
+| `6fd84cf` (current) | 20.12 |
 
-Holdout deltaE rose from 20.00 at `f548c29` to 21.01 at `b8db6df`. The market direction moves away from UIEB's muted references.
+Holdout deltaE rose from 20.00 at `f548c29` to 21.01 at `b8db6df`. The market direction moved away from UIEB's muted references. The white reference brought it back to 20.12.
 
 **Real dive photos, 15, no reference:** none is pushed into indigo or violet. Before the 25 Sep 2026 changes, 12 were.
 
 **Neutral grey ramp:** max Lab chroma 0.01 on the photo path, 0.97 on the video path (the harness's `uniform` stand-in).
+
+**Neutral surfaces**, OKLab chroma (0 = colourless):
+
+| Surface | Original | Ours, photo path | Ours, video path | Sea-thru |
+|---|---|---|---|---|
+| m5 sand | 0.109 | 0.032 | 0.014 | 0.004 |
+| m5 chart, grey row | 0.132 | 0.032 | 0.045 | 0.079 |
+| m6 manta belly | 0.111 | 0.026 | 0.033 | 0.063 |
 
 ## Decision record
 
@@ -202,6 +250,8 @@ No separate figure is recorded here for these four. The scorecard shows the comb
 | `keepHueWhereDark` and `keepBlueFamily` | A lime fish on the video path: green/blue 1.45 before, 0.86 now |
 | Chroma-confidence fade for murky water (`b8db6df`) | Visibly fewer block patches on a compressed murky image |
 | Confidence coverage fix (`candidateCoverage` over 8 x 256 samples) | Plan confidence was capped near 0.41 on all 890 UIEB images. The median is now about 0.66. |
+| White reference (`neutralGains`) and highlight rule, measured together | Photo path chroma: m5 sand 0.076 to 0.032, m6 belly 0.069 to 0.026. m6 mean L* 54.6 to 48.6. Holdout deltaE 21.01 to 20.12. |
+| Video outlier test on water values only | Unit test data: sand in 7 of 10 frames. The old test dropped the 3 frames without sand. It also dropped 1 frame with a bright subject. |
 
 ### Rejected
 
@@ -212,6 +262,7 @@ No separate figure is recorded here for these four. The scorecard shows the comb
 | Per-pixel depth for video, including optical-flow depth warping | On photos, per-pixel depth was not better than constant depth. Per-pixel minus constant: +0.54 deltaE on dev, +0.25 on holdout, at that time. |
 | A finer water-fit beta grid (0.05 to 0.01) | deltaE changed by 0.03 |
 | A fixed recipe, for example a +36 magenta tint | It pushes blue water violet. The rules adapt to the measured cast instead. |
+| The highlight rule without its dark-scene and contrast fades | UIEB 12324 mean L* fell from 32.2 to 16.3 |
 
 ## Comparison with Sea-thru
 
@@ -221,19 +272,19 @@ Sea-thru (Akkaynak and Treibitz, CVPR 2019) uses the same kind of image-formatio
 - It uses measured distance. The distance map comes from several overlapping photos and photogrammetry.
 - It re-balances white after removing the veil, so sand and grey surfaces become neutral.
 
-We measured two Sea-thru results (market pairs m5 and m6) with the harness at `b8db6df`:
+We measured two Sea-thru results (market pairs m5 and m6) with the harness. The "ours" columns show `b8db6df`, then `6fd84cf`:
 
-| Measure | m5 ours | m5 Sea-thru | m6 ours | m6 Sea-thru |
-|---|---|---|---|---|
-| deltaE to the Sea-thru result (original in brackets) | 33.1 (39.0) | (reference) | 29.5 (33.9) | (reference) |
-| Mean L* | 57.9 | 36.4 | 54.6 | 38.7 |
-| Subject red/green (`nearRG`) | 0.66 | 1.04 | 0.70 | 0.91 |
-| Neutral surface, OKLab chroma | sand 0.076 | sand 0.004 | belly 0.069 | belly 0.063 |
+| Measure | m5 original | m5 ours | m5 Sea-thru | m6 original | m6 ours | m6 Sea-thru |
+|---|---|---|---|---|---|---|
+| deltaE to the Sea-thru result | 39.0 | 33.1 → 29.1 | (reference) | 33.9 | 29.5 → 25.3 | (reference) |
+| Mean L* | 60.1 | 57.9 → 58.3 | 36.4 | 52.9 | 54.6 → 48.6 | 38.7 |
+| Subject red/green (`nearRG`) | 0.37 | 0.66 → 0.87 | 1.04 | 0.35 | 0.70 → 0.81 | 0.91 |
+| Neutral surface, OKLab chroma | sand 0.109 | 0.076 → 0.032 | 0.004 | belly 0.111 | 0.069 → 0.026 | 0.063 |
 
-What we can take, as our own rules:
+What we took, as our own rules:
 
-- A white reference after veil removal: find bright, low-saturation surfaces that are not open water, and move them toward neutral. In progress.
-- Brightness that respects bright subjects. A large white subject (the manta belly) must not make the whole frame brighter. In progress.
+- A white reference after veil removal (see [White reference](#white-reference)).
+- Brightness that respects bright subjects: the highlight rule. The manta belly no longer makes the whole frame brighter.
 - Neutral surfaces as a scorecard check (the harness "Neutral surfaces" section).
 
 What we cannot take into a one-photo app:
@@ -250,6 +301,10 @@ Limits:
 - Near subjects on the constant-depth video path go darker and greener. `keepBlueFamily` covers only blue-family pixels.
 - On an iPhone 17 (iOS 27.0), both kernel/CPU-mirror tests and the two device-only depth tests pass (4 test suites, 65 tests, 0 failures). One depth inference took 22 ms. Full video export speed on an iPhone is unmeasured.
 - Mood grades like m3 are out of scope for automatic correction.
+- m5 stays much brighter than Sea-thru (mean L* 58.3 against 36.4). Its original is already bright (60.1).
+- On m6 the reef under the manta is olive-green (photo path) or yellow-green (video path). On Sea-thru it is brown.
+- The white reference on real video is unmeasured. The harness has no video; only unit tests cover the averaging.
+- A blue remainder never gets the white reference, so a truly blue subject keeps its colour. A strongly blue candidate, such as a silver fish in blue light, also gets none.
 - The particle filter and temporal denoiser are prototypes in `Prototypes/VideoCleanup`. They are not wired in.
 
 Next steps:
