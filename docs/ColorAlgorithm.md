@@ -113,7 +113,7 @@ The kernel applies the gains by `FinishingMath.neutralWeight`. Water-like pixels
 | `contrast` | Preset contrast plus haze (`CIColorControls`). |
 | `saturation` | Preset saturation plus haze. Neon water gets a little less. |
 | `shadowLift`, `highlightAmount` | `CIHighlightShadowAdjust`. Lifts dark subjects after the global contrast. The highlight rule keeps 40% of its haze part. |
-| `warmth` | +300 K for Tropical only. |
+| `warmth` | Tropical only: `DivePreset.warmth` (600 K) x min(1, 4 x `castStrength`), so a grey scene gets none. Custom adds the user's Temperature. |
 | `vibrance` | Preset vibrance, lower for colourful or neon scenes. |
 | `physicalWeight` | Restored path only: the plan confidence. |
 
@@ -142,6 +142,40 @@ Every finishing step can push a highlight past white, and none rolls it off. Bef
 - A pixel bright in every channel (smallest channel 0.65 to 0.9 of the ceiling), or 1.3 to 2 x over the ceiling, moves toward white at the same peak. Without this, the sun got a pink ring.
 
 The pure white of an SDR image ends near 250 of 255 at intensity 0.8, because the shoulder never reaches the ceiling.
+
+## Built-in presets
+
+The UI gives each built-in preset only an intensity slider. Their values are in `DivePreset`.
+
+| Preset | For | What it adds to the automatic result |
+|---|---|---|
+| Natural Dive | any water | Nothing. It is the automatic result and the base for Custom. |
+| Tropical | shallow, bright water | `warmth` 600 K; more saturation and vibrance on subjects |
+| Deep Dive | deep, dark-blue water | More red (`restoration` 0.56); `shadowBoost` 0.10; `waterChroma` 0.85 calms neon water |
+
+- Preset terms sit in one block in `make()`. Natural and Custom skip it.
+- The extra saturation of a preset is meant for subjects. Water-like pixels give it back (`waterSaturation`), so the water keeps Natural's saturation.
+- `waterChroma` scales the water tone's chroma ceiling. The water tone keeps the water's hue, so calmer water does not turn violet.
+- Warmth is applied as light: the source is taken as lit at 6500 K + warmth and shown at 6500 K. A green tint of 1 per 100 K keeps the shift yellow, not orange.
+
+## Custom preset
+
+Custom is the user preset (gear tile). It starts from the Natural values and renders at full strength (`FilterSettings.customStrength` = 1), so it has no intensity slider. Five sliders change the automatic result. Each is a position from -1 to 1, shown as -100 to +100. `ColorCorrection.make` takes them as `adjustments`; every other preset ignores them.
+
+| Slider | Value it changes | Change at -1 / +1 |
+|---|---|---|
+| Brightness | `midLift` down, `shadowLift` up | -0.25 / +0.075 |
+| Contrast | `toneCurve` | -0.10 / +0.02 |
+| Saturation | `saturation`, before the water chroma ceiling reads it | -0.10 / +0.08 x (1 - neon) |
+| Clarity | `clarity` and `definition`, as a factor | x0 / x1.75 |
+| Temperature | `warmth` | -100 K / +100 K |
+
+- The up moves of Brightness, Contrast and Saturation share one budget. When their sum is above 1, each is scaled down (`CustomAdjustments.budgeted`).
+- The offsets enter before the guards and the white reference that read them. The highlight shoulder still runs last.
+- Saturation moves the water tone, so `subjectRed` and the red gate follow the toned water.
+- The caps are provisional (`CustomAdjustments.Caps`). They were measured before the white reference and the highlight shoulder landed. See [Verification](Verification.md).
+- One saved slot in UserDefaults (`customAdjustments.v1`) holds the five positions. The editor, batch and video share it.
+- Custom gets no preset terms, so with every slider at 0 it equals Natural at full strength.
 
 ## Restoration kernel
 
@@ -278,6 +312,8 @@ No separate figure is recorded here for these four. The scorecard shows the comb
 | A finer water-fit beta grid (0.05 to 0.01) | deltaE changed by 0.03 |
 | A fixed recipe, for example a +36 magenta tint | It pushes blue water violet. The rules adapt to the measured cast instead. |
 | The highlight rule without its dark-scene and contrast fades | UIEB 12324 mean L* fell from 32.2 to 16.3 |
+| Warmth from 6500 K to 6500 K + warmth (used until `13ffbee`) | It cooled the image: at +300 K, grey 0.40 became (0.391, 0.401, 0.417). Tropical was cooler than Natural, and its grey ramp chroma was 4.00 (photo) and 4.87 (video), over the limit of 3. |
+| Deep Dive calming by scaling `waterSaturation` | It turned 42% of r02's pixels indigo or violet (Natural: 7%) |
 
 ## Comparison with Sea-thru
 
@@ -322,6 +358,9 @@ Limits:
 - The highlight shoulder on HDR export is unmeasured. It reads its peak in BT.709, so saturated Display P3 colours are held a little lower than P3 needs.
 - On the video path r14's sand stays mint-green. The restoration kernel's own limit flattens that colour before finishing.
 - A blue remainder never gets the white reference, so a truly blue subject keeps its colour. A strongly blue candidate, such as a silver fish in blue light, also gets none.
+- The presets differ only a little. Deep Dive's neon water is only 1 to 1.5% calmer than Natural's.
+- Deep Dive turns some of r11's sea fans lavender: 12.1% of pixels have OKLab hue 270 to 330 and chroma 0.03 or more (Natural: 2.7%). The far-water check does not see it.
+- Tropical moves some cyan or green water a little greener (m1 water hue 216 to 212, m2 240 to 225). In r10 it gives the sun core a light peach tint.
 - The particle filter and temporal denoiser are prototypes in `Prototypes/VideoCleanup`. They are not wired in.
 
 Next steps:

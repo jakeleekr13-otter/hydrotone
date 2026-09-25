@@ -53,4 +53,4 @@ Synthetic media fixtures are checked in. `scripts/make_test_media.py` regenerate
 
 See [QA matrix](docs/QA.md), [processing decisions](docs/Architecture.md), and [diagnostics review](docs/Diagnostics.md) for verification and remaining release checks.
 
-The colour algorithm, its decisions and its evaluation are in [ColorAlgorithm](docs/ColorAlgorithm.md). The video pipeline is in [Video V2](docs/VideoV2.md). The scorecard harness is [scripts/color-eval](scripts/color-eval/README.md).
+The colour algorithm, its decisions and its evaluation are in [ColorAlgorithm](docs/ColorAlgorithm.md). The video pipeline is in [Video V2](docs/VideoV2.md). The scorecard harness is [scripts/color-eval](scripts/color-eval/README.md). Checks still open are in [Verification](docs/Verification.md).
