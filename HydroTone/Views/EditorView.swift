@@ -58,6 +58,12 @@ struct EditorView: View {
             HStack {
                 Text(model.comparing ? String(localized: "Original") : model.settings.preset.localizedName).font(.subheadline).foregroundStyle(.secondary)
                 Spacer()
+                if model.media.kind == .video {
+                    Button { if model.clipPlaying { model.stopClip(rewind: true) } else { Task { await model.playClip() } } } label: {
+                        Label(model.clipPlaying ? "Stop" : "Play 3s", systemImage: model.clipPlaying ? "stop.fill" : "play.fill")
+                    }.buttonStyle(.bordered).frame(minHeight: 44).disabled(!model.ready)
+                        .accessibilityHint("Play three seconds from the current position, then return")
+                }
                 Button { model.comparing.toggle() } label: { Label("Compare", systemImage: model.comparing ? "eye.fill" : "eye") }
                     .buttonStyle(.bordered).frame(minHeight: 44)
                     .accessibilityValue(model.comparing ? "Original" : "Corrected")

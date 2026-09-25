@@ -11,6 +11,10 @@ final class EditorModel {
     var originalPreview: CGImage?
     var comparing = false
     var player: AVPlayer?
+    var clipPlaying = false
+    private var clipStart: CMTime?
+    private var clipObserver: Any?
+    static let clipSeconds = 3.0
     var metadata: VideoMetadata?
     var videoAnalysis: VideoRestorationAnalysis?
     var capability = ExportCapability.photo
@@ -108,6 +112,44 @@ final class EditorModel {
             report(error, operation: .preview)
         }
     }
+    /// Plays a short segment from the current position, then returns to its start
+    /// so presets and Compare can be judged on the same frames.
+    func playClip() async {
+        guard let player, let metadata, !exporting else { return }
+        stopClip(rewind: false)
+        var start = player.currentTime().seconds
+        if !start.isFinite || start + Self.clipSeconds > metadata.duration { start = max(0, metadata.duration - Self.clipSeconds) }
+        let startTime = CMTime(seconds: start, preferredTimescale: 600)
+        let endTime = CMTime(seconds: min(metadata.duration, start + Self.clipSeconds), preferredTimescale: 600)
+        await player.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        clipStart = startTime
+        clipObserver = player.addBoundaryTimeObserver(forTimes: [NSValue(time: endTime)], queue: .main) { [weak self] in
+            MainActor.assumeIsolated { self?.stopClip(rewind: true) }
+        }
+        clipPlaying = true
+        player.play()
+    }
+    func stopClip(rewind: Bool) {
+        guard let player else { return }
+        if let clipObserver { player.removeTimeObserver(clipObserver) }
+        clipObserver = nil
+        guard clipPlaying else { return }
+        clipPlaying = false
+        player.pause()
+        if rewind, let clipStart { player.seek(to: clipStart, toleranceBefore: .zero, toleranceAfter: .zero) }
+        clipStart = nil
+    }
+    func requestExport(purchases: PurchaseStore, trial: TrialStore) async {
+        await purchases.refreshEntitlement()
+        if !purchases.isPro {
+            guard trial.available else { report(HydroError.trialUnavailable); return }
+            guard trial.canExport(media.kind) else { showPro = true; return }
+            options.range = .sdr
+            options.resolution = .hd
+            options.durationLimit = TrialStore.videoSeconds
+        } else { options.durationLimit = nil }
+        showExportOptions = true
+    }
     func requestExport(purchases: PurchaseStore, trial: TrialStore) async {
         await purchases.refreshEntitlement()
         if !purchases.isPro {
@@ -123,6 +165,7 @@ final class EditorModel {
         guard !exporting else { return }
         exporting = true
         progress = 0
+        stopClip(rewind: false)
         player?.pause()
         optionsDismissing = showExportOptions
         showExportOptions = false
@@ -211,5 +254,5 @@ final class EditorModel {
         // Keep one actionable alert visible instead of presenting a stream of duplicates.
         if self.error == nil { self.error = failure.message }
     }
-    func close() { player?.pause(); exportTask?.cancel(); discardCompleted(); TemporaryFiles.remove(media.url) }
+    func close() { stopClip(rewind: false); player?.pause(); exportTask?.cancel(); discardCompleted(); TemporaryFiles.remove(media.url) }
 }
