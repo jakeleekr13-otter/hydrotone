@@ -48,6 +48,32 @@ final class PhotoTests: XCTestCase {
                                                                     analysis: analysis)))
         XCTAssertGreaterThan(corrected[2], corrected[0])
     }
+    /// Mean OKLab hue and chroma of a corrected scene: a water field with a small warmer subject.
+    private func correctedWater(_ water: CIColor, preset: DivePreset = .natural) -> SIMD3<Float> {
+        let field = CIImage(color: water).cropped(to: CGRect(x: 0, y: 0, width: 48, height: 48))
+        let subject = CIImage(color: CIColor(red: 0.35, green: 0.3, blue: 0.3)).cropped(to: CGRect(x: 0, y: 0, width: 12, height: 12))
+        let image = subject.composited(over: field)
+        let settings = FilterSettings(preset: preset, intensity: 1, analysis: engine.analyze(image))
+        var result = [Float](repeating: 0, count: 4)
+        engine.context.render(engine.apply(image, settings: settings), toBitmap: &result, rowBytes: 16,
+                              bounds: CGRect(x: 40, y: 40, width: 1, height: 1), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+        return ColorCorrection.oklch(SIMD3(result[0], result[1], result[2]))
+    }
+    func testNeonBlueWaterIsCalmedAndNeverTurnsIndigo() {
+        let source = ColorCorrection.oklch(SIMD3(0.039, 0.010, 0.804))
+        for preset in [DivePreset.natural, .tropical, .deep] {
+            let out = correctedWater(CIColor(red: 0.039, green: 0.010, blue: 0.804, colorSpace: FilterEngine.workingSpace)!, preset: preset)
+            XCTAssertLessThan(out.z, 266, "\(preset)")
+            XCTAssertGreaterThan(out.z, 215, "\(preset)")
+            XCTAssertLessThan(out.y, source.y * 0.7, "\(preset)")
+        }
+    }
+    func testTealWaterMovesTowardCyanBlue() {
+        let teal = SIMD3<Float>(0.03, 0.26, 0.29)
+        let out = correctedWater(CIColor(red: 0.03, green: 0.26, blue: 0.29, colorSpace: FilterEngine.workingSpace)!)
+        XCTAssertGreaterThan(out.z, ColorCorrection.oklch(teal).z + 10)
+        XCTAssertLessThan(out.z, 266)
+    }
     func testPresetSymbolsAreDistinct() {
         XCTAssertEqual(Set(DivePreset.allCases.map(\.symbolName)).count, DivePreset.allCases.count)
     }

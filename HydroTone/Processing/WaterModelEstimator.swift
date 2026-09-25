@@ -26,6 +26,10 @@ struct WaterModelEstimator {
         betaDirect = SIMD3(min(1.55, max(0.18, betaDirect.x)),
                            min(0.90, max(0.08, betaDirect.y)),
                            min(0.65, max(0.05, betaDirect.z)))
+        // Channel-unequal attenuation needs a measured cast. A neutral scene gets equal
+        // attenuation, so its greys stay grey; the spread grows with the cast.
+        let cast = legacy.castStrength
+        betaDirect = spread(betaDirect, by: cast)
 
         // darkCandidates keeps at most 256 per depth bin, so full coverage is 8 x 256 samples.
         let candidateCoverage = min(1, Float(candidates.count) / Float(8 * 256))
@@ -39,7 +43,7 @@ struct WaterModelEstimator {
         let recoverability = channelRecoverability(pixels: pixels, depth: map.values, infinity: infinity,
                                                    betaBackscatter: betaBackscatter,
                                                    redSurvival: redSurvival)
-        let limits = RestorationLimits(maximumGain: SIMD3(1.32 + 0.45 * redSurvival, 1.55, 1.45))
+        let limits = RestorationLimits(maximumGain: spread(SIMD3(1.32 + 0.45 * redSurvival, 1.55, 1.45), by: cast))
         let hits = limitHitPercentages(depth: map.values, betaDirect: betaDirect, limits: limits)
         return RestorationPlan(depth: map, depthSource: depth.source, depthStatistics: depth.statistics,
                                backscatterInfinity: finite(infinity), betaDirect: finite(betaDirect),
@@ -178,6 +182,12 @@ struct WaterModelEstimator {
         }
         result.x = min(result.x, max(0.12, redSurvival))
         return finite(result)
+    }
+
+    /// Channel mean plus `amount` of each channel's difference from it.
+    private func spread(_ value: SIMD3<Float>, by amount: Float) -> SIMD3<Float> {
+        let mean = (value.x + value.y + value.z) / 3
+        return SIMD3(repeating: mean) + (value - SIMD3(repeating: mean)) * min(1, max(0, amount))
     }
 
     private func finite(_ value: SIMD3<Float>) -> SIMD3<Float> {

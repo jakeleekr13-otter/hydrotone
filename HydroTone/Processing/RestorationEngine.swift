@@ -47,9 +47,22 @@ enum RestorationMath {
                           min(maximumOutput, max(0, corrected.z)))
         let recovery = SIMD3(min(1, max(0, recoverability.x)), min(1, max(0, recoverability.y)),
                              min(1, max(0, recoverability.z)))
-        corrected = source + (corrected - source) * recovery
+        corrected = keepHueWhereDark(source: source, restored: source + (corrected - source) * recovery)
         return RestorationPixelResult(color: finite(corrected), hitTransmissionFloor: hitFloor, hitMaximumGain: hitGain)
     }
+
+    /// Where veil removal leaves little light (far water is mostly veil), the channel that lost
+    /// least (often red, which is recovered least) would dominate and turn the water red-brown or
+    /// violet. There the source colour is kept, scaled to the restored level. The level is the
+    /// plain channel sum, because blue, which carries water colour, barely counts in luminance.
+    static func keepHueWhereDark(source: SIMD3<Float>, restored: SIMD3<Float>) -> SIMD3<Float> {
+        let before = pointwiseMax(source, .zero).sum(), after = pointwiseMax(restored, .zero).sum()
+        guard before > 1e-5 else { return restored }
+        let kept = after / before
+        let dark = 1 - smoothstep(darkLow, darkHigh, kept)
+        return finite(restored + (pointwiseMax(source, .zero) * kept - restored) * dark)
+    }
+    static let darkLow: Float = 0.3, darkHigh: Float = 0.6
 
     static func confidenceBlend(current: SIMD3<Float>, restored: SIMD3<Float>, confidence: Float) -> SIMD3<Float> {
         let amount = safe(confidence, fallback: 0, range: 0...1)
@@ -105,6 +118,16 @@ final class RestorationEngine: Sendable {
         restored = mix(restored, source.rgb, highlight);
         restored = clamp(restored, float3(0.0f), float3(max(0.5f, limits.w)));
         restored = source.rgb + (restored - source.rgb) * clamp(recoverability.rgb, 0.0f, 1.0f);
+        // Where veil removal leaves little light (channel sum), keep the source hue at the
+        // restored level, so far water does not turn red-brown or violet.
+        // RestorationMath.keepHueWhereDark mirrors it.
+        const float3 lit = max(source.rgb, float3(0.0f));
+        const float before = lit.r + lit.g + lit.b;
+        if (before > 1e-5f) {
+            const float3 now = max(restored, float3(0.0f));
+            const float kept = (now.r + now.g + now.b) / before;
+            restored = mix(restored, lit * kept, 1.0f - smoothstep(0.3f, 0.6f, kept));
+        }
         if (!all(isfinite(restored))) { restored = max(source.rgb, float3(0.0f)); }
         return float4(restored, source.a);
     }
