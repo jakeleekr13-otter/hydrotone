@@ -156,3 +156,46 @@ extension RestorationPlan {
                                channelRecoverability: mean { $0.channelRecoverability })
     }
 }
+
+extension NormalizedDepthMap {
+    /// The value a full ascending sort would place in the middle, in O(n) (Hoare quickselect).
+    var median: Float {
+        var items = values
+        let rank = items.count / 2
+        var low = 0, high = items.count - 1
+        while low < high {
+            let pivot = items[(low + high) / 2]
+            var i = low, j = high
+            while i <= j {
+                while items[i] < pivot { i += 1 }
+                while items[j] > pivot { j -= 1 }
+                if i <= j { items.swapAt(i, j); i += 1; j -= 1 }
+            }
+            if rank <= j { high = j } else if rank >= i { low = i } else { break }
+        }
+        return items[rank]
+    }
+}
+
+extension RestorationPlan {
+    /// Keeps only scene-level values: the depth map becomes one constant, the median depth.
+    /// Video applies these sample plans to every frame, where a per-pixel map from another frame would not line up.
+    func sceneLevel() throws -> RestorationPlan {
+        let uniform = try NormalizedDepthMap(width: 2, height: 2, values: .init(repeating: depth.median, count: 4))
+        return rebuilt(depth: uniform, limits: limits)
+    }
+
+    func limiting(maximumOutput: Float) -> RestorationPlan {
+        var output = limits
+        output.maximumOutput = maximumOutput
+        return rebuilt(depth: depth, limits: output)
+    }
+
+    /// Copy-and-modify, so any stored value added to RestorationPlan later survives automatically.
+    private func rebuilt(depth: NormalizedDepthMap, limits: RestorationLimits) -> RestorationPlan {
+        var copy = self
+        copy.depth = depth
+        copy.limits = limits
+        return copy
+    }
+}

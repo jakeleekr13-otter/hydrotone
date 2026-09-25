@@ -26,6 +26,12 @@ struct VideoRestorationAnalysis: Sendable {
     let previewPolicy: ProcessingPolicy
     let exportPolicy: ProcessingPolicy
 
+    /// Export applies the same averaged scene plan as the preview. HDR output keeps its highlight headroom.
+    func exportPlan(at time: Double, preservesHDR: Bool) -> RestorationPlan? {
+        guard let plan = previewPlan(at: time) else { return nil }
+        return preservesHDR ? plan.limiting(maximumOutput: 8) : plan
+    }
+
     func previewPlan(at time: Double) -> RestorationPlan? {
         guard let first = samplePlans.first else { return nil }
         guard samplePlans.count > 1 else { return first.plan }
@@ -98,15 +104,17 @@ actor VideoRestorationAnalyzer {
         let exportPolicy = builder.make(device: device, source: source, runtime: runtime, purpose: .export)
         let depthEstimator = DepthEstimator(computeUnits: device.preferredComputePolicy.coreML)
 
+        // Video rule: skip the first and last 10%, take 10 evenly spaced samples, drop outlier
+        // samples, average the rest, and apply those same values to every frame.
+        let trim = 0.1, sampleCount = 10
+        let fractions = (0..<sampleCount).map { trim + (1 - 2 * trim) * Double($0) / Double(sampleCount - 1) }
         var legacySamples: [WaterAnalysis] = []
-        var plans: [TimedRestorationPlan] = []
+        var plans: [(sample: Int, plan: RestorationPlan)] = []
         var restorationFailures = 0
-        for fraction in [0.1, 0.3, 0.5, 0.7, 0.9] {
+        for fraction in fractions {
             try Task.checkCancellation()
             let requested = max(0, min(metadata.duration, metadata.duration * fraction))
-            let cg: CGImage
-            if fraction == 0.5 { cg = representative }
-            else { cg = try await generator.image(at: CMTime(seconds: requested, preferredTimescale: 600)).image }
+            let cg = try await generator.image(at: CMTime(seconds: requested, preferredTimescale: 600)).image
             let image = engine.sdr(CIImage(cgImage: cg))
             let legacy = engine.analyze(image)
             legacySamples.append(legacy)
@@ -114,7 +122,7 @@ actor VideoRestorationAnalyzer {
                 let depth = try await depthEstimator.monocularDepth(for: image)
                     .resampled(maxDimension: previewPolicy.depthMapMaxDimension)
                 let plan = try waterEstimator.estimate(image: image, depth: depth, legacy: legacy, context: engine.context)
-                plans.append(TimedRestorationPlan(time: requested, plan: plan))
+                plans.append((sample: legacySamples.count - 1, plan: plan))
             } catch is CancellationError { throw CancellationError() }
             catch {
                 restorationFailures += 1
@@ -128,16 +136,23 @@ actor VideoRestorationAnalyzer {
                                      operation: .videoRestoration,
                                      occurrences: restorationFailures)
         }
-        plans.sort { $0.time < $1.time }
-        let environment = aggregate(plans.map(\.plan))
+        // One kept-sample list drives both averages. Plan indices differ when a depth fit failed.
+        let kept = WaterAnalysis.sceneInliers(legacySamples)
+        let keptPlans = plans.indices.filter { kept.contains(plans[$0].sample) }
+        let chosenPlans = keptPlans.isEmpty ? Array(plans.indices) : keptPlans
+        // sceneLevel() shrinks the constant depth map to 2x2, so each frame uploads 16 bytes, not a full map.
+        let scenePlan = plans.isEmpty ? nil
+            : try? RestorationPlan.sceneAverage(plans.map(\.plan), keeping: chosenPlans).sceneLevel()
+        let environment = aggregate(chosenPlans.map { plans[$0].plan })
         #if DEBUG
-        logger.debug("samples=\(plans.count) workload=\(source.workload.rawValue, privacy: .public) previewDepth=\(previewPolicy.depthMapMaxDimension) exportDepth=\(exportPolicy.depthMapMaxDimension) exportCadence=\(exportPolicy.depthInferencesPerSecond) opticalFlow=\(exportPolicy.useOpticalFlow)")
+        logger.debug("samples=\(legacySamples.count) kept=\(kept.count) plans=\(plans.count) workload=\(source.workload.rawValue, privacy: .public) previewDepth=\(previewPolicy.depthMapMaxDimension) exportDepth=\(exportPolicy.depthMapMaxDimension) exportCadence=\(exportPolicy.depthInferencesPerSecond) opticalFlow=\(exportPolicy.useOpticalFlow)")
         #endif
         Task.detached(priority: .utility) {
             await self.profiler.completeBenchmarkIfNeeded(representativeImage: representativeImage)
         }
-        return VideoRestorationAnalysis(legacyAnalysis: .median(legacySamples), representativeFrame: representative,
-                                        representativeTime: representativeTime, samplePlans: plans,
+        return VideoRestorationAnalysis(legacyAnalysis: .sceneMean(legacySamples, keeping: kept),
+                                        representativeFrame: representative, representativeTime: representativeTime,
+                                        samplePlans: scenePlan.map { [TimedRestorationPlan(time: representativeTime, plan: $0)] } ?? [],
                                         initialEnvironment: environment, deviceProfile: device,
                                         sourceProfile: source, previewPolicy: previewPolicy, exportPolicy: exportPolicy)
     }

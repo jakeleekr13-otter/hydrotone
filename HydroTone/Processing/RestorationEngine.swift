@@ -149,8 +149,7 @@ final class RestorationEngine: Sendable {
     }
 
     private func depthImage(_ map: NormalizedDepthMap, matching extent: CGRect) throws -> CIImage {
-        var values = map.values
-        let data = values.withUnsafeMutableBytes { Data($0) }
+        let data = map.values.withUnsafeBytes { Data($0) }
         let depth = CIImage(bitmapData: data, bytesPerRow: map.width * MemoryLayout<Float>.size,
                             size: CGSize(width: map.width, height: map.height), format: .Rf, colorSpace: nil)
         let scaled = depth.transformed(by: CGAffineTransform(scaleX: extent.width / CGFloat(map.width),

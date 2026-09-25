@@ -35,9 +35,7 @@ actor VideoExporter {
         try Task.checkCancellation()
         let hdr = options.range == .hdr
         guard !hdr || (metadata.isHDR && (metadata.dynamicRange == .hlg || metadata.dynamicRange == .pq) && (metadata.bitDepth ?? 0) >= 10) else { throw HydroError.unsupported }
-        let temporalSession = settings.preset == .original ? nil : restorationAnalysis.map {
-            TemporalRestorationSession(analysis: $0, preservesHDR: hdr, diagnostics: diagnostics)
-        }
+        let restoration = settings.preset == .original ? nil : restorationAnalysis
         let asset = AVURLAsset(url: url)
         guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw HydroError.unreadable }
         let duration = min(metadata.duration, options.durationLimit ?? metadata.duration)
@@ -141,9 +139,7 @@ actor VideoExporter {
                     VideoColorPipeline.tag(destination, hdr: hdr, pq: metadata.dynamicRange == .pq)
                     let fallback = engine.apply(frame.0, settings: settings)
                     let corrected: CIImage
-                    if let temporalSession,
-                       let plan = await temporalSession.plan(for: frame.0, at: frame.1.seconds,
-                                                             runtime: .current) {
+                    if let plan = restoration?.exportPlan(at: frame.1.seconds, preservesHDR: hdr) {
                         do {
                             corrected = try restorationEngine.combined(frame.0, plan: plan,
                                                                         settings: settings, filter: engine)

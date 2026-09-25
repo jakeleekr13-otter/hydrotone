@@ -95,6 +95,30 @@ final class VideoRestorationTests: XCTestCase {
         XCTAssertFalse(first === second, "A preset revision must invalidate AVPlayer's rendered-frame cache")
     }
 
+    func testDepthMedianMatchesFullSort() throws {
+        var generator = SystemRandomNumberGenerator()
+        for count in [4, 5, 6, 97, 1_000] {
+            let values = (0..<count).map { _ in Float(Int.random(in: 0...20, using: &generator)) / 20 }
+            let map = try NormalizedDepthMap(width: 2, height: count / 2, values: Array(values.prefix(2 * (count / 2))))
+            XCTAssertEqual(map.median, map.values.sorted()[map.values.count / 2])
+        }
+    }
+
+    func testSceneLevelPlanKeepsSceneValuesAndFlattensDepth() throws {
+        let map = try NormalizedDepthMap(width: 2, height: 2, values: [0.1, 0.9, 0.4, 0.6])
+        let plan = RestorationPlan(depth: map, depthSource: .monocular,
+            depthStatistics: .init(minimum: 0.1, maximum: 0.9, median: 0.6),
+            backscatterInfinity: .init(0.05, 0.12, 0.25), betaDirect: .init(0.7, 0.4, 0.2),
+            betaBackscatter: .init(0.5, 0.35, 0.25), confidence: 0.8, limits: .init(),
+            transmissionFloorPixelPercentage: 0.1, maximumGainPixelPercentage: 0.2)
+        let scene = try plan.sceneLevel()
+        XCTAssertEqual(scene.depth.values, [0.6, 0.6, 0.6, 0.6])
+        XCTAssertEqual(scene.betaDirect, plan.betaDirect)
+        XCTAssertEqual(scene.backscatterInfinity, plan.backscatterInfinity)
+        XCTAssertEqual(scene.confidence, plan.confidence)
+        XCTAssertEqual(plan.limiting(maximumOutput: 8).limits.maximumOutput, 8)
+    }
+
     func testPreviewCompositionIsTaggedAsRec709() async throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
         let composition = try await VideoPreview().composition(asset: AVURLAsset(url: url), settings: PreviewSettings())
@@ -140,7 +164,7 @@ final class VideoRestorationTests: XCTestCase {
         let analyzer = VideoRestorationAnalyzer(profiler: profiler)
         let started = Date()
         let analysis = try await analyzer.analyze(url: url, metadata: metadata)
-        XCTAssertEqual(analysis.samplePlans.count, 5)
+        XCTAssertEqual(analysis.samplePlans.count, 1, "Video applies one averaged scene plan to every frame")
         XCTAssertNotNil(analysis.initialEnvironment)
         XCTAssertFalse(analysis.exportPolicy.useOpticalFlow)
         XCTAssertTrue((2...5).contains(analysis.exportPolicy.depthInferencesPerSecond))
