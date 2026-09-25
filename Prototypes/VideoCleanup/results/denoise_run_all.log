@@ -1,0 +1,97 @@
+isSupported true
+== clip1_coral (2017-01-08 01.21.36.MOV) window 0-8 s
+  speed native s=0.25: 149.80 fps (setup 3.06 ms)
+  speed native s=0.5: 152.00 fps (setup 2.76 ms)
+  speed native s=0.75: 155.32 fps (setup 6.16 ms)
+  speed native s=1.0: 144.82 fps (setup 1.91 ms)
+  speed 4K-upscaled s=0.5: 43.04 fps
+  speed 4K-upscaled s=1.0: 41.63 fps
+  crop frame 240 t=4.00s motion window x=880 y=800 texture window x=928 y=800 flat window x=416 y=144
+  frames in 480 out [480, 480, 480, 480] failures ["none", "none", "none", "none"] formats ["&8v0", "&8v0", "&8v0", "&8v0"]
+  original: noise 0.47 flicker 0.62 (px 230570752) sharp 66.90
+  s=0.25: noise 0.43 (-8.6%) flicker 0.48 (-22.2%) sharp 64.42 (-3.7%) devMoving 1.57 devStatic 0.33 movingPx 98589696
+  s=0.5: noise 0.43 (-8.6%) flicker 0.47 (-24.7%) sharp 64.99 (-2.8%) devMoving 1.17 devStatic 0.30 movingPx 98589696
+  s=0.75: noise 0.39 (-17.6%) flicker 0.35 (-43.2%) sharp 61.49 (-8.1%) devMoving 2.10 devStatic 0.70 movingPx 98589696
+  s=1.0: noise 0.39 (-17.4%) flicker 0.33 (-45.8%) sharp 58.92 (-11.9%) devMoving 2.92 devStatic 0.82 movingPx 98589696
+  CI compressed source vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=0.25 vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=0.5 vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=0.75 vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=1.0 vs its 420v copy: meanAbs 0.000 max 0
+  CI compressed source vs independent 420v decode: meanAbs 0.000 max 0
+== clip2_anemone (2019-05-05 18.37.02.MOV) window 0-8 s
+  speed native s=0.25: 149.13 fps (setup 1.25 ms)
+  speed native s=0.5: 142.79 fps (setup 2.83 ms)
+  speed native s=0.75: 145.40 fps (setup 2.69 ms)
+  speed native s=1.0: 147.21 fps (setup 2.12 ms)
+  crop frame 240 t=4.00s motion window x=1264 y=0 texture window x=1264 y=0 flat window x=256 y=352
+  frames in 480 out [480, 480, 480, 480] failures ["none", "none", "none", "none"] formats ["&8v0", "&8v0", "&8v0", "&8v0"]
+  original: noise 1.17 flicker 1.09 (px 24494848) sharp 187.44
+  s=0.25: noise 1.01 (-13.6%) flicker 0.90 (-17.6%) sharp 179.89 (-4.0%) devMoving 2.31 devStatic 0.54 movingPx 98589696
+  s=0.5: noise 1.00 (-13.9%) flicker 0.88 (-19.4%) sharp 179.99 (-4.0%) devMoving 2.09 devStatic 0.50 movingPx 98589696
+  s=0.75: noise 0.95 (-18.1%) flicker 0.84 (-23.5%) sharp 170.99 (-8.8%) devMoving 3.16 devStatic 0.68 movingPx 98589696
+  s=1.0: noise 0.92 (-21.1%) flicker 0.81 (-25.8%) sharp 168.54 (-10.1%) devMoving 3.72 devStatic 0.80 movingPx 98589696
+  CI compressed source vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=0.25 vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=0.5 vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=0.75 vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=1.0 vs its 420v copy: meanAbs 0.000 max 0
+  CI compressed source vs independent 420v decode: meanAbs 0.000 max 0
+== clip3_school (VID_20230118_095241_0018.MP4) window 0-8 s
+  speed native s=0.25: 168.19 fps (setup 1.09 ms)
+  speed native s=0.5: 168.38 fps (setup 0.95 ms)
+  speed native s=0.75: 168.45 fps (setup 0.96 ms)
+  speed native s=1.0: 168.42 fps (setup 0.95 ms)
+  crop frame 240 t=4.00s motion window x=1152 y=0 texture window x=896 y=752 flat window x=0 y=64
+  frames in 480 out [480, 480, 480, 480] failures ["none", "none", "none", "none"] formats ["&8v0", "&8v0", "&8v0", "&8v0"]
+  original: noise 0.45 flicker 0.58 (px 237223168) sharp 0.65
+  s=0.25: noise 0.41 (-8.8%) flicker 0.44 (-24.8%) sharp 0.59 (-9.2%) devMoving 0.80 devStatic 0.31 movingPx 12471552
+  s=0.5: noise 0.41 (-8.7%) flicker 0.42 (-27.5%) sharp 0.58 (-9.9%) devMoving 0.65 devStatic 0.28 movingPx 12471552
+  s=0.75: noise 0.37 (-17.6%) flicker 0.30 (-47.9%) sharp 0.52 (-20.2%) devMoving 1.13 devStatic 0.69 movingPx 12471552
+  s=1.0: noise 0.37 (-17.7%) flicker 0.29 (-50.7%) sharp 0.49 (-24.3%) devMoving 1.42 devStatic 0.79 movingPx 12471552
+  CI compressed source vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=0.25 vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=0.5 vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=0.75 vs its 420v copy: meanAbs 0.000 max 0
+  CI filtered s=1.0 vs its 420v copy: meanAbs 0.000 max 0
+  CI compressed source vs independent 420v decode: meanAbs 0.000 max 0
+HDR hlg_10bit.mov: 18 frames 1920x1080 source &xv0
+    [diff>16: 53202 samples, box x 0-1919 y 0-933]
+    CI source compressed vs its x420 transfer copy (harness check): meanAbs 0.418 max 195
+    [diff>16: 5437 samples, box x 86-1599 y 0-930]
+    CI filtered vs CI source, same frame: meanAbs 0.144 max 74
+    [diff>16: 52909 samples, box x 0-1919 y 0-933]
+  s=0.5: out 18/18 format &xv0 fps 131.95 failure none
+    noise 0.00 -> 0.01 (+48350.5%) sharp -1.7% mean|dY| 0.14 (8-bit units)
+    CI filtered compressed vs its x420 copy: meanAbs 0.413 max 194
+    output attachments: transfer=ITU_R_2100_HLG primaries=ITU_R_2020
+    [diff>16: 53202 samples, box x 0-1919 y 0-933]
+    CI source compressed vs its x420 transfer copy (harness check): meanAbs 0.418 max 195
+    [diff>16: 38957 samples, box x 77-1919 y 0-932]
+    CI filtered vs CI source, same frame: meanAbs 0.370 max 124
+    [diff>16: 52022 samples, box x 0-1919 y 0-932]
+  s=1.0: out 18/18 format &xv0 fps 132.52 failure none
+    noise 0.00 -> 0.01 (+93951.5%) sharp -5.4% mean|dY| 0.34 (8-bit units)
+    CI filtered compressed vs its x420 copy: meanAbs 0.397 max 196
+    output attachments: transfer=ITU_R_2100_HLG primaries=ITU_R_2020
+  CI compressed source vs independent x420 decode: meanAbs 0.000 max 0
+HDR pq_10bit.mov: 18 frames 1920x1080 source &xv0
+    [diff>16: 41177 samples, box x 2-1919 y 2-932]
+    CI source compressed vs its x420 transfer copy (harness check): meanAbs 0.400 max 255
+    [diff>16: 15236 samples, box x 80-1907 y 2-930]
+    CI filtered vs CI source, same frame: meanAbs 0.135 max 228
+    [diff>16: 40310 samples, box x 2-1919 y 2-932]
+  s=0.5: out 18/18 format &xv0 fps 130.01 failure none
+    noise 0.00 -> 0.01 (+48350.5%) sharp -1.7% mean|dY| 0.14 (8-bit units)
+    CI filtered compressed vs its x420 copy: meanAbs 0.392 max 255
+    output attachments: transfer=SMPTE_ST_2084_PQ primaries=ITU_R_2020
+    [diff>16: 41177 samples, box x 2-1919 y 2-932]
+    CI source compressed vs its x420 transfer copy (harness check): meanAbs 0.400 max 255
+    [diff>16: 44346 samples, box x 77-1919 y 2-931]
+    CI filtered vs CI source, same frame: meanAbs 0.386 max 255
+    [diff>16: 38480 samples, box x 2-1919 y 2-932]
+  s=1.0: out 18/18 format &xv0 fps 132.49 failure none
+    noise 0.00 -> 0.01 (+93951.5%) sharp -5.4% mean|dY| 0.34 (8-bit units)
+    CI filtered compressed vs its x420 copy: meanAbs 0.375 max 255
+    output attachments: transfer=SMPTE_ST_2084_PQ primaries=ITU_R_2020
+  CI compressed source vs independent x420 decode: meanAbs 0.000 max 0

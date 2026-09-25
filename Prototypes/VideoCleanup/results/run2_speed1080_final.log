@@ -1,0 +1,9 @@
+load: 2.9% /bin/zsh; 2.0% /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer; 1.2% /Applications/Antigravity; 
+   c particle + render  127.9 fps (120 frames)
+   c particle + render  144.0 fps (120 frames)
+load: 1.1% /Applications/Whale.app/Contents/Frameworks/Whale; 1.0% /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent; 0.8% /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer; 
+   c particle + render  184.8 fps (120 frames)
+   c particle + render  204.0 fps (120 frames)
+load: 2.5% /Applications/ChatGPT.app/Contents/Frameworks/Codex; 0.7% /System/Library/DriverExtensions/com.apple.AppleUserHIDDrivers.dext/com.apple.AppleUserHIDDrivers; 0.7% /Applications/ChatGPT.app/Contents/Frameworks/Codex; 
+   c particle + render  125.9 fps (120 frames)
+   c particle + render  142.8 fps (120 frames)

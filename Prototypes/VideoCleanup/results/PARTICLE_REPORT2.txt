@@ -1,0 +1,170 @@
+PARTICLE FILTER, ROUND 2: GPU MOTION, SPEED, FISH CHECK
+Mac: MacBook Air M3 (Mac15,12), 10 GPU cores, 16 GB, no fan. 25 Sep 2026.
+Old = run1.log (CPU motion). New = this round. Logs are listed at the end.
+
+1. RESULT
+- Speed target met. Particle + render at 1080p: 125.9 to 204.0 fps (final build, 7 runs).
+- 4K (reader-scaled): 62.8 to 68.2 fps (5 runs, both builds). The 4K target was about 30 fps.
+- Removal quality held. 77 of 80 cells are identical. 2 cells improved by 0.3 points.
+  1 cell is 0.1 point worse: S3 particle>denoise drift, -57.5 % -> -57.4 %.
+- Fish survive in both particle-only and particle-then-denoise. The crops are in section 5.
+
+2. MOTION OPTIONS TRIED
+Option                           Result                                        Measured
+VTFrameProcessor optical flow    isSupported = true. Source format RGhA only.  1080p: 19.90 ms/pair (normal), 29.46 (quality)
+                                 Flow comes out at 1/8 size (240x135, 2C0h).   4K: 47.75 ms/pair (normal), 78.23 (quality)
+                                 Rejected: slower than the whole 8.3 ms budget.
+Reuse the denoiser's motion      Not possible. VTTemporalNoiseFilterParameters  header read, no timing
+                                 has no motion output (only frames, strength,
+                                 discontinuity flag, destination).
+Metal block matching (chosen)    Same algorithm as the CPU code, on the GPU.   see below
+                                 Our own kernels, 171 lines of Metal source.
+
+Metal kernel GPU time at 1080p (mode kprof, 40 repeats, fast-clock run):
+Kernel                               mean ms   min ms
+coarse global search (new)           0.441     0.298
+coarse global search (first try)     1.242     unmeasured
+fine global search                   0.196     0.192
+global shift                         0.030     0.030
+per-block search                     0.178     0.161
+The first try used one threadgroup per offset. The new one loads each row once and serves 21 offsets.
+Old CPU motion was 21.58 ms per frame (run1.log).
+Motion alone with 2 probe renders and one wait (speed split): 2.0 to 2.8 ms at 1080p, 6.2 to 6.5 ms at 4K.
+
+Check against the old filter (mode cmp, same frames, same 420v render):
+- c1 0-1 s: 0 luma pixels differ in 60 frames.
+- c3 30-32 s: 7 pixels in 2 of 121 frames differ, by 1 level at most.
+- c2 18-20 s: 110 pixels in 2 of 121 frames differ, max 32 levels.
+  This is likely one or two specks decided the other way (not checked by eye).
+  Two known differences: GPU sums run in another order, and flow is no longer rounded to half float.
+
+3. OTHER SPEED CHANGES
+Motion alone was not enough: the GPU part was already about 10 ms per frame.
+Step                                           Measured effect (1080p, c3)
+Tile map: 8x8 tiles that hold a candidate      final render 9.7 -> 6.6 ms wall; output unchanged
+spot. The mask returns 0 at once elsewhere.
+Sample peak maps and flow images directly,     Core Image passes 11 -> 6
+with coordinates clamped in the kernel. Core
+Image made a full-size copy of each before.
+Peak render, probe and motion in one command   push 7.8-9.5 -> 4.5-4.7 ms
+buffer, so push waits once.
+Pipeline: push commits the GPU work and does   particle + render 76.7 -> 119.6 fps
+not wait. The wait moves one frame later.
+Output lag is now 3 frames (was 2).
+Reuse probe textures; flush the texture cache  no change in fps seen
+These step numbers come from runs before the bench fix in risk 1. Treat them as direction only.
+
+4. SPEED (fps, 120 preloaded frames, particle filter + render to 420v)
+Size    Clip  Variant                        Old (run1.log)  New
+1080p   c3    c particle + render            30.8            125.9 - 184.8 (4 runs, final build); 164.9 - 172.2 (3 runs, build B)
+1080p   c1    c particle + render            31.3            142.8 - 204.0 (3 runs, final build); 178.6 - 186.2 (2 runs, build B)
+1080p   c3    d denoise>particle + render    24.9            62.4 (final build); 65.8 - 69.1 (3 runs, build B)
+1080p   c1    d denoise>particle + render    25.0            69.5 - 71.9 (2 runs, build B); final build unmeasured
+1080p   c3    e particle>denoise (+render)   24.0            55.5 (final build); 64.8 - 67.3 (3 runs, build B)
+1080p   c1    e particle>denoise (+render)   24.1            64.0 - 64.3 (2 runs, build B); final build unmeasured
+1080p   c3    b denoise 0.5 alone            152.0           161.4 - 165.5 (3 runs, build B)
+1080p   c1    b denoise 0.5 alone            144.4           163.3 - 164.9 (2 runs, build B)
+4K      c3    c particle + render            unmeasured      65.9, 67.4 (build B); 68.2 (final build)
+4K      c1    c particle + render            unmeasured      62.8, 66.1 (build B)
+4K      c3    d denoise>particle + render    unmeasured      23.2, 22.4 (build B); 22.2 (final build)
+4K      c1    d denoise>particle + render    unmeasured      22.9, 22.1 (build B)
+4K      c3    e particle>denoise (+render)   unmeasured      20.4, 20.1 (build B); 20.2 (final build)
+4K      c1    e particle>denoise (+render)   unmeasured      20.5, 19.7 (build B)
+4K      c3    b denoise 0.5 alone            unmeasured      45.5, 42.7 (build B)
+4K      c1    b denoise 0.5 alone            unmeasured      42.8, 42.5 (build B)
+Build B = the same math plus an extra wait on the Core Image render tasks. It was removed later.
+Two build B runs are left out of the ranges, because another session loaded the Mac:
+- c1 at 1080p (xcodebuild and eval running): c 108.6, d 60.4, e 51.2, b 153.2.
+- c3 at 4K (iOS Simulator and eval running): c 42.5, d 18.0, e 18.7, b 41.7.
+4K: the reader scales every frame to 3840x2160, as the denoise bench did.
+Long run: 900 frames in a row stayed at 136 - 174 fps per 60 frames (build B, mode drift).
+Why the ranges are wide: the same GPU work took 4.5 to 7.4 ms per frame in one run.
+The GPU clock changes. The window server and other apps share the GPU.
+With the target met, the limit now is the denoiser (d and e are 55 - 72 fps).
+
+5. QUALITY, OLD > NEW (run_all.sh arguments unchanged)
+"a original" is the baseline for every percentage, so it has no row.
+segment        variant               drift change %  subject kept %  dark-small kept %   sharpness %      changed>2 %
+---------------------------------------------------------------------------------------------------------------------
+S1 c3 snow     b denoise 0.5         -18.3 > -18.3    95.9 > 95.9        93.0 > 93.0    -19.9 > -19.9    0.075 > 0.075
+S1 c3 snow     c particle            -70.6 > -70.6    99.2 > 99.2        99.0 > 99.0    -22.4 > -22.4    0.097 > 0.097
+S1 c3 snow     d denoise>particle    -81.9 > -81.9    95.0 > 95.0        92.3 > 92.3    -38.4 > -38.4    0.158 > 0.158
+S1 c3 snow     e particle>denoise    -87.1 > -87.1    93.9 > 93.9        89.4 > 89.4    -41.7 > -41.7    0.322 > 0.322
+S2 c3 school   b denoise 0.5         -52.0 > -52.0    94.8 > 94.8        76.1 > 76.1    -18.5 > -18.5    0.008 > 0.008
+S2 c3 school   c particle            -68.0 > -68.0    99.9 > 99.9        99.5 > 99.5     -2.6 > -2.6     0.017 > 0.017
+S2 c3 school   d denoise>particle    -82.9 > -82.9    94.7 > 94.7        75.6 > 75.6    -20.0 > -20.0    0.019 > 0.019
+S2 c3 school   e particle>denoise    -91.6 > -91.6    93.8 > 93.8        69.6 > 69.6    -22.7 > -22.7    0.037 > 0.037
+S3 c1 fish     b denoise 0.5         -15.7 > -15.7    98.9 > 98.9        94.9 > 94.9     -2.6 > -2.6     1.024 > 1.024
+S3 c1 fish     c particle            -42.9 > -42.9   100.0 > 100.0      100.0 > 100.0    +0.0 > +0.0     0.032 > 0.032
+S3 c1 fish     d denoise>particle    -53.4 > -53.4    98.9 > 98.9        95.0 > 95.0     -2.6 > -2.6     1.051 > 1.051
+S3 c1 fish     e particle>denoise    -57.5 > -57.4    98.6 > 98.6        92.3 > 92.3     -4.2 > -4.2     1.239 > 1.239
+S4 c2 anemone  b denoise 0.5         -52.3 > -52.3    99.1 > 99.1        97.7 > 97.7     -3.5 > -3.5     6.687 > 6.687
+S4 c2 anemone  c particle            -20.6 > -20.9   100.0 > 100.0      100.0 > 100.0    -0.0 > -0.0     0.002 > 0.002
+S4 c2 anemone  d denoise>particle    -58.9 > -58.9    99.1 > 99.1        97.6 > 97.6     -3.5 > -3.5     6.690 > 6.690
+S4 c2 anemone  e particle>denoise    -65.4 > -65.7    98.6 > 98.6        96.8 > 96.8     -5.9 > -5.9     7.105 > 7.105
+Every cell was measured. 3 of 80 cells changed, all in drift change:
+S4 particle -20.6 -> -20.9 and S4 particle>denoise -65.4 -> -65.7 (more removed, better);
+S3 particle>denoise -57.5 -> -57.4 (0.1 point less removed).
+S1, S2 and S4 ran on build B. S3 ran again on the final build, and every metric was identical.
+Dark-small loss in S2 comes from the denoiser: denoise alone keeps 76.1 %, particle alone 99.5 %.
+
+6. FISH CHECK (opened with the Read tool)
+Layout: original | particle | particle>denoise, then |difference| x4 for particle and particle>denoise.
+Middle frame of each segment, 240x135 window, 2x zoom, contrast x3.
+Verdict: fish survive in both variants. No fish, fin or eye is removed or blurred away in any crop.
+Crop                                   What it shows
+crops2/S2_c3_school_fishthumb.png      Placed by eye from look/c3_full_14.5.png, at x 730 y 700.
+                                       Several fish of the school, one bright body in the middle.
+                                       Same in all 3 panels. Particle diff is black. The particle>denoise
+                                       diff has only faint, even noise; nothing has a fish shape.
+crops2/S2_c3_school_fishhand.png       The run_all.sh window (700, 500), widened. Faint fish shapes in all 3.
+crops2/S2_c3_school_fishauto.png       Fish bodies along a diagonal, in all 3 panels.
+crops2/S3_c1_fish_fishhand.png         A large moving fish and several small fish. All kept in all 3 panels.
+                                       Diffs: faint traces along the large fish edge only.
+crops2/S3_c1_fish_fishauto.png         Close-up of a large fish body. Kept.
+crops2/S1_c3_snow_fishauto.png         Silhouettes of a fish school with fins. Kept in all 3 panels.
+crops2/S4_c2_anemone_fishhand.png      Clownfish and anemone. Kept. Thin arcs in both diffs sit on bright
+                                       anemone tips, not on the fish.
+crops2/S4_c2_anemone_fishauto.png      Reef texture, no fish. It is not a fish check.
+The old crop crops/S2_c3_school_fish.png showed water because these fish are faint and big.
+At 160x90 and contrast x1, they do not show.
+Auto placement ("fishauto") picks the window with the most persistent dark groups: a dark group
+with another dark group within 6 px of the motion-moved spot in the previous frame.
+It works in S1, S3 and part of S2. In S2 the metric finds only 3 such groups in the frame,
+because the fish are wider than its 17x17 scale. So S2 also got the window placed by eye.
+The arcs in the S4 diffs are most likely colour (chroma) changes from the 420v re-render.
+Luma changed>2 is 0.002 % for particle in S4. This cause is not verified.
+
+7. RISKS
+1. Memory build-up in the caller. A Core Image render keeps its input buffers until the
+   autorelease pool drains. Without a pool per frame, memory grew 16.6 MB per 1080p frame
+   (mode leak: 1120 -> 4110 MB in 240 frames; with a pool: flat at 140 MB).
+   This also happens with the old filter (mode drift, V1). At 4K each peak buffer is 66 MB (3840 x 2160 x 8 bytes).
+   VideoExporter.swift renders outside its autorelease pool. When the filter is added, wrap
+   the per-frame push and render in autoreleasepool. The bench now does this in its speed loops.
+2. Speed varies with the GPU clock and with other GPU users. The minimum seen on the final
+   build was 125.9 fps, close to the 120 target. A longer export on this fanless Mac may slow
+   down more. Not measured beyond 900 frames.
+3. iPhone speed is unmeasured. The code typechecks for iOS 26 with Swift 6 and warnings as
+   errors. It has not run on a device.
+4. Output lag is now 3 frames, not 2. push/finish handle it; tested with 0 to 6 frames (mode edges).
+   Code that assumes a fixed lag would break.
+5. push calls waitUntilCompleted. This SDK marks it unavailable in async code. push is a plain
+   sync function, so it compiles. It must not become async without changing this wait.
+6. Output is not bit-identical to the old filter (section 2). Segment metrics moved by 0.3 points or less.
+7. The coarse search keeps a row in threadgroup memory. It handles frames up to 8384 px wide.
+   Wider frames get no motion and pass through unfiltered.
+8. Frames of another size than the first still pass through at once, out of order. This is unchanged from the old version.
+
+8. FILES
+Component:  ParticleFilter.swift (Metal motion, tile map, direct sampling, one command buffer, pipeline)
+Reference:  ref/ParticleFilterV1.swift (old filter, renamed; the metric uses its CPU motion, unchanged)
+Backups:    pf_v1_cpu_motion.swift.bak (old), pf_step1 to pf_step7 *.swift.bak (one per step; "leak" in the
+            step 7 name is the bench issue of risk 1, not a filter bug)
+Bench:      measure_run.swift, metric.swift, common.swift, main.swift, build.sh (adds ref/ParticleFilterV1.swift)
+New modes:  cmp_run.swift (new vs old output), mprof_run.swift (kprof, pprof, rprof, oprof, drift),
+            leak_run.swift, edge_run.swift, peek_run.swift, flowprobe/main.swift (optical flow probe)
+Logs:       run2.log (4 segments), run2_S1.log ... run2_S4.log, run2_S3_final.log,
+            run2_speed1080.log, run2_speed4k.log, run2_speed1080_final.log
+Crops:      crops2/ (new fish crops plus the old specks, fish and texture crops)
+Machine load was logged next to each run with load.sh.

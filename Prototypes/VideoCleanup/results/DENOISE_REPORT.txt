@@ -1,0 +1,167 @@
+I wrote and benchmarked the denoiser. On this Mac (Apple M3, 16 GB, macOS 27.0) the hardware filter is supported and runs on every frame. At 1080p it runs at 135–168 fps. I recommend strength 0.5. REPORT.md was not written: the harness refused to let me create report files, so the full report is below.
+
+Files:
+- /private/tmp/claude-501/-Users-jakelee-personal-project-hydrotone/00feba6b-8486-4e3c-b73e-1e43d1047e14/scratchpad/denoise/TemporalDenoiser.swift
+- /private/tmp/claude-501/-Users-jakelee-personal-project-hydrotone/00feba6b-8486-4e3c-b73e-1e43d1047e14/scratchpad/denoise/bench.swift (build steps at the top)
+- /private/tmp/claude-501/-Users-jakelee-personal-project-hydrotone/00feba6b-8486-4e3c-b73e-1e43d1047e14/scratchpad/denoise/crops/ (12 detail PNGs and 3 grid PNGs)
+- Logs in the same folder: run_all.log (run 2), clip1.log, clip2_anemone.log, clip3_school.log, hdr.log (run 1)
+- Checks in the same folder: check/UseInActor.swift, check/edge/main.swift, check/bgra/main.swift
+
+# Temporal noise filter for video export — REPORT
+
+Every number comes from this Mac. None comes from an iPhone.
+
+## 1. Supported
+- **Mac:** yes. `isSupported` = true. All 480 of 480 frames came out on each real clip, and 18 of 18 on each HDR fixture. No errors.
+- **iPhone:** unmeasured.
+- **iOS simulator:** the SDK has no filter there. The component returns nil.
+
+## 2. Component
+- **API:**
+  - `sourcePixelFormat(hdr:)` returns `&8v0` for SDR and `&xv0` for HDR.
+  - `isSupported` checks the hardware.
+  - `init?(width:height:hdr:strength:)` returns nil when the filter is not supported, the size is out of range, the configuration is nil, or the session fails to start.
+  - `push(_:at:) async -> Frame?`, `finish() async -> [Frame]`, and `failure`.
+- **How it works:**
+  - The frame counts come from the configuration (previous 1, next 2).
+  - The first frame is sent with `hasDiscontinuity`.
+  - Output buffers come from a pool built from `destinationPixelBufferAttributes`.
+  - Colour attachments are copied to each output. Each output keeps its source time. Frame count and order never change.
+- **Tail in `finish()`:** the last-but-one frame uses 1 previous and 1 next frame. The last frame uses 1 previous and 0 next. Apple's header says at least one reference frame is needed. So a clip of 1 frame comes back unfiltered.
+- **Pass-through:** a frame with the wrong format or size comes back unchanged. After a processing error, the rest of the clip also passes through, and the error is kept in `failure`.
+- **Swift 6 check:** `-warnings-as-errors`, targets iphoneos iOS 26.0, iphonesimulator and macOS. I ran it with and without `NonisolatedNonsendingByDefault` / `InferIsolatedConformances`, calling the component from inside an actor. Result: 0 errors, 0 warnings.
+- **Edge test results:**
+  - Size limits: 100x50 gives nil. 20000x1080 gives nil. 1080p, 1080x1920 and 4K 10-bit are created.
+  - Short clips: with 1, 2, 3 and 4 frames, all frames come out, in order, with their own times.
+  - Unfiltered cases: the 1-frame clip, and frames in plain `420v`.
+
+## 3. Method
+- **Clips:** the first 8 s of each clip (480 frames at 59.94 fps). Thumbnails at 0, 4 and 8 s show all three underwater. All are 1920x1080 H.264, so the "1080p when native is larger" row does not apply. The 4K speed test used clip 1 upscaled to 4K by the reader. It measures speed only.
+- **Speed:** 120 frames are decoded into memory first. The timer covers only `push` and `finish`.
+- **Luma:** read through `VTPixelTransferSession` into `420v`. On one clip-1 frame, the Y and CbCr planes matched a direct 420v decode byte for byte.
+- **Masks:** built from the original frame, so every strength is scored on the same pixels. The frame is split into 16x16 blocks.
+  - Flat: lowest 25% texture.
+  - Textured: top 25%.
+  - Static flat: flat blocks that change by 0.5 levels or less from the previous frame.
+  - Moving: top 10% of change, and at least 2 levels.
+- **Metrics** (8-bit luma levels, so hue does not matter):
+
+| Metric | Definition |
+|---|---|
+| Noise | RMS of (luma − 7x7 blur) in flat blocks |
+| Flicker | RMS of (frame − previous frame) in static flat blocks |
+| Sharpness | Mean squared gradient of the 3x3-blurred luma in textured blocks |
+| Motion dev. | RMS of (filtered − original) in moving blocks |
+
+- **Unfiltered values:**
+
+| Clip | Noise | Flicker | Sharpness |
+|---|---|---|---|
+| clip1 coral | 0.47 | 0.62 | 66.90 |
+| clip2 anemone | 1.17 | 1.09 | 187.44 |
+| clip3 fish school | 0.45 | 0.58 | 0.65 |
+
+Clip 3 has almost no texture (sharpness 0.65), so its sharpness percentages are noisy.
+
+## 4. Results
+fps is shown as run 1 / run 2. Quality numbers were the same in both runs.
+
+| Clip | Strength | fps 1080p | Noise | Flicker | Sharpness | Motion dev. | Ghosting (visual) |
+|---|---|---|---|---|---|---|---|
+| clip1 | 0.25 | 146.5 / 149.8 | −8.6% | −22.2% | −3.7% | 1.57 | 1x grid: no visible change |
+| clip1 | 0.5 | 143.8 / 152.0 | −8.6% | −24.7% | −2.8% | 1.17 | 2x crop: no change, small fish kept |
+| clip1 | 0.75 | 143.9 / 155.3 | −17.6% | −43.2% | −8.1% | 2.10 | 2x crop: faint small fish fainter, no trails |
+| clip1 | 1.0 | 142.8 / 144.8 | −17.4% | −45.8% | −11.9% | 2.92 | 2x crop: same as 0.75, a bit stronger |
+| clip2 | 0.25 | 145.5 / 149.1 | −13.6% | −17.6% | −4.0% | 2.31 | 1x grid: no visible change |
+| clip2 | 0.5 | 146.0 / 142.8 | −13.9% | −19.4% | −4.0% | 2.09 | 1x grid: no visible change |
+| clip2 | 0.75 | 145.4 / 145.4 | −18.1% | −23.5% | −8.8% | 3.16 | 2x crop: rock grain slightly smoother, no trails |
+| clip2 | 1.0 | 146.1 / 147.2 | −21.1% | −25.8% | −10.1% | 3.72 | 2x crop: same as 0.75, slightly more |
+| clip3 | 0.25 | 135.2 / 168.2 | −8.8% | −24.8% | −9.2% | 0.80 | 1x grid: no visible change |
+| clip3 | 0.5 | 142.0 / 168.4 | −8.7% | −27.5% | −9.9% | 0.65 | 1x grid: no visible change |
+| clip3 | 0.75 | 140.4 / 168.5 | −17.6% | −47.9% | −20.2% | 1.13 | 2x crop: fish shapes kept, faint fish softer, no trails |
+| clip3 | 1.0 | 140.0 / 168.4 | −17.7% | −50.7% | −24.3% | 1.42 | 2x crop: same as 0.75 |
+
+4K speed (60 frames):
+
+| Strength | fps 4K |
+|---|---|
+| 0.25 | unmeasured |
+| 0.5 | 41.8 / 43.0 |
+| 0.75 | unmeasured |
+| 1.0 | 43.2 / 41.6 |
+
+Setup takes 1 to 6 ms.
+
+What the end user sees:
+- **Noise:** the test clips are clean (19–40 Mbps, bright water), so grain removal is hard to see at 1x.
+- **Flicker:** this is the biggest measured change, but still crops cannot show it. Flicker in playback: unmeasured.
+- **Moving fish:** no double images or trails in any crop I viewed.
+- **Marine snow:** none visible in any crop. Effect on marine snow: unmeasured.
+- **Clownfish:** the clip 2 clownfish is not inside any crop window. Clownfish ghosting: unmeasured.
+- **Strength steps:** 0.25 and 0.5 give the same noise drop (within 0.3 points), and so do 0.75 and 1.0 (within 3.0 points), on all three clips.
+
+## 5. Recommended strength: 0.5
+- It removes the same noise as 0.25, with more flicker reduction and lower motion deviation on all three clips.
+- Sharpness loss is 2.8–4.0% on the two textured clips. No visible artefact in any 0.5 crop.
+- 0.75 and 1.0 double the noise drop. But they cost 2 to 3 times the sharpness, and they fade faint fish.
+- If you want a "strong" option, use 0.75, not 1.0.
+
+## 6. Core Image compatibility
+The check renders frame 240 to sRGB RGBA8 and compares mean and max absolute difference in 8-bit.
+
+| Check | clip1 | clip2 | clip3 |
+|---|---|---|---|
+| `&8v0` source vs a separate plain `420v` decode | 0.000 / 0 | 0.000 / 0 | 0.000 / 0 |
+| Filtered output at each of the 4 strengths vs its `420v` copy | 0.000 / 0 | 0.000 / 0 | 0.000 / 0 |
+
+HDR, 10-bit:
+- **Source:** the `&xv0` source vs a separate `x420` decode gives 0.000 / 0 on both HDR fixtures.
+- **Output:** the filter output stays `&xv0`, and the HLG / PQ tags stay on it. All 18 frames came out at 129.4–132.5 fps.
+- **Rendering:** the filtered output renders in Core Image. Mean difference from the unfiltered render: 0.14 / 0.37 (HLG, strength 0.5 / 1.0) and 0.14 / 0.39 (PQ).
+- **No exact reference for filtered 10-bit output:** `VTPixelTransferSession` from `&xv0` to `x420` changes chroma. 106,597 of 1,036,800 CbCr samples differ, by up to 206 codes. Y stays exact.
+- **Fixtures:** the HDR fixtures are synthetic colour bars with no noise. HDR noise change is not meaningful. HDR quality on real footage: unmeasured.
+
+## 7. Crops
+- **`crops/<clip>_s<25|50|75|100>.png`** (2x zoom). Columns: [before | after | difference]. Rows:
+  1. Motion window, difference x4.
+  2. Texture window, difference x4.
+  3. Flat window, colours stretched x4 around the crop mean to mimic strong colour correction, difference x1.
+- **`crops/<clip>_grid.png`** (1x). One row per strength, top row 0.25. Columns: [motion before | motion after | motion diff | flat before | flat after].
+
+## 8. Integration steps for `VideoExporter.export`
+Line numbers are from the current working copy.
+
+1. **Reader format (line 55 area).** Keep `pixelFormat` for the writer adaptor. Add a separate reader format, and use it in both the composition output settings and `decoderSettings`. Keep `AVVideoColorPropertiesKey`.
+   ```swift
+   let denoise = TemporalDenoiser.isSupported
+   let readFormat = denoise ? TemporalDenoiser.sourcePixelFormat(hdr: hdr) : pixelFormat
+   ```
+   - On this Mac, the track output, the track output with colour properties, and the composition output all returned the compressed format.
+   - When `denoise` is false, nothing changes.
+2. **Create the denoiser on the first frame.** Use the first buffer's own size: `TemporalDenoiser(width: CVPixelBufferGetWidth(b), height: CVPixelBufferGetHeight(b), hdr: hdr, strength: 0.5)`.
+   - The composition path gives buffers at render size. The track path gives natural size.
+   - If it is nil, use frames as they are. Core Image reads `&8v0` / `&xv0` directly (section 6).
+3. **Loop shape (2-frame look-ahead).** Add `var ready: [TemporalDenoiser.Frame] = []` and `var sourceEnded = false`.
+   - **Read:** when `ready` is empty and `!sourceEnded`, read one sample inside the `autoreleasepool` and return `(buffer, time)`.
+   - **Push:** outside the pool, `if let f = await denoiser.push(buffer, at: time) { ready.append(f) }`. The pool body cannot contain `await`.
+   - **End of source:** on `copyNextSampleBuffer() == nil` or `time >= end`, set `sourceEnded = true` and run `ready += await denoiser.finish()`.
+   - **Render:** take `ready.first` into the existing `CIImage(cvPixelBuffer:)` / transform / scale / restoration / render / `adaptor.append` code.
+   - **Finish:** call `input.markAsFinished()` and set `videoDone` only when `sourceEnded && ready.isEmpty`. Lines 129 and 132 finish too early today, because 2 frames are still inside the filter.
+4. **Times.** Use `Frame.time` for `exportPlan(at:)`, progress, and `adaptor.append`. It equals the source time. The frame count does not change, so `OutputValidator` needs no change.
+5. **Colour correction runs after denoise.** The denoised buffer feeds `CIImage(cvPixelBuffer:)` at line 133. `RestorationEngine.combined` / `FilterEngine.apply` then see denoised pixels, so colour gains boost less noise.
+6. **Fallback.** If `denoiser?.failure != nil`, record it once, like `recordedRenderFallback`. This needs a new diagnostic case in another file. The export still succeeds.
+7. **Estimate.** `estimateSeconds` runs the real export, so its estimate includes the filter with no change.
+
+## 9. Known risks
+1. **No device data.** iPhone support, speed, and decoder support for `&8v0` / `&xv0` are all unmeasured. Test one real export on a device first.
+2. **4K is slow on this Mac.** The filter alone runs at 41.6–43.2 fps at 4K on an M3. It runs at source size, before the downscale. The current export speed was not measured, so the total slowdown is unmeasured.
+3. **Reading 4:2:0 instead of BGRA changes SDR pixels, even without the filter.** Measured through Core Image:
+   - Real clips: mean 0.25–1.06, max 3–29.
+   - Tone-map composition path, synthetic fixtures: mean 0.87–1.05, max 146–196 at hard colour edges (half-resolution chroma).
+   - Golden-image tests may need new baselines.
+4. **Faint fish fade** at 0.75 and 1.0.
+5. **Clean test clips.** Noise before was only 0.45–1.17 levels. The gain on dark, deep footage is unmeasured.
+6. **Coarse strength steps.** 0.25 ≈ 0.5 and 0.75 ≈ 1.0, so a slider would feel like it has 2 steps.
+7. **Memory.** The component holds up to 4 source buffers plus its output pool. Peak memory on device: unmeasured.
+8. **Composition path check.** An exact Core Image check of the composition path with `&8v0` against an independent decode is unmeasured.
+9. **No pixel-transfer conversion of `&xv0` in the app.** `VTPixelTransferSession` changes its chroma.

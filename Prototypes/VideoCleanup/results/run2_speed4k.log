@@ -1,0 +1,36 @@
+load: 4.3% /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer; 2.2% /Users/jakelee/.antigravity-ide/extensions/anthropic.claude-code-2.1.282-darwin-arm64/resources/native-binary/claude; 1.9% /Applications/Antigravity; 
+== speed c3 at 30.0 s, 3840x2160 (reader-scaled), 120 preloaded frames
+   ParticleFilter init (kernel compile) 0.9 ms true
+   render only (CI -> 420v)  412.8 fps (120 frames)
+   b denoise 0.5   45.5 fps (120 frames)
+   c particle + render   65.9 fps (120 frames)
+   d denoise>particle + render   23.2 fps (120 frames)
+   e particle>denoise (+render)   20.4 fps (120 frames)
+   split: push 3.26 ms/frame, final render 11.93 ms/frame; GPU motion alone (2 probes + search) 6.20 ms
+load: 3.7% /opt/homebrew/opt/git/libexec/git-core/git-remote-https; 2.8% /opt/homebrew/bin/git; 2.3% /Applications/Antigravity; 
+== speed c1 at 0.0 s, 3840x2160 (reader-scaled), 120 preloaded frames
+   ParticleFilter init (kernel compile) 0.9 ms true
+   render only (CI -> 420v)  750.4 fps (120 frames)
+   b denoise 0.5   42.8 fps (120 frames)
+   c particle + render   62.8 fps (120 frames)
+   d denoise>particle + render   22.9 fps (120 frames)
+   e particle>denoise (+render)   20.5 fps (120 frames)
+   split: push 3.26 ms/frame, final render 12.13 ms/frame; GPU motion alone (2 probes + search) 6.51 ms
+load: 7.0% /System/Library/PrivateFrameworks/HomeKitDaemon.framework/Support/homed; 3.5% /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer; 2.3% /Applications/Antigravity; 
+== speed c3 at 30.0 s, 3840x2160 (reader-scaled), 120 preloaded frames
+   ParticleFilter init (kernel compile) 1.0 ms true
+   render only (CI -> 420v)  730.1 fps (120 frames)
+   b denoise 0.5   42.7 fps (120 frames)
+   c particle + render   67.4 fps (120 frames)
+   d denoise>particle + render   22.4 fps (120 frames)
+   e particle>denoise (+render)   20.1 fps (120 frames)
+   split: push 3.05 ms/frame, final render 11.61 ms/frame; GPU motion alone (2 probes + search) 6.37 ms
+load: 1.2% /usr/libexec/airportd; 0.8% /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN; 0.7% /System/Library/DriverExtensions/com.apple.AppleUserHIDDrivers.dext/com.apple.AppleUserHIDDrivers; 
+== speed c1 at 0.0 s, 3840x2160 (reader-scaled), 120 preloaded frames
+   ParticleFilter init (kernel compile) 0.9 ms true
+   render only (CI -> 420v)  746.2 fps (120 frames)
+   b denoise 0.5   42.5 fps (120 frames)
+   c particle + render   66.1 fps (120 frames)
+   d denoise>particle + render   22.1 fps (120 frames)
+   e particle>denoise (+render)   19.7 fps (120 frames)
+   split: push 3.31 ms/frame, final render 12.08 ms/frame; GPU motion alone (2 probes + search) 6.42 ms

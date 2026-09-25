@@ -1,0 +1,48 @@
+== S1_c3_snow c3 29.5-35.5 s: frames in 360, out per variant [360, 360, 360, 360, 360], scored frames 357, wall 70.60 s
+   failures: denoise ["none", "none", "none"]
+   a original drift/frame 144.57 (+0.0%) dots/frame  21.57 (+0.0%) static/frame  29.95 bright/frame  1.03 removedOfOrig   0.0% subj  100.0% darkSmall  100.0% sharp +0.0% changed>2  0.000% meanAbs 0.000
+   b denoise 0.5 drift/frame 118.17 (-18.3%) dots/frame  15.08 (-30.1%) static/frame  20.06 bright/frame  0.95 removedOfOrig   0.7% subj   95.9% darkSmall   93.0% sharp -19.9% changed>2  0.075% meanAbs 0.183
+   c particle drift/frame  42.44 (-70.6%) dots/frame   9.19 (-57.4%) static/frame   8.64 bright/frame  0.06 removedOfOrig  65.6% subj   99.2% darkSmall   99.0% sharp -22.4% changed>2  0.097% meanAbs 0.035
+   d denoise>particle drift/frame  26.11 (-81.9%) dots/frame   6.20 (-71.3%) static/frame   4.77 bright/frame  0.04 removedOfOrig  65.5% subj   95.0% darkSmall   92.3% sharp -38.4% changed>2  0.158% meanAbs 0.208
+   e particle>denoise drift/frame  18.63 (-87.1%) dots/frame   3.92 (-81.8%) static/frame   3.54 bright/frame  0.08 removedOfOrig  84.3% subj   93.9% darkSmall   89.4% sharp -41.7% changed>2  0.322% meanAbs 0.236
+   crop specks: x 512 y 480 (160x90 at 3x)
+   crop fish: x 432 y 432 (160x90 at 3x)
+   crop texture: x 416 y 848 (160x90 at 3x)
+   crop fishauto: x 288 y 864 (240x135 at 2x, contrast x3), persistent dark groups inside 3 of 4
+== S2_c3_school c3 10.5-18.5 s: frames in 480, out per variant [480, 480, 480, 480, 480], scored frames 477, wall 91.32 s
+   failures: denoise ["none", "none", "none"]
+   a original drift/frame  10.49 (+0.0%) dots/frame  10.71 (+0.0%) static/frame  10.40 bright/frame  0.00 removedOfOrig   0.0% subj  100.0% darkSmall  100.0% sharp +0.0% changed>2  0.000% meanAbs 0.000
+   b denoise 0.5 drift/frame   5.04 (-52.0%) dots/frame   5.54 (-48.3%) static/frame   6.29 bright/frame  0.00 removedOfOrig   0.1% subj   94.8% darkSmall   76.1% sharp -18.5% changed>2  0.008% meanAbs 0.178
+   c particle drift/frame   3.35 (-68.0%) dots/frame   4.91 (-54.1%) static/frame   3.82 bright/frame  0.00 removedOfOrig  55.0% subj   99.9% darkSmall   99.5% sharp -2.6% changed>2  0.017% meanAbs 0.022
+   d denoise>particle drift/frame   1.80 (-82.9%) dots/frame   2.64 (-75.3%) static/frame   2.57 bright/frame  0.00 removedOfOrig  45.0% subj   94.7% darkSmall   75.6% sharp -20.0% changed>2  0.019% meanAbs 0.193
+   e particle>denoise drift/frame   0.88 (-91.6%) dots/frame   0.91 (-91.5%) static/frame   1.76 bright/frame  0.00 removedOfOrig  73.8% subj   93.8% darkSmall   69.6% sharp -22.7% changed>2  0.037% meanAbs 0.199
+   crop specks: x 784 y 416 (160x90 at 3x)
+   crop fish: x 700 y 500 (160x90 at 3x)
+   crop texture: x 1104 y 32 (160x90 at 3x)
+   crop fishauto: x 960 y 0 (240x135 at 2x, contrast x3), persistent dark groups inside 1 of 3
+   crop fishhand: x 660 y 478 (240x135 at 2x, contrast x3), persistent dark groups inside 0 of 3
+   crop fishthumb: x 730 y 700 (240x135 at 2x, contrast x3), persistent dark groups inside 0 of 3
+== S3_c1_fish c1 0.0-4.0 s: frames in 240, out per variant [240, 240, 240, 240, 240], scored frames 237, wall 67.50 s
+   failures: denoise ["none", "none", "none"]
+   a original drift/frame   5.47 (+0.0%) dots/frame   5.45 (+0.0%) static/frame  22.00 bright/frame 92.76 removedOfOrig   2.5% subj  100.0% darkSmall  100.0% sharp +0.0% changed>2  0.000% meanAbs 0.000
+   b denoise 0.5 drift/frame   4.61 (-15.7%) dots/frame   4.76 (-12.7%) static/frame  18.36 bright/frame 92.78 removedOfOrig   2.5% subj   98.9% darkSmall   94.9% sharp -2.6% changed>2  1.024% meanAbs 0.323
+   c particle drift/frame   3.12 (-42.9%) dots/frame   3.84 (-29.5%) static/frame  14.76 bright/frame 92.39 removedOfOrig  47.1% subj  100.0% darkSmall  100.0% sharp +0.0% changed>2  0.032% meanAbs 0.009
+   d denoise>particle drift/frame   2.55 (-53.4%) dots/frame   3.50 (-35.8%) static/frame  13.07 bright/frame 92.22 removedOfOrig  48.9% subj   98.9% darkSmall   95.0% sharp -2.6% changed>2  1.051% meanAbs 0.329
+   e particle>denoise drift/frame   2.33 (-57.4%) dots/frame   2.77 (-49.2%) static/frame  12.50 bright/frame 92.24 removedOfOrig  59.1% subj   98.6% darkSmall   92.3% sharp -4.2% changed>2  1.239% meanAbs 0.336
+   crop specks: x 640 y 512 (160x90 at 3x)
+   crop fish: x 760 y 150 (160x90 at 3x)
+   crop texture: x 528 y 704 (160x90 at 3x)
+   crop fishauto: x 208 y 544 (240x135 at 2x, contrast x3), persistent dark groups inside 42 of 564
+   crop fishhand: x 720 y 128 (240x135 at 2x, contrast x3), persistent dark groups inside 10 of 564
+== S4_c2_anemone c2 18.0-24.0 s: frames in 360, out per variant [360, 360, 360, 360, 360], scored frames 357, wall 127.50 s
+   failures: denoise ["none", "none", "none"]
+   a original drift/frame   0.90 (+0.0%) dots/frame   0.15 (+0.0%) static/frame   6.06 bright/frame 25.24 removedOfOrig  14.0% subj  100.0% darkSmall  100.0% sharp +0.0% changed>2  0.000% meanAbs 0.000
+   b denoise 0.5 drift/frame   0.43 (-52.3%) dots/frame   0.10 (-37.0%) static/frame   5.46 bright/frame 23.77 removedOfOrig  31.2% subj   99.1% darkSmall   97.7% sharp -3.5% changed>2  6.687% meanAbs 0.770
+   c particle drift/frame   0.71 (-20.9%) dots/frame   0.15 (+1.9%) static/frame   5.20 bright/frame 25.05 removedOfOrig  25.2% subj  100.0% darkSmall  100.0% sharp -0.0% changed>2  0.002% meanAbs 0.001
+   d denoise>particle drift/frame   0.37 (-58.9%) dots/frame   0.09 (-38.9%) static/frame   4.68 bright/frame 23.56 removedOfOrig  44.5% subj   99.1% darkSmall   97.6% sharp -3.5% changed>2  6.690% meanAbs 0.771
+   e particle>denoise drift/frame   0.31 (-65.7%) dots/frame   0.09 (-42.6%) static/frame   4.55 bright/frame 22.56 removedOfOrig  55.1% subj   98.6% darkSmall   96.8% sharp -5.9% changed>2  7.105% meanAbs 0.797
+   crop specks: x 1712 y 672 (160x90 at 3x)
+   crop fish: x 860 y 130 (160x90 at 3x)
+   crop texture: x 1568 y 160 (160x90 at 3x)
+   crop fishauto: x 1680 y 304 (240x135 at 2x, contrast x3), persistent dark groups inside 116 of 1266
+   crop fishhand: x 820 y 108 (240x135 at 2x, contrast x3), persistent dark groups inside 22 of 1266
