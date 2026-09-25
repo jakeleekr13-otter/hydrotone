@@ -74,7 +74,7 @@ struct EditorView: View {
                     ForEach(DivePreset.allCases) { preset in
                         Button { model.settings.preset = preset } label: {
                             VStack(spacing: 8) {
-                                Image(systemName: preset == .original ? "circle.lefthalf.filled" : "water.waves").font(.title2)
+                                Image(systemName: preset.symbolName).font(.title2)
                                 Text(preset.localizedName).font(.caption.weight(.medium))
                             }.frame(minWidth: 96, minHeight: 72).padding(.horizontal, 5)
                                 .background(model.settings.preset == preset ? Color.mint.opacity(0.2) : Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))

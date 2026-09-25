@@ -36,6 +36,18 @@ final class PhotoTests: XCTestCase {
             XCTAssertEqual(corrected[1], corrected[2], accuracy: 0.002)
         }
     }
+    func testDeepDiveKeepsCyanWaterBlueDominant() {
+        let source = CIImage(color: CIColor(red: 0.05, green: 0.50, blue: 0.60))
+            .cropped(to: CGRect(x: 0, y: 0, width: 48, height: 48))
+        let analysis = WaterAnalysis(redLoss: 0.9, cyanDominance: 0.9, exposure: 0,
+                                     contrast: 0.12, saturation: 0.75)
+        let corrected = pixel(engine.apply(source, settings: .init(preset: .deep, intensity: 1,
+                                                                    analysis: analysis)))
+        XCTAssertGreaterThan(corrected[2], corrected[0])
+    }
+    func testPresetSymbolsAreDistinct() {
+        XCTAssertEqual(Set(DivePreset.allCases.map(\.symbolName)).count, DivePreset.allCases.count)
+    }
     func testHEICImportAndPhotoPreviewExportMatch() async throws {
         let input = try TemporaryFiles.makeURL(extension: "heic")
         defer { TemporaryFiles.remove(input) }

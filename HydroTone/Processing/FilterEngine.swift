@@ -9,10 +9,30 @@ enum DivePreset: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
     var localizedName: String { String(localized: String.LocalizationValue(rawValue)) }
     var restoration: Float {
-        switch self { case .original: 0; case .natural: 0.45; case .tropical: 0.42; case .deep: 0.82 }
+        switch self { case .original: 0; case .natural: 0.45; case .tropical: 0.42; case .deep: 0.50 }
     }
     var vibrance: Float {
-        switch self { case .original: 0; case .natural: 0.10; case .tropical: 0.22; case .deep: 0.10 }
+        switch self { case .original: 0; case .natural: 0.18; case .tropical: 0.30; case .deep: 0.24 }
+    }
+    var castRemoval: Float {
+        switch self { case .original: 0; case .natural: 0.16; case .tropical: 0.12; case .deep: 0.18 }
+    }
+    var contrast: Float {
+        switch self { case .original: 1; case .natural: 1.04; case .tropical: 1.06; case .deep: 1.10 }
+    }
+    var saturation: Float {
+        switch self { case .original: 1; case .natural: 1.08; case .tropical: 1.18; case .deep: 1.14 }
+    }
+    var clarity: Float {
+        switch self { case .original: 0; case .natural: 0.16; case .tropical: 0.19; case .deep: 0.25 }
+    }
+    var symbolName: String {
+        switch self {
+        case .original: "circle.lefthalf.filled"
+        case .natural: "water.waves"
+        case .tropical: "sun.max.fill"
+        case .deep: "drop.fill"
+        }
     }
 }
 struct WaterAnalysis: Sendable, Equatable {
@@ -57,15 +77,46 @@ final class FilterEngine: Sendable {
         guard settings.preset != .original else { return image }
         let analysis = settings.analysis
         let restore = CGFloat(settings.preset.restoration * min(0.9, max(0, analysis.redLoss)))
-        // Convex channel reconstruction protects neutral whites and avoids amplifying red noise.
-        // Retain most of the source red; mix in a bounded estimate from surviving wavelengths.
+        let cyan = CGFloat(min(1, max(0, analysis.cyanDominance)))
+
+        // Keep all surviving red, then reconstruct a bounded amount from green/blue. The old
+        // convex mix discarded source red and could turn a corrected cyan scene flatter/greyer.
+        // Suppressing green while retaining blue separates blue water from white subjects.
         let matrix = CIFilter.colorMatrix()
         matrix.inputImage = image
-        matrix.rVector = CIVector(x: 1 - restore, y: restore * 0.72, z: restore * 0.28, w: 0)
-        let cyan = CGFloat(analysis.cyanDominance) * 0.025
-        matrix.gVector = CIVector(x: cyan, y: 1 - cyan, z: 0, w: 0)
-        matrix.bVector = CIVector(x: cyan, y: 0, z: 1 - cyan, w: 0)
+        matrix.rVector = CIVector(x: 1, y: restore * 0.72, z: restore * 0.28, w: 0)
+        let castRemoval = cyan * CGFloat(settings.preset.castRemoval)
+        matrix.gVector = CIVector(x: 0, y: 1 - castRemoval, z: 0, w: 0)
+        matrix.bVector = CIVector(x: 0, y: 0, z: 1 + castRemoval * 0.45, w: 0)
         var corrected = matrix.outputImage ?? image
+
+        // Low global contrast is a reliable proxy for the veiling effect users describe as
+        // underwater haze. Add a bounded S-curve and saturation instead of a fixed dramatic
+        // grade, so already-clear captures are not crushed.
+        let haze = min(1, max(0, (0.34 - analysis.contrast) / 0.28))
+        let controls = CIFilter.colorControls()
+        controls.inputImage = corrected
+        controls.contrast = settings.preset.contrast + haze * 0.05
+        controls.saturation = settings.preset.saturation + haze * 0.10
+        controls.brightness = analysis.exposure * 0.45
+        corrected = controls.outputImage ?? corrected
+
+        // Global contrast alone can bury a dark diver or reef. Lift only the lower tones after
+        // dehazing while leaving the newly separated mid/high tones intact.
+        let shadows = CIFilter.highlightShadowAdjust()
+        shadows.inputImage = corrected
+        shadows.shadowAmount = 0.28 + haze * 0.22
+        shadows.highlightAmount = 0.92
+        corrected = shadows.outputImage ?? corrected
+
+        // A broad, restrained unsharp mask behaves like a clarity control: it restores local
+        // separation lost to backscatter without inventing texture or changing frame timing.
+        let clarity = CIFilter.unsharpMask()
+        clarity.inputImage = corrected
+        clarity.radius = 5 + haze * 3
+        clarity.intensity = settings.preset.clarity * (0.65 + haze * 0.35)
+        corrected = clarity.outputImage ?? corrected
+
         if settings.preset == .tropical {
             let warmth = CIFilter.temperatureAndTint()
             warmth.inputImage = corrected
