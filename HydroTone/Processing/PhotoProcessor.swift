@@ -104,6 +104,9 @@ actor PhotoProcessor {
     private func prepare(url: URL, source: CIImage) async throws -> Prepared {
         if let cached = prepared[url] { return cached }
         let analysis = engine.analyze(source)
+        #if DEBUG
+        logger.debug("current values(natural): \(ColorCorrection.make(analysis: analysis, preset: .natural).logDescription, privacy: .public)")
+        #endif
         recordedRenderFallback = false
         var restorationPlan: RestorationPlan?
         do {
@@ -113,6 +116,7 @@ actor PhotoProcessor {
             restorationPlan = plan
             #if DEBUG
             logger.debug("Binf=(\(plan.backscatterInfinity.x),\(plan.backscatterInfinity.y),\(plan.backscatterInfinity.z)) betaD=(\(plan.betaDirect.x),\(plan.betaDirect.y),\(plan.betaDirect.z)) betaB=(\(plan.betaBackscatter.x),\(plan.betaBackscatter.y),\(plan.betaBackscatter.z)) confidence=\(plan.confidence) floorPixels=\(plan.transmissionFloorPixelPercentage)% maxGainPixels=\(plan.maximumGainPixelPercentage)%")
+            logger.debug("restored values(natural): \(ColorCorrection.make(analysis: analysis, preset: .natural, plan: plan).logDescription, privacy: .public)")
             #endif
         } catch is CancellationError {
             throw CancellationError()
@@ -142,16 +146,12 @@ actor PhotoProcessor {
         if variant == .current { return current }
         guard let plan else { return current }
         do {
-            let rawRestoration = try restorationEngine.restore(source, plan: plan)
             if variant == .restoration {
-                return engine.blend(source, rawRestoration, amount: plan.confidence)
+                return engine.blend(source, try restorationEngine.restore(source, plan: plan), amount: plan.confidence)
             }
-            let amount = min(1, max(0, settings.intensity))
-            guard settings.preset != .original, amount > 0 else { return source }
-            let finished = engine.finishing(rawRestoration, settings: settings)
-            let depthAware = engine.blend(source, finished, amount: amount)
-            // Low-confidence fits approach the exact existing HydroTone output.
-            return engine.blend(current, depthAware, amount: plan.confidence)
+            // The one colour entry point shared with video preview and export. Low-confidence fits
+            // approach the exact existing HydroTone output.
+            return try restorationEngine.combined(source, plan: plan, settings: settings, filter: engine)
         } catch {
             if !recordedRenderFallback, let diagnostics {
                 recordedRenderFallback = true

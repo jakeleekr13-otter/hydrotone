@@ -26,7 +26,10 @@ final class PhotoTests: XCTestCase {
             XCTAssertEqual(zero[i], original[i], accuracy: 0.001)
             XCTAssertEqual(half[i], (original[i] + full[i]) / 2, accuracy: 0.003)
         }
-        XCTAssertGreaterThan(full[0], original[0])
+        // Full strength must change the image, but uniform blue water gets no added red:
+        // red added to blue water is what turned corrected water violet.
+        XCTAssertGreaterThan(abs(full[0] - original[0]) + abs(full[1] - original[1]) + abs(full[2] - original[2]), 0.02)
+        XCTAssertGreaterThan(full[2], full[0])
     }
     func testNeutralWhiteAndBlackStayNeutral() {
         for level: CGFloat in [0, 0.5, 1] {

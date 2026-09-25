@@ -27,7 +27,8 @@ struct WaterModelEstimator {
                            min(0.90, max(0.08, betaDirect.y)),
                            min(0.65, max(0.05, betaDirect.z)))
 
-        let candidateCoverage = min(1, Float(candidates.count) / Float(max(1, map.values.count / 8)))
+        // darkCandidates keeps at most 256 per depth bin, so full coverage is 8 x 256 samples.
+        let candidateCoverage = min(1, Float(candidates.count) / Float(8 * 256))
         let confidence = min(0.9, max(0, depth.confidence * sqrt(max(0, fitQuality))
                                      * (0.55 + 0.45 * candidateCoverage)
                                      * (0.7 + 0.3 * fittedDirect.quality)))

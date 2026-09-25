@@ -68,7 +68,7 @@ struct RestorationLimits: Sendable, Equatable {
 }
 
 struct RestorationPlan: Sendable, Equatable {
-    let depth: NormalizedDepthMap
+    var depth: NormalizedDepthMap
     let depthSource: DepthSource
     let depthStatistics: DepthStatistics
     let backscatterInfinity: SIMD3<Float>
@@ -79,7 +79,7 @@ struct RestorationPlan: Sendable, Equatable {
     let waterFitConfidence: Float
     let temporalConfidence: Float
     let channelRecoverability: SIMD3<Float>
-    let limits: RestorationLimits
+    var limits: RestorationLimits
     let transmissionFloorPixelPercentage: Float
     let maximumGainPixelPercentage: Float
 
@@ -116,4 +116,43 @@ enum RestorationError: Error {
     case insufficientDepthVariation
     case waterModelFitFailed
     case kernelUnavailable
+}
+
+extension RestorationPlan {
+    /// One scene plan from the kept sample plans: the mean of every scene-level value and one
+    /// constant depth (the mean of the per-plan median depths). Use the same kept indices as
+    /// WaterAnalysis.sceneMean, from WaterAnalysis.sceneInliers. Invalid indices are ignored;
+    /// none left means all plans.
+    static func sceneAverage(_ plans: [RestorationPlan], keeping: [Int]) throws -> RestorationPlan {
+        let valid = keeping.filter { plans.indices.contains($0) }
+        let chosen = (valid.isEmpty ? Array(plans.indices) : valid).map { plans[$0] }
+        guard let first = chosen.first else { throw RestorationError.waterModelFitFailed }
+        let count = Float(chosen.count)
+        func mean(_ key: (RestorationPlan) -> Float) -> Float { chosen.reduce(Float(0)) { $0 + key($1) } / count }
+        func mean(_ key: (RestorationPlan) -> SIMD3<Float>) -> SIMD3<Float> {
+            chosen.reduce(SIMD3<Float>(repeating: 0)) { $0 + key($1) } / count
+        }
+        let depth = mean { plan in
+            let sorted = plan.depth.values.sorted()
+            return sorted.isEmpty ? 0.5 : sorted[sorted.count / 2]
+        }
+        let map = try NormalizedDepthMap(width: first.depth.width, height: first.depth.height,
+                                         values: [Float](repeating: min(1, max(0, depth)), count: first.depth.width * first.depth.height))
+        let limits = RestorationLimits(transmissionFloor: mean { $0.limits.transmissionFloor },
+                                       maximumGain: mean { $0.limits.maximumGain },
+                                       highlightStart: mean { $0.limits.highlightStart },
+                                       highlightEnd: mean { $0.limits.highlightEnd },
+                                       maximumOutput: mean { $0.limits.maximumOutput })
+        return RestorationPlan(depth: map, depthSource: first.depthSource,
+                               depthStatistics: DepthStatistics(minimum: mean { $0.depthStatistics.minimum },
+                                                                maximum: mean { $0.depthStatistics.maximum },
+                                                                median: mean { $0.depthStatistics.median }),
+                               backscatterInfinity: mean { $0.backscatterInfinity }, betaDirect: mean { $0.betaDirect },
+                               betaBackscatter: mean { $0.betaBackscatter }, confidence: mean { $0.confidence },
+                               limits: limits, transmissionFloorPixelPercentage: mean { $0.transmissionFloorPixelPercentage },
+                               maximumGainPixelPercentage: mean { $0.maximumGainPixelPercentage },
+                               depthConfidence: mean { $0.depthConfidence }, waterFitConfidence: mean { $0.waterFitConfidence },
+                               temporalConfidence: mean { $0.temporalConfidence },
+                               channelRecoverability: mean { $0.channelRecoverability })
+    }
 }

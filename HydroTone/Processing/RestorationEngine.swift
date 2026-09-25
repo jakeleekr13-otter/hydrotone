@@ -142,12 +142,20 @@ final class RestorationEngine: Sendable {
 
     func combined(_ image: CIImage, plan: RestorationPlan, settings: FilterSettings,
                   filter: FilterEngine) throws -> CIImage {
-        let current = filter.apply(image, settings: settings)
         let amount = min(1, max(0, settings.intensity))
         guard settings.preset != .original, amount > 0 else { return image }
+        let values = corrections(settings: settings, plan: plan)
+        let current = filter.apply(image, correction: values.current, intensity: amount)
         let physicallyRestored = try restore(image, plan: plan)
-        let finished = filter.finishing(physicallyRestored, settings: settings)
+        let finished = filter.finishing(physicallyRestored, correction: values.restored)
         let depthAware = filter.blend(image, finished, amount: amount)
-        return filter.blend(current, depthAware, amount: plan.confidence)
+        // Low-confidence fits approach the exact current HydroTone output.
+        return filter.blend(current, depthAware, amount: values.restored.physicalWeight)
+    }
+
+    /// The correction values combined applies: one set for the source image, one for the restored image.
+    func corrections(settings: FilterSettings, plan: RestorationPlan) -> (current: ColorCorrection, restored: ColorCorrection) {
+        (ColorCorrection.make(analysis: settings.analysis, preset: settings.preset),
+         ColorCorrection.make(analysis: settings.analysis, preset: settings.preset, plan: plan))
     }
 }
