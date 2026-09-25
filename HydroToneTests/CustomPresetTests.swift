@@ -146,24 +146,59 @@ final class CustomPresetTests: XCTestCase {
             XCTAssertEqual(brighter.midLift, base.midLift)
             XCTAssertEqual(custom(analysis, adjust(\.contrast, -1), plan: plan).toneCurve, max(0, base.toneCurve - 0.10), accuracy: 1e-6)
             XCTAssertEqual(custom(analysis, adjust(\.contrast, 1), plan: plan).toneCurve, base.toneCurve + 0.02, accuracy: 1e-6)
-            XCTAssertEqual(custom(analysis, adjust(\.saturation, -1), plan: plan).saturation, base.saturation - 0.10, accuracy: 1e-6)
+            XCTAssertEqual(custom(analysis, adjust(\.saturation, -1), plan: plan).saturation, base.saturation - CustomAdjustments.Caps.saturationDown, accuracy: 1e-6)
             XCTAssertGreaterThan(custom(analysis, adjust(\.saturation, 1), plan: plan).saturation, base.saturation + 0.01)
             let soft = custom(analysis, adjust(\.clarity, -1), plan: plan), sharp = custom(analysis, adjust(\.clarity, 1), plan: plan)
             XCTAssertEqual(soft.clarity, 0); XCTAssertEqual(soft.definition, 0)
             XCTAssertEqual(sharp.clarity, base.clarity * 1.75, accuracy: 1e-6)
             XCTAssertEqual(sharp.definition, base.definition * 1.75, accuracy: 1e-6)
-            XCTAssertEqual(custom(analysis, adjust(\.temperature, -1), plan: plan).warmth, base.warmth - 100, accuracy: 1e-3)
-            XCTAssertEqual(custom(analysis, adjust(\.temperature, 1), plan: plan).warmth, base.warmth + 100, accuracy: 1e-3)
+            let kelvin = CustomAdjustments.Caps.temperature
+            XCTAssertEqual(custom(analysis, adjust(\.temperature, -1), plan: plan).warmth, base.warmth - kelvin, accuracy: 1e-3)
+            XCTAssertEqual(custom(analysis, adjust(\.temperature, 1), plan: plan).warmth, base.warmth + kelvin, accuracy: 1e-3)
             // Half a slider moves half as far.
-            XCTAssertEqual(custom(analysis, adjust(\.temperature, 0.5), plan: plan).warmth, base.warmth + 50, accuracy: 1e-3)
+            XCTAssertEqual(custom(analysis, adjust(\.temperature, 0.5), plan: plan).warmth, base.warmth + kelvin / 2, accuracy: 1e-3)
         }
     }
 
-    func testNeonWaterGetsNoSaturationRaise() {
-        let neon = scene(water: .init(0.001, 0.02, 0.4))
-        let base = custom(neon, .zero)
-        XCTAssertEqual(custom(neon, adjust(\.saturation, 1)).saturation, base.saturation, accuracy: 1e-6)
-        XCTAssertLessThan(custom(neon, adjust(\.saturation, -1)).saturation, base.saturation)
+    func testNeonWaterGetsASmallerSaturationRaise() {
+        let neon = scene(water: .init(0.001, 0.02, 0.4)), blue = scenes[0]
+        let neonRaise = custom(neon, adjust(\.saturation, 1)).saturation - custom(neon, .zero).saturation
+        let blueRaise = custom(blue, adjust(\.saturation, 1)).saturation - custom(blue, .zero).saturation
+        XCTAssertGreaterThan(neonRaise, 0)
+        XCTAssertLessThanOrEqual(neonRaise, CustomAdjustments.Caps.saturationUp * 0.4 + 1e-6)
+        XCTAssertLessThan(neonRaise, blueRaise)
+        XCTAssertLessThan(custom(neon, adjust(\.saturation, -1)).saturation, custom(neon, .zero).saturation)
+    }
+
+    func testSaturationReachesTheWaterButNeverMakesItNeon() throws {
+        // Finished water chroma, approximated as the kernel's water chroma times CIColorControls saturation.
+        func finalChroma(_ analysis: WaterAnalysis, _ values: ColorCorrection) -> Float {
+            ColorCorrection.oklch(FinishingMath.color(analysis.waterColor, correction: values)).y * values.saturation
+        }
+        for (index, analysis) in scenes.prefix(5).enumerated() {
+            for plan in try plans() {
+                let base = finalChroma(analysis, custom(analysis, .zero, plan: plan))
+                let raised = finalChroma(analysis, custom(analysis, adjust(\.saturation, 1), plan: plan))
+                let cut = finalChroma(analysis, custom(analysis, adjust(\.saturation, -1), plan: plan))
+                XCTAssertGreaterThan(raised, base * 1.05, "scene \(index): the water must show the raise")
+                XCTAssertLessThanOrEqual(raised, base * 1.35, "scene \(index): no neon water")
+                XCTAssertLessThan(cut, base * 0.95, "scene \(index): the water must show the cut")
+                XCTAssertGreaterThan(cut, base * 0.45, "scene \(index): the water must not turn grey")
+            }
+        }
+    }
+
+    func testTemperatureWarmsAndCoolsGreyWithoutIndigo() {
+        // Through the real CITemperatureAndTint filter. A cool shift has no magenta tint, so grey stays blue.
+        let engine = FilterEngine()
+        for position: Float in [1, 0.5, -0.5, -1] {
+            var values = ColorCorrection.identity
+            values.warmth = position * CustomAdjustments.Caps.temperature
+            let out = ColorCorrection.oklch(pixel(engine.finishing(solid(.init(repeating: 0.35)), correction: values), engine))
+            XCTAssertGreaterThan(out.y, abs(position) * 0.02, "position \(position): the tint must be visible")
+            if position > 0 { XCTAssertTrue((70...130).contains(out.z), "position \(position): warm grey should be yellow, hue \(out.z)") }
+            else { XCTAssertTrue((225...265).contains(out.z), "position \(position): cool grey should be blue, hue \(out.z)") }
+        }
     }
 
     func testPositionsAreClampedToPlusMinusOne() throws {
@@ -222,9 +257,9 @@ final class CustomPresetTests: XCTestCase {
         }
     }
 
-    func testSaturationUpLowersTheWaterChromaCeiling() throws {
-        // More later saturation means a lower chroma target for the water tone, so the finished water
-        // colour before that saturation step gets no more colourful. Checked on the open-water colour.
+    func testUserSaturationLeavesTheWaterToneUnchanged() throws {
+        // The water chroma ceiling ignores the user's saturation, so the water colour before the
+        // saturation step is the same; the step itself then shows on the water.
         for (index, analysis) in scenes.prefix(5).enumerated() {
             for plan in try plans() {
                 let base = custom(analysis, .zero, plan: plan), raised = custom(analysis, adjust(\.saturation, 1), plan: plan)

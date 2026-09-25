@@ -181,11 +181,11 @@ struct CustomAdjustments: Sendable, Equatable {
         static let brightnessUp: Float = 0.075      // added to shadowLift
         static let contrastDown: Float = 0.10       // toneCurve
         static let contrastUp: Float = 0.02
-        static let saturationDown: Float = 0.10     // saturation
-        static let saturationUp: Float = 0.08       // times (1 - neon)
+        static let saturationDown: Float = 0.45     // saturation
+        static let saturationUp: Float = 0.35       // times (1 - 0.6 x neon)
         static let clarityDown: Float = 1           // relative change of clarity and definition
         static let clarityUp: Float = 0.75
-        static let temperature: Float = 100         // kelvin added to warmth
+        static let temperature: Float = 1500        // kelvin added to warmth
     }
     /// Every position in -1...1. A value that is not finite becomes 0.
     var clamped: Self {
@@ -303,8 +303,9 @@ struct ColorCorrection: Sendable, Equatable {
         // Neon water (very high source chroma) gets no extra saturation, and a little less.
         let neon = min(1, max(0, (oklch(water).y - 0.12) / 0.1))
         v.saturation = 1 + (preset.saturation + haze * 0.10 - 1) * (1 - neon) - 0.12 * neon
-        // User saturation enters here, before the water chroma ceiling reads v.saturation. Neon water gets no raise.
-        v.saturation += user.saturation * (user.saturation < 0 ? Caps.saturationDown : Caps.saturationUp * (1 - neon))
+        // User saturation enters here, before the water chroma ceiling reads it. Neon water gets a smaller raise.
+        let userSaturation = user.saturation * (user.saturation < 0 ? Caps.saturationDown : Caps.saturationUp * (1 - 0.6 * neon))
+        v.saturation += userSaturation
         let seenInput = plan.map { restoredWater(water, plan: $0) } ?? water
         v.violetGuard = waterPlausibility(oklch(water))
         // The kernel judges "water-like" before the guard, so the weights use the unguarded colour.
@@ -315,7 +316,9 @@ struct ColorCorrection: Sendable, Equatable {
         let keep = plan == nil ? 0 : oklch(water * gains).y * 0.6
         // The chroma limits allow for the later steps (saturation, contrast, shadow lift), which
         // were measured to raise far-water chroma by about 1.45 times.
-        let seenLCh = oklch(seen), later = 1.45 * max(0.5, v.saturation)
+        // The ceiling ignores the user's saturation, so the water shows it too. Its cap and the neon scaling
+        // bound it: at +1 the water gains at most about a third more chroma.
+        let seenLCh = oklch(seen), later = 1.45 * max(0.5, v.saturation - userSaturation)
         // Natural Dive keeps the plain ceiling; a preset may calm neon water further (DivePreset.waterChroma).
         let ceiling = preset == .natural ? 0.1 / later : 0.1 / later * preset.waterChroma
         let target = waterTarget(seenLCh, waterType: type, murky: deep * haze, keep: keep, source: oklch(water),
@@ -953,8 +956,9 @@ final class FilterEngine: Sendable {
             warmth.inputImage = corrected
             // The source is taken as lit at 6500 K + warmth and rendered at 6500 K, so a positive value warms.
             // (6500 to 6500 + warmth cooled the image: +300 K turned grey blue.) A green tint of 1 per 100 K
-            // makes the shift yellow rather than orange, so pale blue water does not turn lavender.
-            warmth.neutral = CIVector(x: CGFloat(6500 + v.warmth), y: CGFloat(-v.warmth / 100))
+            // makes the shift yellow rather than orange, so pale blue water does not turn lavender. A cool
+            // shift (Custom's Temperature down) gets no tint: the mirrored magenta tint moved grey to indigo.
+            warmth.neutral = CIVector(x: CGFloat(6500 + v.warmth), y: CGFloat(-max(0, v.warmth) / 100))
             warmth.targetNeutral = CIVector(x: 6500, y: 0)
             corrected = warmth.outputImage ?? corrected
         }
