@@ -28,7 +28,11 @@ final class EditorModel {
     let video: VideoExporter
     let videoPreview: VideoPreview
     let previewSettings = PreviewSettings()
-    var options = ExportOptions()
+    private let formatStore: PhotoFormatStore
+    /// The chosen photo format is saved on every change, for the next photo and the batch screen.
+    var options = ExportOptions() {
+        didSet { if options.photoFormat != oldValue.photoFormat { formatStore.save(options.photoFormat) } }
+    }
     var showExportOptions = false
     var estimates: [ExportOptions.Resolution: Double] = [:]
     var estimating = false
@@ -54,14 +58,17 @@ final class EditorModel {
     var error: String?
     var notice: String?
     var exportTask: Task<Void, Never>?
-    init(media: ImportedMedia, diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init()) {
+    init(media: ImportedMedia, diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init(),
+         formatStore: PhotoFormatStore = .init()) {
         self.media = media
         self.diagnostics = diagnostics
         self.adjustmentStore = adjustmentStore
+        self.formatStore = formatStore
         photos = PhotoProcessor(diagnostics: diagnostics)
         video = VideoExporter(diagnostics: diagnostics)
         videoPreview = VideoPreview(diagnostics: diagnostics)
         settings.adjustments = adjustmentStore.load()
+        options.photoFormat = formatStore.load()
     }
     func load() async {
         defer { loading = false; analyzing = false }
@@ -253,7 +260,8 @@ final class EditorModel {
                     }.url
                 } else {
                     try StorageCheck.require(bytes: 100_000_000)
-                    output = try await photos.export(media.url, settings: chosenSettings, keepHDR: chosenOptions.range == .hdr)
+                    output = try await photos.export(media.url, settings: chosenSettings, keepHDR: chosenOptions.range == .hdr,
+                                                     format: chosenOptions.photoFormat)
                 }
                 do {
                     try Task.checkCancellation()

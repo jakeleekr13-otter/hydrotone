@@ -4,8 +4,8 @@ Status reflects automated tests in this repository. “Device QA” is deliberat
 
 | Area | Coverage | Status |
 |---|---|---|
-| Photo formats | JPEG portrait orientation; generated HEIC; Display P3 output; preview/export pixel comparison; portrait Sony RAW at full size | Automated pass (RAW needs the DeveloperMedia sample) |
-| HDR photos | Gain-map JPEG output; headroom kept; SDR image equals the SDR export; SDR sources stay SDR | Automated pass on iPhone 17; the end-to-end test skips on the simulator |
+| Photo formats | JPEG portrait orientation; generated HEIC; Display P3 output; preview/export pixel comparison; portrait Sony RAW at full size; JPEG output with full-resolution colour (4:4:4); 10-bit HEIC output with the same colour and capture date | Automated pass on simulator and iPhone 17 (RAW needs the DeveloperMedia sample) |
+| HDR photos | Gain-map JPEG and HEIC output; headroom kept; SDR image equals the SDR export; SDR sources stay SDR | Automated pass on iPhone 17; the end-to-end test skips on the simulator |
 | Import and names | Files type list; share inbox order and cleanup; saved file names | Automated pass |
 | Share sheet | Extension UI, activation limits (10 photos or 1 video), Live Photo as a still | Device QA required |
 | Filter behavior | Original/0%, 50%, 100%; neutral black/white; red restoration | Automated pass |

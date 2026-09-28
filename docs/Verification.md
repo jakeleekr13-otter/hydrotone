@@ -30,10 +30,20 @@ On the simulator, a share placed in the App Group inbox opened in the editor at 
   - Share a RAW (DNG) from Photos and a file from the Files app.
 - **Import from Files.** HEIC, JPEG, iPhone ProRAW DNG, one other camera RAW (ARW/CR3/NEF), MOV and MP4. Include one iCloud Drive file that is not downloaded yet.
 - **File names in Photos.** Check the name in the photo's info panel after saving:
-  - From Files and the share sheet: `<original>_HydroTone_<look>.jpg`.
+  - From Files and the share sheet: `<original>_HydroTone_<look>.jpg` (or `.heic`).
   - From the Photos picker: it depends on the file name the picker delivers. If the picker gives a temporary name, the time-based fallback name appears. Record which one.
 - **RAW on the device.** `CIRAWFilter` decodes the RAW file again for each preview render. Measure preview speed, export time and memory for a RAW of 20 MP or more.
   - Keep the RAW path on `CIRAWFilter`. On the simulator, `CIImage(contentsOf:)` returned only the 1616 px embedded preview.
+
+## Photo output formats (28 Sep 2026)
+
+JPEG now saves at quality 1. 10-bit HEIC is a new choice. PhotoFormatTests, PhotoTests, PhotoHDRTests, BatchTests, CustomPresetTests, ExportNamingTests and LocalizationTests pass on the simulator. PhotoFormatTests and PhotoHDRTests also pass on the iPhone 17, including the HDR HEIC gain map. Nothing below was checked by hand yet.
+
+- **Export sheet.** The Format picker shows JPEG and HEIC. The note under it changes with the choice. The choice is kept for the next photo.
+- **Batch screen.** The format menu next to Compare matches the export sheet. Save All writes the chosen type.
+- **Photos.** A saved HEIC opens in Photos and the info panel shows `.heic`. An HDR photo saved as HEIC shows HDR in Photos.
+- **Sharing a HEIC out.** Send one to a non-Apple app, such as a messenger. Record whether it arrives as HEIC or JPEG.
+- **Size, time and memory on the iPhone.** Export a 20 MP ARW and a 48 MP iPhone photo in both formats. Record file size and export time, and watch for memory warnings. The Mac sizes are in [Architecture](Architecture.md).
 
 ## Colour tuning against AquaColorFix (28 Sep 2026)
 

@@ -80,6 +80,11 @@ struct BatchView: View {
                 Text(model.comparing ? String(localized: "Original") : model.shared.preset.localizedName)
                     .font(.subheadline).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
                 Spacer(minLength: 8)
+                if ExportOptions.PhotoFormat.available.count > 1 {
+                    Picker("Format", selection: $model.format) {
+                        ForEach(ExportOptions.PhotoFormat.available) { Text(verbatim: $0.name).tag($0) }
+                    }.pickerStyle(.menu).frame(minHeight: 44).accessibilityIdentifier("batch-photo-format")
+                }
                 Button { model.comparing.toggle() } label: {
                     Label("Compare", systemImage: model.comparing ? "eye.fill" : "eye").lineLimit(1).fixedSize()
                 }

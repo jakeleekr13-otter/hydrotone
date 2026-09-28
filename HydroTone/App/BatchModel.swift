@@ -36,6 +36,9 @@ final class BatchModel: Identifiable {
     private let adjustmentStore: CustomAdjustmentsStore
     /// The saved Custom sliders, shared with the editor. Written back on every change.
     var adjustments: CustomAdjustments { didSet { if adjustments != oldValue { adjustmentStore.save(adjustments) } } }
+    private let formatStore: PhotoFormatStore
+    /// The saved photo format, shared with the editor. Written back on every change.
+    var format: ExportOptions.PhotoFormat { didSet { if format != oldValue { formatStore.save(format) } } }
     var comparing = false
     var saving = false
     var savedCount = 0
@@ -46,15 +49,20 @@ final class BatchModel: Identifiable {
     private var interruption: String?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
-    init(media: [ImportedMedia], diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init()) {
+    init(media: [ImportedMedia], diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init(),
+         formatStore: PhotoFormatStore = .init()) {
         self.diagnostics = diagnostics
         self.adjustmentStore = adjustmentStore
         adjustments = adjustmentStore.load()
+        self.formatStore = formatStore
+        format = formatStore.load()
         photos = PhotoProcessor(diagnostics: diagnostics)
         items = media.map { Item(url: $0.url, originalName: $0.originalName) }
     }
-    convenience init(urls: [URL], diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init()) {
-        self.init(media: urls.map { ImportedMedia(url: $0, kind: .photo) }, diagnostics: diagnostics, adjustmentStore: adjustmentStore)
+    convenience init(urls: [URL], diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init(),
+                     formatStore: PhotoFormatStore = .init()) {
+        self.init(media: urls.map { ImportedMedia(url: $0, kind: .photo) }, diagnostics: diagnostics,
+                  adjustmentStore: adjustmentStore, formatStore: formatStore)
     }
 
     /// Photos that can still be saved. Saved photos drop out, so a second Save All has nothing stale to report.
@@ -136,6 +144,7 @@ final class BatchModel: Identifiable {
             await purchases.refreshEntitlement()
             guard purchases.isPro else { showPro = true; return }
             let targets = items.indices.filter { items[$0].analysis != nil && items[$0].state != .saved }
+            let format = format
             var failed = 0
             for index in targets {
                 if Task.isCancelled { break }
@@ -143,7 +152,7 @@ final class BatchModel: Identifiable {
                 do {
                     try StorageCheck.require(bytes: 100_000_000)
                     // Batch has no SDR/HDR choice: HDR photos stay HDR, SDR photos stay SDR.
-                    output = try await photos.export(items[index].url, settings: settings(for: items[index]), keepHDR: true)
+                    output = try await photos.export(items[index].url, settings: settings(for: items[index]), keepHDR: true, format: format)
                 } catch is CancellationError { break } catch {
                     items[index].state = .saveFailed; failed += 1
                     await record(error, operation: .export)

@@ -33,9 +33,19 @@ struct ExportView: View {
                     }
                 } else {
                     Section {
-                        Text(model.options.range == .hdr ? String(localized: "Original resolution · HDR · JPEG with gain map")
-                             : String(localized: "Original resolution · SDR · JPEG"))
+                        Text(Self.photoSummary(model.options))
                         if !model.capability.hdrAvailable { Text(model.capability.explanation).font(.footnote).foregroundStyle(.secondary) }
+                    }
+                    if ExportOptions.PhotoFormat.available.count > 1 {
+                        Section("Format") {
+                            Picker("Format", selection: $model.options.photoFormat) {
+                                ForEach(ExportOptions.PhotoFormat.available) { Text(verbatim: $0.name).tag($0) }
+                            }.pickerStyle(.segmented).accessibilityIdentifier("photo-format")
+                            Text(model.options.photoFormat == .heic
+                                 ? String(localized: "10-bit color keeps water gradients smooth. Files are about twice the size of JPEG, and some older apps can’t open them.")
+                                 : String(localized: "Works in almost every app. Saved at the highest JPEG quality."))
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
                     }
                     if model.capability.hdrAvailable {
                         Section("Color") {
@@ -66,6 +76,14 @@ struct ExportView: View {
             .task { if model.media.kind == .video { model.estimateExportTimes() } }
             .onChange(of: model.options.range) { if model.media.kind == .video { model.estimateExportTimes() } }
             .onDisappear { model.cancelEstimates() }
+    }
+    static func photoSummary(_ options: ExportOptions) -> String {
+        switch (options.range, options.photoFormat) {
+        case (.sdr, .jpeg): String(localized: "Original resolution · SDR · JPEG")
+        case (.hdr, .jpeg): String(localized: "Original resolution · HDR · JPEG with gain map")
+        case (.sdr, .heic): String(localized: "Original resolution · SDR · HEIC 10-bit")
+        case (.hdr, .heic): String(localized: "Original resolution · HDR · HEIC 10-bit with gain map")
+        }
     }
     static func format(_ seconds: Double) -> String {
         let rounded = seconds < 60 ? max(5, (seconds / 5).rounded(.up) * 5) : (seconds / 60).rounded(.up) * 60

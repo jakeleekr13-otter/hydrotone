@@ -14,7 +14,7 @@ The initial directory was empty. Development proceeded through building the foun
 
 ## Color
 
-A reused Metal-backed CIContext works in extended linear Rec.2020 with half-float intermediates. Photos retain wide color through processing and are converted to Display P3 at JPEG output. Orientation is baked and EXIF orientation normalized.
+A reused Metal-backed CIContext works in extended linear Rec.2020 with half-float intermediates. Photos retain wide color through processing and are converted to Display P3 at JPEG or HEIC output. Orientation is baked and EXIF orientation normalized.
 
 Analysis measures a small thumbnail: scene and water colour, bright near-neutral surfaces, red loss, luminance spread and saturation. `ColorCorrection.make` turns these into named values, and `FilterEngine` only applies them. `RestorationEngine.combined` removes the water veil with a depth-aware kernel, then applies the finishing values. Intensity and plan confidence blend the result, so a weak fit gives the plain correction. Photo, batch and video share this path; see [Colour algorithm](ColorAlgorithm.md).
 
@@ -26,9 +26,21 @@ Device and source profiles select the initial analysis compute policy and retain
 
 - JPEG, HEIC and the other ImageIO formats open with `CIImage(contentsOf:)`, expanded to HDR. All colour work then runs on the SDR tone-mapped image.
 - Camera RAW opens with `CIRAWFilter`, at Apple's standard SDR rendering. On iOS, `CIImage(contentsOf:)` returned only the embedded preview (1616 px for a 5472 px ARW). The HDR-expanded path was also about 30% darker than the standard rendering.
-- HDR photos can export as a JPEG with an ISO gain map. The SDR image in the file is the normal export.
+- Photos export as JPEG or 10-bit HEIC (`ExportOptions.PhotoFormat`). One saved choice (`PhotoFormatStore`) serves the editor and the batch screen.
+- Both formats save at quality 1. Below 1, ImageIO wrote JPEG with half-resolution colour (4:2:0). In both formats, quality 0.95 to 0.99 barely changed the error. A JPEG source is already compressed. So each save must add as little loss as possible.
+- Measured on a Mac on 28 Sep 2026. Source: the 20 MP Sony ARW `DSC03545`, Natural preset. Error: RMS against the float result, in 8-bit steps. Banding: RMS after a 16 px blur, on a smooth water gradient.
+
+  | Output | Size | Error | Banding |
+  |---|---|---|---|
+  | JPEG 0.95 (before) | 4.8 MB | 1.29 | 0.50 |
+  | JPEG 1.0 | 13.7 MB | 0.73 | 0.50 |
+  | HEIC 10-bit 0.95 | 13.1 MB | 0.75 | 0.11 |
+  | HEIC 10-bit 1.0 | 25.7 MB | 0.14 | 0.11 |
+
+- Dithering before 8 bits and 8-bit HEIC were also measured. Neither lowered the error on real photos, so neither is used.
+- HDR photos can export as a JPEG or HEIC with an ISO gain map. The SDR image in the file is the normal export.
 - The HDR version (`PhotoHDR`) is that result times the source's ratio of HDR to tone-mapped SDR, in Rec.2020 luminance. The ratio never darkens and never exceeds the source headroom. So the colour engine never sees HDR values. The video HDR path is different: it filters the HDR frames directly.
-- The HDR output check adds two tests: an ISO gain map is present, and the file reopens with headroom above 1.
+- Every photo output is checked before the user sees it. It must hold one image of the chosen type at full size, and HEIC must hold 10 bits. The HDR check adds two tests: an ISO gain map is present, and the file reopens with headroom above 1.
 - The simulator opens every gain-map photo with headroom 1. So HDR photo export can only be verified on an iPhone.
 - Saved names come from `ExportNaming`: `<source>_HydroTone_<look>.<ext>`. Photos keeps the name through `PHAssetResourceCreationOptions.originalFilename`.
 - Live Photos are treated as still photos. This is a product decision (28 Sep 2026).

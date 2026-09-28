@@ -180,6 +180,41 @@
         }
       }
     },
+    "10-bit color keeps water gradients smooth. Files are about twice the size of JPEG, and some older apps can’t open them." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10-bit color keeps water gradients smooth. Files are about twice the size of JPEG, and some older apps can’t open them."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10ビットカラーで水中のグラデーションがなめらかに残ります。ファイルサイズはJPEGの約2倍で、一部の古いアプリでは開けません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10비트 색상으로 물빛 그라데이션이 부드럽게 유지됩니다. 파일 크기는 JPEG의 약 2배이며, 일부 오래된 앱에서는 열리지 않습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 位色彩让水中渐变保持平滑。文件大小约为 JPEG 的两倍，部分旧版应用无法打开。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 位元色彩讓水中漸層保持平滑。檔案大小約為 JPEG 的兩倍，部分舊版 App 無法開啟。"
+          }
+        }
+      }
+    },
     "1080p" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1720,6 +1755,41 @@
         }
       }
     },
+    "Format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Format"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "形式"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "형식"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "格式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "格式"
+          }
+        }
+      }
+    },
     "Free trial" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2035,37 +2105,37 @@
         }
       }
     },
-    "HDR photo export is unavailable. Your photo will be saved as a wide-color SDR JPEG." : {
+    "HDR photo export is unavailable. Your photo will be saved in SDR with wide color." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HDR photo export is unavailable. Your photo will be saved as a wide-color SDR JPEG."
+            "value" : "HDR photo export is unavailable. Your photo will be saved in SDR with wide color."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HDR写真の書き出しは利用できません。写真は広色域SDR JPEGとして保存されます。"
+            "value" : "HDR写真の書き出しは利用できません。写真は広色域SDRで保存されます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HDR 사진 내보내기는 사용할 수 없습니다. 사진은 광색역 SDR JPEG로 저장됩니다."
+            "value" : "HDR 사진 내보내기는 사용할 수 없습니다. 사진은 광색역 SDR로 저장됩니다."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无法导出 HDR 照片。照片将保存为广色域 SDR JPEG。"
+            "value" : "无法导出 HDR 照片。照片将以广色域 SDR 保存。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法匯出 HDR 照片。照片將儲存為廣色域 SDR JPEG。"
+            "value" : "無法匯出 HDR 照片。照片將以廣色域 SDR 儲存。"
           }
         }
       }
@@ -2770,6 +2840,41 @@
         }
       }
     },
+    "Original resolution · HDR · HEIC 10-bit with gain map" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original resolution · HDR · HEIC 10-bit with gain map"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "元の解像度 · HDR · ゲインマップ付きHEIC 10ビット"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "원본 해상도 · HDR · 게인 맵 포함 HEIC 10비트"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始分辨率 · HDR · 含增益图的 HEIC 10 位"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始解析度 · HDR · 含增益圖的 HEIC 10 位元"
+          }
+        }
+      }
+    },
     "Original resolution · HDR · JPEG with gain map" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2801,6 +2906,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "原始解析度 · HDR · 含增益圖的 JPEG"
+          }
+        }
+      }
+    },
+    "Original resolution · SDR · HEIC 10-bit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original resolution · SDR · HEIC 10-bit"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "元の解像度 · SDR · HEIC 10ビット"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "원본 해상도 · SDR · HEIC 10비트"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始分辨率 · SDR · HEIC 10 位"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始解析度 · SDR · HEIC 10 位元"
           }
         }
       }
@@ -4707,6 +4847,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保留廣色域。無法匯出 HDR 照片。"
+          }
+        }
+      }
+    },
+    "Works in almost every app. Saved at the highest JPEG quality." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Works in almost every app. Saved at the highest JPEG quality."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ほぼすべてのアプリで開けます。JPEGの最高画質で保存します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "거의 모든 앱에서 열립니다. 최고 JPEG 품질로 저장됩니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "几乎所有应用都能打开。以最高 JPEG 质量保存。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "幾乎所有 App 都能開啟。以最高 JPEG 品質儲存。"
           }
         }
       }

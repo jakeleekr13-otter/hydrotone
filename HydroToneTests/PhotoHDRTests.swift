@@ -101,6 +101,16 @@ final class PhotoHDRTests: XCTestCase {
         // Both SDR images read 1.141 at most on an iPhone 17 (28 Sep 2026): the same value, so no HDR leaks in.
         XCTAssertEqual(maximum(base), maximum(sdr), accuracy: 0.02)
         for (a, b) in zip(average(base), average(sdr)) { XCTAssertEqual(a, b, accuracy: 0.01) }
+
+        // The same HDR export as a 10-bit HEIC keeps its gain map and highlights.
+        let heicOutput = try await processor.export(source, settings: settings, keepHDR: true, format: .heic)
+        defer { TemporaryFiles.remove(heicOutput) }
+        let heicFile = try XCTUnwrap(CGImageSourceCreateWithURL(heicOutput as CFURL, nil))
+        XCTAssertEqual(CGImageSourceGetType(heicFile) as String?, UTType.heic.identifier)
+        XCTAssertNotNil(CGImageSourceCopyAuxiliaryDataInfoAtIndex(heicFile, 0, kCGImageAuxiliaryDataTypeISOGainMap), "ISO gain map")
+        let heicExpanded = try XCTUnwrap(CIImage(contentsOf: heicOutput, options: [.expandToHDR: true]))
+        XCTAssertGreaterThan(heicExpanded.contentHeadroom, 3)
+        XCTAssertGreaterThan(maximum(heicExpanded), 2, "the sun keeps its headroom")
     }
 
     func testSDRPhotoStaysSDRWhenHDRIsKept() async throws {

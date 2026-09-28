@@ -33,7 +33,7 @@ enum VideoColorPipeline {
 struct ExportCapability: Sendable {
     let hdrAvailable: Bool
     let explanation: String
-    static var photo: Self { Self(hdrAvailable: false, explanation: String(localized: "HDR photo export is unavailable. Your photo will be saved as a wide-color SDR JPEG.")) }
+    static var photo: Self { Self(hdrAvailable: false, explanation: String(localized: "HDR photo export is unavailable. Your photo will be saved in SDR with wide color.")) }
     static func evaluate(url: URL, metadata: VideoMetadata) async -> Self {
         guard metadata.isHDR else { return Self(hdrAvailable: false, explanation: String(localized: "This video is SDR. HDR export requires HDR source footage.")) }
         guard metadata.dynamicRange == .hlg || metadata.dynamicRange == .pq, (metadata.bitDepth ?? 0) >= 10 else {
