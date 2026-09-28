@@ -4,13 +4,13 @@
 #                  ColorMath, WaterAnalysis, FilterSettings, DivePreset), RestorationPlan, RestorationEngine,
 #                  WaterModelEstimator and DepthEstimator.
 # HT_EVAL_MARKET   market pairs (raw/, ref/). Default: $HT_EVAL_DATA/market.
-# HT_EVAL_OUT      cache and results root. Default: $TMPDIR/hydrotone-color-eval. Never inside the repo.
+# HT_EVAL_OUT      cache and results root. Default: $TMPDIR/marinelens-color-eval. Never inside the repo.
 HERE=${0:A:h}
 REPO=${HERE:h:h}
 HT_EVAL_DATA=${HT_EVAL_DATA:-$REPO/DeveloperMedia}
-HT_EVAL_SOURCES=${HT_EVAL_SOURCES:-$REPO/HydroTone/Processing}
-HT_EVAL_OUT=${HT_EVAL_OUT:-${TMPDIR:-/tmp}/hydrotone-color-eval}
-# Keep all media OUTSIDE HydroToneTests/: that folder is a synchronized Xcode group, so even git-ignored
+HT_EVAL_SOURCES=${HT_EVAL_SOURCES:-$REPO/MarineLens/Processing}
+HT_EVAL_OUT=${HT_EVAL_OUT:-${TMPDIR:-/tmp}/marinelens-color-eval}
+# Keep all media OUTSIDE MarineLensTests/: that folder is a synchronized Xcode group, so even git-ignored
 # files there ship in the test bundle, and same-named files (raw/ vs ref/) break build-for-testing.
 HT_EVAL_MARKET=${HT_EVAL_MARKET:-$HT_EVAL_DATA/market}
 UIEB=$HT_EVAL_DATA/samples/photo
@@ -22,7 +22,7 @@ build_eval() {
     local out=${1:A}
     mkdir -p $out $HT_EVAL_OUT/cache
     if [[ ! -d $MODEL ]]; then
-        xcrun coremlcompiler compile $REPO/HydroTone/Resources/Models/DepthAnythingV2SmallF16P6.mlpackage $HT_EVAL_OUT/cache > $HT_EVAL_OUT/cache/model.log 2>&1 || { echo "model compile failed"; return 1; }
+        xcrun coremlcompiler compile $REPO/MarineLens/Resources/Models/DepthAnythingV2SmallF16P6.mlpackage $HT_EVAL_OUT/cache > $HT_EVAL_OUT/cache/model.log 2>&1 || { echo "model compile failed"; return 1; }
     fi
     local src=${HT_EVAL_SOURCES:A}
     swiftc -O -swift-version 6 -o $out/eval $HERE/main.swift $src/FilterEngine.swift $src/FinishingKernels.swift \

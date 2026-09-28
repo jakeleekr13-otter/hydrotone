@@ -1,6 +1,6 @@
 # Video cleanup prototypes
 
-These are two measured components for video export: a hardware temporal denoiser and a particle (marine snow) filter. They are NOT in any Xcode target yet. The export loop (`HydroTone/Export/VideoExporter.swift`) will adopt them later.
+These are two measured components for video export: a hardware temporal denoiser and a particle (marine snow) filter. They are NOT in any Xcode target yet. The export loop (`MarineLens/Export/VideoExporter.swift`) will adopt them later.
 
 ## Components
 
@@ -45,7 +45,7 @@ Environment variables:
 | Variable | Default |
 |---|---|
 | `HT_EVAL_DATA` (clips) | `DeveloperMedia/` |
-| `HT_PROTO_OUT` (binaries and outputs) | `$TMPDIR/hydrotone-video-cleanup/...` |
+| `HT_PROTO_OUT` (binaries and outputs) | `$TMPDIR/marinelens-video-cleanup/...` |
 
 ## Results
 

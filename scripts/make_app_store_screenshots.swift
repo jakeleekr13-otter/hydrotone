@@ -21,7 +21,7 @@ func topRect(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> NSRect {
 func image(_ name: String) throws -> NSImage {
     let url = source.appendingPathComponent(name)
     guard let value = NSImage(contentsOf: url) else {
-        throw NSError(domain: "HydroToneScreenshots", code: 1,
+        throw NSError(domain: "MarineLensScreenshots", code: 1,
                       userInfo: [NSLocalizedDescriptionKey: "Could not read \(url.path)"])
     }
     return value
@@ -95,7 +95,7 @@ func render(_ filename: String, draw: () throws -> Void) throws {
                                         colorSpaceName: .deviceRGB, bytesPerRow: 0,
                                         bitsPerPixel: 0),
           let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
-        throw NSError(domain: "HydroToneScreenshots", code: 2,
+        throw NSError(domain: "MarineLensScreenshots", code: 2,
                       userInfo: [NSLocalizedDescriptionKey: "Could not create canvas"])
     }
     bitmap.size = NSSize(width: width, height: height)
@@ -106,7 +106,7 @@ func render(_ filename: String, draw: () throws -> Void) throws {
     context.flushGraphics()
     NSGraphicsContext.restoreGraphicsState()
     guard let jpeg = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.94]) else {
-        throw NSError(domain: "HydroToneScreenshots", code: 2,
+        throw NSError(domain: "MarineLensScreenshots", code: 2,
                       userInfo: [NSLocalizedDescriptionKey: "Could not encode \(filename)"])
     }
     try jpeg.write(to: output.appendingPathComponent(filename), options: .atomic)

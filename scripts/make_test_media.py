@@ -1,7 +1,7 @@
 """Generate synthetic fixtures with real codecs; ffmpeg is a developer test tool only."""
 from pathlib import Path
 import subprocess
-root=Path('HydroToneTests/Fixtures');root.mkdir(exist_ok=True)
+root=Path('MarineLensTests/Fixtures');root.mkdir(exist_ok=True)
 def make(name,size,rate,codec='libx264',audio=False,hdr=None,duration='0.6'):
     path=root/(name+'.mov')
     if path.exists() and not hdr:return
