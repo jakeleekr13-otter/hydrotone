@@ -69,6 +69,9 @@ final class EditorModel {
             if media.kind == .photo {
                 analyzing = true
                 settings.analysis = try await photos.analyze(media.url)
+                capability = .photo(headroom: try await photos.headroom(media.url))
+                // HDR photos keep HDR by default. A gain-map JPEG still shows as SDR where HDR isn't supported.
+                if capability.hdrAvailable { options.range = .hdr }
                 analyzing = false
                 originalPreview = try await photos.preview(media.url, settings: settings, original: true)
                 await refreshPreview()
@@ -250,7 +253,7 @@ final class EditorModel {
                     }.url
                 } else {
                     try StorageCheck.require(bytes: 100_000_000)
-                    output = try await photos.export(media.url, settings: chosenSettings)
+                    output = try await photos.export(media.url, settings: chosenSettings, keepHDR: chosenOptions.range == .hdr)
                 }
                 do {
                     try Task.checkCancellation()

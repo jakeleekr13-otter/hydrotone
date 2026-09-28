@@ -32,7 +32,20 @@ struct ExportView: View {
                         Text(model.capability.explanation).font(.footnote).foregroundStyle(.secondary)
                     }
                 } else {
-                    Section { Text("Original resolution · SDR · JPEG"); Text("Wide color is preserved. HDR photo export is unavailable.").font(.footnote).foregroundStyle(.secondary) }
+                    Section {
+                        Text(model.options.range == .hdr ? String(localized: "Original resolution · HDR · JPEG with gain map")
+                             : String(localized: "Original resolution · SDR · JPEG"))
+                        if !model.capability.hdrAvailable { Text(model.capability.explanation).font(.footnote).foregroundStyle(.secondary) }
+                    }
+                    if model.capability.hdrAvailable {
+                        Section("Color") {
+                            Picker("Color", selection: $model.options.range) {
+                                Text("SDR").tag(ExportOptions.Range.sdr)
+                                Text("HDR").tag(ExportOptions.Range.hdr).disabled(!purchases.isPro)
+                            }.pickerStyle(.segmented)
+                            Text(model.capability.explanation).font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 if !purchases.isPro {
                     Section("Free trial") {

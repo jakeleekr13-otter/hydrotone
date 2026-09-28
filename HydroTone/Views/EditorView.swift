@@ -65,7 +65,7 @@ struct EditorView: View {
         @Bindable var model = model
         return VStack(spacing: 18) {
             if model.previewPaused { Button("Retry preview") { Task { await model.retryPreview() } } }
-            if model.metadata?.isHDR == true { Text("HDR source · SDR preview").font(.caption).foregroundStyle(.secondary) }
+            if model.metadata?.isHDR == true || (model.media.kind == .photo && model.capability.hdrAvailable) { Text("HDR source · SDR preview").font(.caption).foregroundStyle(.secondary) }
             HStack {
                 // The buttons never wrap; the preset name gives way first on narrow screens.
                 Text(model.comparing ? String(localized: "Original") : model.settings.preset.localizedName).font(.subheadline).foregroundStyle(.secondary)

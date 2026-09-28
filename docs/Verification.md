@@ -47,6 +47,19 @@ The colour rules changed to move toward the AquaColorFix look ([benchmark](AquaC
 - **Depth model on Core AI.** iOS 27 ships `CoreAI.framework` (`AIModel`, `InferenceFunction`, `.aimodel`), and `apple/coreai-models` has a Depth Anything **v3 small** export (float32). Our depth model is Depth Anything v2 small fp16 on Core ML. Nothing in the app's colour path uses a model; only `DepthEstimator` would change. Decide later whether to add an iOS 27 path; it needs a new depth-quality and holdout measurement, because the model is different.
 - **Video: values that follow the light.** Today a clip gets one set of values from 10 samples. So a clip whose light changes is right in some parts and wrong in others (the product owner, 28 Sep 2026). The analysis is a 48x48 statistic and needs no model. It can run on every frame or every few frames and be smoothed over time before `make()`. Only the depth model is costly, and the record says per-pixel depth did not help video. Design this as its own step. It changes `VideoRestorationAnalysis`, not the colour rules.
 
+## HDR photo export (28 Sep 2026)
+
+Checked:
+- iPhone 17, PhotoHDRTests (3 of 3 pass). A synthetic HDR photo (headroom 4) exported as a JPEG with an ISO gain map. The output headroom was 4.0 and the highlights reached 4.5. The SDR image in the file matched the normal SDR export (average and maximum).
+- Simulator: 22 affected unit tests pass. The end-to-end HDR test skips there, because the simulator opens every gain-map photo with headroom 1.
+
+Still open, on the iPhone:
+- A real iPhone HDR photo: Export shows SDR/HDR with HDR selected for Pro. The saved photo looks brighter in Photos than an SDR save of the same edit. Colours match between the two saves.
+- Memory and time for a 48 MP HDR photo. HDR export renders the full image twice (SDR and HDR).
+- The batch screen with a mix of HDR and SDR photos.
+- An iPhone without an HDR display: it is unknown whether photos read with headroom above 1 there.
+- Live Photos: by decision (28 Sep 2026), a Live Photo imports and exports as its still photo. The motion is not kept, because underwater Live Photos are rare. Check that a Live Photo imports as its still photo from the picker, the share sheet and Files.
+
 ## Final round checklist
 
 1. **Colour scorecard.** Run `scripts/color-eval/tune_eval.sh <name>`. Check every guard in [the harness README](../scripts/color-eval/README.md#guards-used-for-tuning).

@@ -22,6 +22,7 @@ actor PhotoProcessor {
     private let depthEstimator = DepthEstimator()
     private let waterEstimator = WaterModelEstimator()
     private let restorationEngine = RestorationEngine()
+    private let photoHDR = PhotoHDR()
     private struct Prepared { let analysis: WaterAnalysis; let plan: RestorationPlan? }
     /// Keyed by photo so a batch can switch between photos without repeating depth analysis.
     private var prepared: [URL: Prepared] = [:]
@@ -64,24 +65,23 @@ actor PhotoProcessor {
         guard let rendered = engine.context.createCGImage(result, from: result.extent, format: .RGBA8, colorSpace: FilterEngine.photoSpace) else { throw HydroError.unreadable }
         return rendered
     }
-    func export(_ url: URL, settings: FilterSettings) async throws -> URL {
+    /// Headroom above SDR white. Above 1, the photo can export as HDR. RAW opens as SDR.
+    func headroom(_ url: URL) throws -> Float { try open(url).contentHeadroom }
+
+    /// `keepHDR` writes an HDR JPEG with a gain map when the source is HDR. SDR sources always export SDR.
+    func export(_ url: URL, settings: FilterSettings, keepHDR: Bool = false) async throws -> URL {
         try Task.checkCancellation()
-        let source = engine.sdr(try open(url))
+        let original = try open(url)
+        let source = engine.sdr(original)
         let plan = try await prepare(url: url, source: source).plan
         let image = processed(source, settings: settings, plan: plan)
+        if keepHDR, original.contentHeadroom > 1 { return try exportHDR(image, original: original, toneMapped: source, from: url) }
         let target = try TemporaryFiles.makeURL(extension: "jpg")
         do {
             guard let cg = engine.context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: FilterEngine.photoSpace),
                   let destination = CGImageDestinationCreateWithURL(target as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else { throw HydroError.exportFailed }
-            // Bake orientation and retain capture date without copying stale thumbnails, dimensions or HDR gain maps.
-            var properties: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: 0.95, kCGImagePropertyOrientation: 1]
-            if let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-               let original = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-               let exif = original[kCGImagePropertyExifDictionary] as? [CFString: Any] {
-                var dates: [CFString: Any] = [:]
-                for key in [kCGImagePropertyExifDateTimeOriginal, kCGImagePropertyExifDateTimeDigitized] { dates[key] = exif[key] }
-                properties[kCGImagePropertyExifDictionary] = dates
-            }
+            var properties = Self.metadata(from: url)
+            properties[kCGImageDestinationLossyCompressionQuality] = 0.95
             CGImageDestinationAddImage(destination, cg, properties as CFDictionary)
             guard CGImageDestinationFinalize(destination) else { throw HydroError.exportFailed }
             try Task.checkCancellation()
@@ -89,6 +89,39 @@ actor PhotoProcessor {
                   let decoded = CGImageSourceCreateImageAtIndex(check, 0, nil), decoded.width == cg.width, decoded.height == cg.height else { throw HydroError.invalidOutput }
             return target
         } catch { TemporaryFiles.remove(target); throw error }
+    }
+
+    /// The SDR image in the file is the normal export. The HDR version (PhotoHDR) becomes its gain map.
+    private func exportHDR(_ image: CIImage, original: CIImage, toneMapped: CIImage, from url: URL) throws -> URL {
+        guard let hdr = photoHDR.reexpand(image, original: original, toneMapped: toneMapped) else { throw HydroError.exportFailed }
+        let target = try TemporaryFiles.makeURL(extension: "jpg")
+        do {
+            let quality = CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String)
+            try engine.context.writeJPEGRepresentation(of: image.settingProperties(Self.metadata(from: url)), to: target,
+                                                       colorSpace: FilterEngine.photoSpace, options: [.hdrImage: hdr, quality: 0.95])
+            try Task.checkCancellation()
+            guard let check = CGImageSourceCreateWithURL(target as CFURL, nil), CGImageSourceGetCount(check) == 1,
+                  let decoded = CGImageSourceCreateImageAtIndex(check, 0, nil),
+                  decoded.width == Int(image.extent.width.rounded()), decoded.height == Int(image.extent.height.rounded()),
+                  CGImageSourceCopyAuxiliaryDataInfoAtIndex(check, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil,
+                  let expanded = CIImage(contentsOf: target, options: [.expandToHDR: true]), expanded.contentHeadroom > 1
+            else { throw HydroError.invalidOutput }
+            return target
+        } catch { TemporaryFiles.remove(target); throw error }
+    }
+
+    /// Orientation is baked into the pixels. Only the capture dates are kept: no stale thumbnails,
+    /// dimensions or source gain maps.
+    private static func metadata(from url: URL) -> [CFString: Any] {
+        var properties: [CFString: Any] = [kCGImagePropertyOrientation: 1]
+        if let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+           let original = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+           let exif = original[kCGImagePropertyExifDictionary] as? [CFString: Any] {
+            var dates: [CFString: Any] = [:]
+            for key in [kCGImagePropertyExifDateTimeOriginal, kCGImagePropertyExifDateTimeDigitized] { dates[key] = exif[key] }
+            properties[kCGImagePropertyExifDictionary] = dates
+        }
+        return properties
     }
 
     #if DEBUG

@@ -142,7 +142,8 @@ final class BatchModel: Identifiable {
                 let output: URL
                 do {
                     try StorageCheck.require(bytes: 100_000_000)
-                    output = try await photos.export(items[index].url, settings: settings(for: items[index]))
+                    // Batch has no SDR/HDR choice: HDR photos stay HDR, SDR photos stay SDR.
+                    output = try await photos.export(items[index].url, settings: settings(for: items[index]), keepHDR: true)
                 } catch is CancellationError { break } catch {
                     items[index].state = .saveFailed; failed += 1
                     await record(error, operation: .export)
