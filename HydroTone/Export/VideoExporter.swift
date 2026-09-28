@@ -83,6 +83,11 @@ actor VideoExporter {
         guard writer.canApply(outputSettings: videoSettings, forMediaType: .video) else { throw HydroError.unsupported }
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
         input.expectsMediaDataInRealTime = false
+        // Keep the source timescale. The default 1/600 s can round a last frame that starts
+        // just before the end onto the end of the edit, so the file holds it but never shows it.
+        let timescale = max(1, try await track.load(.naturalTimeScale))
+        input.mediaTimeScale = timescale
+        writer.movieTimeScale = timescale
         guard writer.canAdd(input) else { throw HydroError.unsupported }
         writer.add(input)
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
@@ -100,7 +105,7 @@ actor VideoExporter {
             reader.add(audioOutput); writer.add(audioInput)
             audio.append((audioOutput, audioInput))
         }
-        let end = CMTime(seconds: duration, preferredTimescale: 60000)
+        let end = CMTime(seconds: duration, preferredTimescale: timescale)
         reader.timeRange = CMTimeRange(start: .zero, end: end)
         guard writer.startWriting() else { throw writer.error ?? HydroError.exportFailed }
         writer.startSession(atSourceTime: .zero)

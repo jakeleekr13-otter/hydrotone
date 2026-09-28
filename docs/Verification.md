@@ -44,6 +44,17 @@ Still open:
 
 Device check note: `xcodebuild test` on the iPhone left the old share extension installed. Install with `xcrun devicectl device install app` before a share-sheet check.
 
+## Video export keeps the source timescale (28 Sep 2026)
+
+The iPhone rejected the export of `problem_video/cannot export/2019-05-05 18.37.02.MOV`: "frames read back 1755 vs written 1756". The writer rounded times to 1/600 s. The last frame starts 0.63 ms before the end, so it moved onto the end of the edit. The file held that frame but never showed it. Video export now writes in the source track's timescale.
+
+Checked:
+- Simulator: `VideoTests.testLastFrameJustBeforeTheEndIsShown` failed with invalidOutput before the change and passes after it.
+- Mac copy of the export path, on the real clip: 1756 frames written, 1756 decoded after the change (1755 before).
+
+Still open:
+- Export the same clip on the iPhone.
+
 ## Import, share sheet and file names (28 Sep 2026, `4aaa7cc`)
 
 Built for the simulator. These unit tests pass: ExportNamingTests, FileImportTests, PhotoTests, LocalizationTests and BatchTests. FileImportTests uses a RAW sample from DeveloperMedia.

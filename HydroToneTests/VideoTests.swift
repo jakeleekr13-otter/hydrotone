@@ -71,6 +71,53 @@ final class VideoTests: XCTestCase {
         XCTAssertEqual(source.count, exported.count)
         for (a, b) in zip(source, exported) { XCTAssertEqual(a, b, accuracy: 0.0001) }
     }
+    /// A 59.94 fps clip whose last frame starts 38/60000 s before the end, like the
+    /// 2019-05-05 dive clip that failed the device export. Rounded to 1/600 s, that
+    /// frame lands on the end of the edit, so the export holds it but never shows it.
+    func testLastFrameJustBeforeTheEndIsShown() async throws {
+        let url = try TemporaryFiles.makeURL(extension: "mov")
+        defer { TemporaryFiles.remove(url) }
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: 320, AVVideoHeightKey: 180])
+        input.mediaTimeScale = 60000
+        writer.movieTimeScale = 60000
+        writer.add(input)
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey as String: 320, kCVPixelBufferHeightKey as String: 180])
+        XCTAssertTrue(writer.startWriting())
+        writer.startSession(atSourceTime: .zero)
+        let frames = 60
+        for index in 0..<frames {
+            while !input.isReadyForMoreMediaData { try await Task.sleep(for: .milliseconds(2)) }
+            var buffer: CVPixelBuffer?
+            CVPixelBufferPoolCreatePixelBuffer(nil, try XCTUnwrap(adaptor.pixelBufferPool), &buffer)
+            let frame = try XCTUnwrap(buffer)
+            CVPixelBufferLockBaseAddress(frame, [])
+            memset(CVPixelBufferGetBaseAddress(frame), Int32(40 + index), CVPixelBufferGetDataSize(frame))
+            CVPixelBufferUnlockBaseAddress(frame, [])
+            XCTAssertTrue(adaptor.append(frame, withPresentationTime: CMTime(value: CMTimeValue(index * 1001), timescale: 60000)))
+        }
+        input.markAsFinished()
+        writer.endSession(atSourceTime: CMTime(value: CMTimeValue((frames - 1) * 1001 + 38), timescale: 60000))
+        await writer.finishWriting()
+        XCTAssertEqual(writer.status, .completed)
+
+        let metadata = try await MediaInspector().inspect(url)
+        let result = try await VideoExporter().export(url: url, metadata: metadata, settings: .init(preset: .original), options: .init()) { _ in }
+        defer { TemporaryFiles.remove(result.url) }
+        XCTAssertEqual(result.frames, frames)
+        // Decoding skips a frame outside the edit, so it counts the frames a player shows.
+        let asset = AVURLAsset(url: result.url)
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: try await asset.loadTracks(withMediaType: .video)[0],
+            outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+        reader.add(output); XCTAssertTrue(reader.startReading())
+        var shown = 0
+        while let sample = output.copyNextSampleBuffer() { shown += CMSampleBufferGetNumSamples(sample) }
+        XCTAssertEqual(shown, frames)
+    }
     func testMidExportCancellationCleansPartialFile() async throws {
         let url = try fixture("trial_12seconds")
         let metadata = try await MediaInspector().inspect(url)
