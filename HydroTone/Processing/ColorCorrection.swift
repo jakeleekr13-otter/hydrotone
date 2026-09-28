@@ -66,18 +66,89 @@ struct ColorCorrection: Sendable, Equatable {
     /// finishing of the restored image, which lost the veil light and so needs a mid-tone lift.
     /// `adjustments` act only for the Custom preset. They enter before the guards and the white
     /// reference that read them, so those still run on the user's result.
+    /// The rules run in this order: scene factors, cast gains, saturation (the preset's, then the
+    /// user's), the water rules, the tone rules, the preset terms, the user's temperature, the
+    /// mid-tone clamp, then the white reference. baseCastGains and presetSaturation return one value;
+    /// the other helpers write their own values and list them in their doc comments.
     static func make(analysis: WaterAnalysis, preset: DivePreset, plan: RestorationPlan? = nil,
                      adjustments: CustomAdjustments = .zero) -> Self {
         guard preset != .original else { return .identity }
         let user = preset == .custom ? adjustments.budgeted : .zero
-        typealias Caps = CustomAdjustments.Caps
         var v = Self()
-        // Base cast gains come from the source colour on both paths. A plan-based estimate of the
-        // restored scene mean was tried and is biased: it read violet restored water as green.
-        let mean = SIMD3(analysis.meanRed, analysis.meanGreen, analysis.meanBlue)
-        let restore = preset.restoration * min(0.9, max(0, analysis.redLoss))
-        // Low global contrast is a reliable proxy for the veil users call underwater haze.
-        let haze = min(1, max(0, (0.34 - analysis.contrast) / 0.28))
+        let scene = SceneFactors(analysis: analysis, preset: preset)
+        v.waterType = scene.waterType
+        let gains = baseCastGains(analysis, preset: preset, scene: scene)
+        v.castGains = gains
+        v.saturation = presetSaturation(for: preset, scene: scene)
+        // User saturation enters here, before the water chroma ceiling reads it. Neon water gets a smaller raise.
+        let userSaturation = user.saturation * (user.saturation < 0 ? Caps.saturationDown : Caps.saturationUp * (1 - 0.6 * scene.neon))
+        v.saturation += userSaturation
+        waterRules(&v, analysis: analysis, preset: preset, plan: plan, scene: scene, gains: gains, userSaturation: userSaturation)
+        toneRules(&v, analysis: analysis, preset: preset, plan: plan, scene: scene, user: user)
+        presetRules(&v, analysis: analysis, preset: preset, scene: scene)
+        // Custom: the user's temperature on top of the automatic result (no preset warmth).
+        v.warmth += user.temperature * Caps.temperature
+        // A scene lit by a large bright subject is exposed for that subject, so its mid-tones may go a
+        // little darker (the highlight rule, both paths). Brightness down lowers the mid-tones on both
+        // paths. The white reference below sees the result.
+        v.midLift = min(0.9, max(minimumMidLift, v.midLift - 0.12 * scene.highlight + min(0, user.brightness) * Caps.brightnessDown))
+        v.neutralGains = whiteReference(analysis, correction: v, plan: plan)
+        return v.sanitized()
+    }
+
+    private typealias Caps = CustomAdjustments.Caps
+
+    /// The scene factors every rule reads, derived once from the analysis and the preset. Each is
+    /// 0...1 unless noted.
+    private struct SceneFactors {
+        /// Low global contrast: a reliable proxy for the veil users call underwater haze.
+        let haze: Float
+        /// A dark scene: median luminance 0.16 down to 0.06.
+        let deep: Float
+        /// A bright, sunlit scene (median 0.25 up to 0.4): it already has its contrast.
+        let bright: Float
+        /// The highlight rule: a large bright area (a white belly, sunlit sand; highShare 0.02 to 0.07)
+        /// already lights the scene. It fades out in dark scenes (median 0.18 down to 0.1), where a few
+        /// bright spots do not light the scene, and in contrasty scenes (contrast 0.35 to 0.5), whose
+        /// deep shadows need the lift.
+        let highlight: Float
+        /// Neon water: source OKLab chroma 0.12 up to 0.22.
+        let neon: Float
+        /// 0 = blue water, 1 = green or teal water (ColorCorrection.waterType).
+        let waterType: Float
+        /// How surely the scene has a water cast. A colourful reef can make the scene mean look
+        /// neutral while the open water is clearly blue, so the water's own chroma also counts.
+        /// A grey scene has grey "water" and gets 0.
+        let cast: Float
+        /// The red boost strength: the preset's restoration times the red the scene lost.
+        let restore: Float
+        /// The scene mean colour (linear).
+        let mean: SIMD3<Float>
+        /// The open-water colour (linear).
+        let water: SIMD3<Float>
+
+        init(analysis: WaterAnalysis, preset: DivePreset) {
+            mean = SIMD3(analysis.meanRed, analysis.meanGreen, analysis.meanBlue)
+            water = analysis.waterColor
+            restore = preset.restoration * min(0.9, max(0, analysis.redLoss))
+            haze = min(1, max(0, (0.34 - analysis.contrast) / 0.28))
+            deep = min(1, max(0, (0.16 - analysis.midLuminance) / 0.1))
+            bright = min(1, max(0, (analysis.midLuminance - 0.25) / 0.15))
+            let key = min(1, max(0, (analysis.midLuminance - 0.1) / 0.08))
+            let open = 1 - min(1, max(0, (analysis.contrast - 0.35) / 0.15))
+            highlight = key * open * min(1, max(0, (analysis.highShare - 0.02) / 0.05))
+            let waterChroma = ColorCorrection.oklch(water).y
+            neon = min(1, max(0, (waterChroma - 0.12) / 0.1))
+            waterType = ColorCorrection.waterType(analysis)
+            cast = max(analysis.castStrength, min(1, max(0, (waterChroma - 0.03) / 0.05)))
+        }
+    }
+
+    /// Cast gains: the red boost plus a green-to-blue shift for green water, at the scene's mean
+    /// luminance. They come from the source colour on both paths. A plan-based estimate of the
+    /// restored scene mean was tried and is biased: it read violet restored water as green.
+    private static func baseCastGains(_ analysis: WaterAnalysis, preset: DivePreset, scene: SceneFactors) -> SIMD3<Float> {
+        let mean = scene.mean
         // Green water: pull the scene mean toward a blue-leaning cyan. The 0.88 green/blue
         // target is approximate, tuned by eye; below it the water already reads blue.
         // Only a coloured cast is shifted: a neutral scene (mean chroma near 0) keeps its greys neutral.
@@ -86,26 +157,30 @@ struct ColorCorrection: Sendable, Equatable {
         let peak = max(mean.x, mean.y, mean.z)
         let chroma = peak > 0.001 ? (peak - min(mean.x, mean.y, mean.z)) / peak : 0
         let waterCast = min(1, max(0, (chroma - 0.05) / 0.2))
-        let type = waterType(analysis)
-        v.waterType = type
-        let shift = greenBlue > 0.88 ? pow(0.88 / greenBlue, min(1, 0.6 + preset.castRemoval * 1.5) * waterCast * type) : 1
-        var gains = SIMD3<Float>(1 + restore * 0.9, max(0.65, sqrt(shift)), min(1.7, 1 / sqrt(shift)))
+        let shift = greenBlue > 0.88 ? pow(0.88 / greenBlue, min(1, 0.6 + preset.castRemoval * 1.5) * waterCast * scene.waterType) : 1
+        var gains = SIMD3<Float>(1 + scene.restore * 0.9, max(0.65, sqrt(shift)), min(1.7, 1 / sqrt(shift)))
         // Keep the mean luminance, so this step changes colour and not exposure.
         let before = (mean * luma).sum(), after = (mean * gains * luma).sum()
         if before > 0.001, after > 0.001 { gains *= min(1.25, max(0.8, before / after)) }
-        v.castGains = gains
+        return gains
+    }
+
+    /// The saturation a preset gives this scene: the preset's, plus a little in haze. Neon water
+    /// (very high source chroma) gets no extra saturation, and a little less.
+    private static func presetSaturation(for preset: DivePreset, scene: SceneFactors) -> Float {
+        1 + (preset.saturation + scene.haze * 0.10 - 1) * (1 - scene.neon) - 0.12 * scene.neon
+    }
+
+    /// The water rules: the water tone toward clear azure, the subject light removal, the water-like
+    /// test values and the red rebuild gate. Writes violetGuard, waterTone, waterSaturation,
+    /// subjectTone, waterRedness, waterChroma, subjectRed, redGateLow, redGateHigh, redRebuild, waterLit.
+    private static func waterRules(_ v: inout Self, analysis: WaterAnalysis, preset: DivePreset, plan: RestorationPlan?,
+                                   scene: SceneFactors, gains: SIMD3<Float>, userSaturation: Float) {
+        let water = scene.water, mean = scene.mean, type = scene.waterType
         // Water tone: move the open water toward a clear cyan-to-blue colour with natural chroma.
         // It acts on water-like pixels only (as unred as the water), so subjects keep their red.
         // Deep, dark, hazy scenes get a bluer, more coloured floor; bright shallow water may stay cyan.
         // All hue and chroma math here is OKLab: CIELAB hue cannot tell azure from indigo.
-        let deep = min(1, max(0, (0.16 - analysis.midLuminance) / 0.1))
-        let water = analysis.waterColor
-        // Neon water (very high source chroma) gets no extra saturation, and a little less.
-        let neon = min(1, max(0, (oklch(water).y - 0.12) / 0.1))
-        v.saturation = 1 + (preset.saturation + haze * 0.10 - 1) * (1 - neon) - 0.12 * neon
-        // User saturation enters here, before the water chroma ceiling reads it. Neon water gets a smaller raise.
-        let userSaturation = user.saturation * (user.saturation < 0 ? Caps.saturationDown : Caps.saturationUp * (1 - 0.6 * neon))
-        v.saturation += userSaturation
         let seenInput = plan.map { restoredWater(water, plan: $0) } ?? water
         v.violetGuard = waterPlausibility(oklch(water))
         // The kernel judges "water-like" before the guard, so the weights use the unguarded colour.
@@ -121,14 +196,12 @@ struct ColorCorrection: Sendable, Equatable {
         let seenLCh = oklch(seen), later = 1.45 * max(0.5, v.saturation - userSaturation)
         // Natural Dive keeps the plain ceiling; a preset may calm neon water further (DivePreset.waterChroma).
         let ceiling = preset == .natural ? 0.1 / later : 0.1 / later * preset.waterChroma
-        let target = waterTarget(seenLCh, waterType: type, murky: deep * haze, keep: keep, source: oklch(water),
+        let target = waterTarget(seenLCh, waterType: type, murky: scene.deep * scene.haze, keep: keep, source: oklch(water),
                                  ceiling: ceiling, murkyFloor: 0.22 / later)
         // More chroma than the water has is only for murky water; elsewhere it would push
         // water-coloured subjects (silver fish, blue reef) away from grey and take their red.
         let tone = waterCorrection(from: seen, to: target, maximumSaturation: target.y > seenLCh.y + 0.005 ? 1.6 : 1)
-        // A colourful reef can make the scene mean look neutral while the open water is clearly
-        // blue, so the water's own chroma also counts. A grey scene has grey "water" and gets none.
-        let cast = max(analysis.castStrength, min(1, max(0, (oklch(water).y - 0.03) / 0.05)))
+        let cast = scene.cast
         v.waterTone = SIMD3(pow(tone.gains.x, cast), pow(tone.gains.y, cast), pow(tone.gains.z, cast))
         v.waterSaturation = pow(tone.saturation, cast)
         // Subjects are lit through the same water, so they carry its colour: blue, or green in green
@@ -136,7 +209,7 @@ struct ColorCorrection: Sendable, Equatable {
         // are not water-like lose part of the water's colour: green and blue against red, by
         // subjectLightRemoval of the water's own ratios, at the pixel's own luminance. Green never
         // rises: water with less green than red left no green to give back, and extra green turns a
-        // fish lime. The white reference below reads the result, so a neutral surface needs less
+        // fish lime. The white reference reads the result, so a neutral surface needs less
         // from it. Grey water gets none.
         let light = pointwiseMax(lit, SIMD3(repeating: 1e-3))
         let removal = subjectLightRemoval * cast
@@ -164,20 +237,23 @@ struct ColorCorrection: Sendable, Equatable {
         // Deep blue and teal water left little red to amplify, so subjects there need more rebuilt
         // red. Strongly green water keeps the smaller amount, so weed does not turn yellow.
         let teal = type * (1 - min(1, max(0, (water.y / max(1e-4, water.z) - 1) / 0.4)))
-        v.redRebuild = restore * (0.72 + 0.6 * max(1 - type, teal))
+        v.redRebuild = scene.restore * (0.72 + 0.6 * max(1 - type, teal))
+        v.waterLit = lit
+    }
+
+    /// The tone rules: the S-curve, brightness, contrast, shadow lift, highlight compression, clarity,
+    /// vibrance, and on the restored path the mid-tone lift. Writes tonePivot, toneCurve, brightness,
+    /// contrast, shadowLift, highlightAmount, clarity, clarityRadius, definition, vibrance,
+    /// physicalWeight, midLift.
+    private static func toneRules(_ v: inout Self, analysis: WaterAnalysis, preset: DivePreset, plan: RestorationPlan?,
+                                  scene: SceneFactors, user: CustomAdjustments) {
+        let haze = scene.haze, bright = scene.bright, highlight = scene.highlight
         v.tonePivot = min(0.6, max(0.3, pow(max(0, analysis.midLuminance), 1 / 2.2)))
         // A bright, sunlit scene already has its contrast: a strong S-curve would crush a dark subject.
-        let bright = min(1, max(0, (analysis.midLuminance - 0.25) / 0.15))
         // 0.3 keeps the curve monotonic for any pivot in 0.3...0.6.
         v.toneCurve = min(0.3, max(0, (preset.contrast - 1) * 2 + 0.12 + haze * 0.12)) * (1 - 0.5 * bright)
         v.toneCurve = min(0.3, max(0, v.toneCurve + user.contrast * (user.contrast < 0 ? Caps.contrastDown : Caps.contrastUp)))
-        // Highlight rule: a large bright area (a white belly, sunlit sand; highShare 0.02 to 0.07)
-        // already lights the scene. Such scenes get less brightness, haze shadow lift and mid-tone lift.
-        // It fades out in dark scenes (median 0.18 down to 0.1), where a few bright spots do not light
-        // the scene, and in contrasty scenes (contrast 0.35 to 0.5), whose deep shadows need the lift.
-        let key = min(1, max(0, (analysis.midLuminance - 0.1) / 0.08))
-        let open = 1 - min(1, max(0, (analysis.contrast - 0.35) / 0.15))
-        let highlight = key * open * min(1, max(0, (analysis.highShare - 0.02) / 0.05))
+        // The highlight rule (scene.highlight): such scenes get less brightness, haze shadow lift and mid-tone lift.
         v.brightness = analysis.exposure * 0.45 * (1 - 0.5 * highlight)
         v.contrast = preset.contrast + haze * 0.05
         // Global contrast alone can bury a dark diver or reef, so lift the lower tones. The lift
@@ -195,40 +271,35 @@ struct ColorCorrection: Sendable, Equatable {
         v.definition = preset.clarity * (0.5 + haze * 0.8)
         let sharpen = 1 + user.clarity * (user.clarity < 0 ? Caps.clarityDown : Caps.clarityUp)
         v.clarity *= sharpen; v.definition *= sharpen
-        v.vibrance = preset.vibrance * max(0.3, 1 - analysis.saturation) * (1 - neon)
+        v.vibrance = preset.vibrance * max(0.3, 1 - analysis.saturation) * (1 - scene.neon)
         if let plan {
             v.physicalWeight = plan.confidence
             // Give back the light the restored image lost with the veil: move its estimated
             // median luminance toward the source median times a small brightness goal, but
             // never above 0.22 (about L* 54), so bright scenes are not lifted further. The highlight
             // rule lowers that ceiling to 0.132.
+            let mean = scene.mean
             let before = (mean * luma).sum(), after = (restoredMean(mean, plan: plan) * luma).sum()
             let ratio = before > 0.001 ? min(1.5, max(0.2, after / before)) : 1
             let restoredMid = analysis.midLuminance * ratio
             // Deep, murky scenes are the darkest, so they get a larger goal.
-            let murky = deep * haze
+            let murky = scene.deep * haze
             let goal = analysis.midLuminance * (1.2 + 0.9 * murky * murky)
             let ceiling = 0.22 * (1 - 0.4 * highlight)
             v.midLift = midLift(from: restoredMid, to: min(goal, max(restoredMid, ceiling)))
         }
+    }
+
+    /// The preset terms (Tropical, Deep Dive). Natural Dive and Custom have none: Natural's values
+    /// are the base for Custom. Writes warmth, shadowLift, waterSaturation.
+    private static func presetRules(_ v: inout Self, analysis: WaterAnalysis, preset: DivePreset, scene: SceneFactors) {
         if preset != .natural, preset != .custom {
-            // Preset terms. Natural Dive and Custom have none: Natural's values are the base for Custom.
             v.warmth = preset.warmth * min(1, analysis.castStrength * 4)
             v.shadowLift += preset.shadowBoost
             // The preset's extra saturation is meant for subjects. Water-like pixels give it back, so they
             // keep the saturation Natural Dive gives this scene.
-            let naturalSaturation = 1 + (DivePreset.natural.saturation + haze * 0.10 - 1) * (1 - neon) - 0.12 * neon
-            v.waterSaturation *= naturalSaturation / max(0.5, v.saturation)
+            v.waterSaturation *= presetSaturation(for: .natural, scene: scene) / max(0.5, v.saturation)
         }
-        // Custom: the user's temperature on top of the automatic result (no preset warmth).
-        v.warmth += user.temperature * Caps.temperature
-        // A scene lit by a large bright subject is exposed for that subject, so its mid-tones may go a
-        // little darker (the highlight rule, both paths). Brightness down lowers the mid-tones on both
-        // paths. The white reference below sees the result.
-        v.midLift = min(0.9, max(minimumMidLift, v.midLift - 0.12 * highlight + min(0, user.brightness) * Caps.brightnessDown))
-        v.waterLit = lit
-        v.neutralGains = whiteReference(analysis, correction: v, plan: plan)
-        return v.sanitized()
     }
 
     /// White reference: gains that move the scene's near-neutral surfaces (analysis.neutralColor)

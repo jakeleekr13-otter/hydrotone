@@ -5,6 +5,7 @@ This page describes how HydroTone corrects underwater colour. It is for develope
 ## Purpose and product rules
 
 - Analysis measures the scene. `ColorCorrection.make(analysis:preset:plan:)` turns the measurements into named values. It is the one pure mapping. `FilterEngine` only applies values.
+- Inside `make()` the rules run in a fixed order: `SceneFactors` (haze, deep, bright, highlight, neon, waterType, cast, restore, mean, water) once, then `baseCastGains`, `presetSaturation`, the user's saturation, `waterRules`, `toneRules`, `presetRules`, the user's temperature, the mid-tone clamp and the white reference. `baseCastGains` and `presetSaturation` return one value. The other helpers write their own values, and their doc comments list them.
 - Photo, batch and video share one entry point: `RestorationEngine.combined`.
 - We use our own simple, explainable logic. General optics is fine. We do not copy research code or tables.
 - Target look: clear cyan-to-blue water, warm natural subjects, more contrast and clarity, slightly brighter. Not grey, not violet or indigo, not neon.
@@ -48,7 +49,7 @@ Derived values: `greenOverBlue`, `waterColor`, `neutralColor` and `castStrength`
 
 ## ColorCorrection values
 
-All values come from `ColorCorrection.make`. The finishing kernel `HydroToneFinishColor` applies the cast, subject light removal, water tone and red values. It also applies `midLift`, `toneCurve` and `tonePivot`. Core Image filters apply the other tone values and clarity. `waterType` only feeds other values in `make()`. `RestorationEngine.combined` uses `physicalWeight`.
+All values come from `ColorCorrection.make`. The finishing kernel `HydroToneFinishColor` applies the cast, subject light removal, water tone and red values. It also applies `midLift`, `toneCurve` and `tonePivot`. Core Image filters apply the other tone values and clarity. `waterType` only feeds other values: it is `SceneFactors.waterType`, read by `baseCastGains` and `waterRules`. `RestorationEngine.combined` uses `physicalWeight`.
 
 ### Cast and water tone
 
@@ -168,7 +169,7 @@ The UI gives each built-in preset only an intensity slider. Their values are in 
 | Tropical | shallow, bright water | `warmth` 600 K; more saturation and vibrance on subjects |
 | Deep Dive | deep, dark-blue water | More red (`restoration` 0.56); `shadowBoost` 0.10; `waterChroma` 0.85 calms neon water |
 
-- Preset terms sit in one block in `make()`. Natural and Custom skip it.
+- Preset terms sit in one helper, `presetRules`. Natural and Custom get none. `make()` adds Custom's temperature after it.
 - The extra saturation of a preset is meant for subjects. Water-like pixels give it back (`waterSaturation`), so the water keeps Natural's saturation.
 - `waterChroma` scales the water tone's chroma ceiling. The water tone keeps the water's hue, so calmer water does not turn violet.
 - Warmth is applied as light: the source is taken as lit at 6500 K + warmth and shown at 6500 K. A green tint of 1 per 100 K keeps the shift yellow, not orange.
@@ -217,7 +218,7 @@ The estimator spreads attenuation across channels only as far as the measured ca
 
 ## CPU mirrors and tests
 
-The kernels run in Metal. The finishing kernels are Metal source in `FinishingKernels.swift` (`FilterEngine.colorSource`); their CPU mirrors are in `FinishingMath.swift`. The restoration kernel and `RestorationMath` are in `RestorationEngine.swift`. The value rules are in `ColorCorrection.swift`: `make()` and the white reference. `ColorMath.swift` holds the colour spaces, the water target and solver, the restoration mirror and the lift curve. The CPU mirrors must give the same result:
+The kernels run in Metal. The finishing kernels are Metal source in `FinishingKernels.swift` (`FilterEngine.colorSource`); their CPU mirrors are in `FinishingMath.swift`. The restoration kernel and `RestorationMath` are in `RestorationEngine.swift`. The value rules are in `ColorCorrection.swift`: `make()`, its helpers (`SceneFactors`, `baseCastGains`, `presetSaturation`, `waterRules`, `toneRules`, `presetRules`) and the white reference. `ColorMath.swift` holds the colour spaces, the water target and solver, the restoration mirror and the lift curve. The CPU mirrors must give the same result:
 
 | Kernel | CPU mirror | Test that compares them |
 |---|---|---|
