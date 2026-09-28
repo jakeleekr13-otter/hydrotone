@@ -196,6 +196,35 @@ final class VideoRestorationTests: XCTestCase {
         XCTAssertEqual(composition.colorYCbCrMatrix, AVVideoYCbCrMatrix_ITU_R_709_2)
     }
 
+    /// The Rec. 709 tag is set on a rebuilt composition. It must keep the filter, so a preview frame
+    /// differs from the source frame.
+    func testPreviewCompositionStillAppliesTheCorrection() async throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
+        let asset = AVURLAsset(url: url)
+        let settings = PreviewSettings()
+        settings.update(.init(preset: .natural, intensity: 1, analysis: .init(redLoss: 0.6)), comparing: false)
+        func frame(_ composition: AVVideoComposition?) async throws -> [UInt8] {
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.videoComposition = composition
+            generator.maximumSize = CGSize(width: 64, height: 64)
+            let image = try await generator.image(at: CMTime(value: 1, timescale: 10)).image
+            var pixels = [UInt8](repeating: 0, count: 64 * 64 * 4)
+            let context = try XCTUnwrap(CGContext(data: &pixels, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 256,
+                                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(image, in: CGRect(x: 0, y: 0, width: 64, height: 64))
+            return pixels
+        }
+        let source = try await frame(nil)
+        let corrected = try await frame(try await VideoPreview().composition(asset: asset, settings: settings))
+        func difference(_ a: [UInt8], _ b: [UInt8]) -> Int { zip(a, b).reduce(0) { $0 + abs(Int($1.0) - Int($1.1)) } / a.count }
+        // Control: a composition without the filter differs only by colour conversion.
+        let plain = try await frame(AVVideoComposition(configuration: try await .init(for: asset)))
+        let filtered = difference(source, corrected), unfiltered = difference(source, plain)
+        print("preview difference: filtered \(filtered), unfiltered \(unfiltered)")
+        XCTAssertGreaterThan(filtered, unfiltered + 3, "The preview composition lost its correction filter")
+    }
+
     func testVideoExportContinuesWhenPhysicalAnalysisIsUnavailable() async throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
         let metadata = try await MediaInspector().inspect(url)

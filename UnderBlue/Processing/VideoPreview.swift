@@ -86,12 +86,24 @@ struct VideoPreview {
             }
             return AVCIImageFilteringResult(resultImage: output, ciContext: engine.context)
         }
-        // The filtering initializer takes no color options, so tag SDR Rec. 709 output on a copy.
-        guard let composition = filtered.mutableCopy() as? AVMutableVideoComposition else { return filtered }
-        composition.colorPrimaries = AVVideoColorPrimaries_ITU_R_709_2
-        composition.colorTransferFunction = AVVideoTransferFunction_ITU_R_709_2
-        composition.colorYCbCrMatrix = AVVideoYCbCrMatrix_ITU_R_709_2
-        return composition
+        // The filtering initializer takes no color options, so tag SDR Rec. 709 output on a rebuilt
+        // composition. Every other value, including the filter's compositor and instructions, is kept.
+        let configuration = AVVideoComposition.Configuration(
+            animationTool: filtered.animationTool,
+            colorPrimaries: AVVideoColorPrimaries_ITU_R_709_2,
+            colorTransferFunction: AVVideoTransferFunction_ITU_R_709_2,
+            colorYCbCrMatrix: AVVideoYCbCrMatrix_ITU_R_709_2,
+            customVideoCompositorClass: filtered.customVideoCompositorClass,
+            frameDuration: filtered.frameDuration,
+            instructions: filtered.instructions,
+            outputBufferDescription: filtered.outputBufferDescription,
+            perFrameHDRDisplayMetadataPolicy: filtered.perFrameHDRDisplayMetadataPolicy,
+            renderScale: filtered.renderScale,
+            renderSize: filtered.renderSize,
+            sourceSampleDataTrackIDs: filtered.sourceSampleDataTrackIDs,
+            sourceTrackIDForFrameTiming: filtered.sourceTrackIDForFrameTiming,
+            spatialVideoConfigurations: filtered.spatialVideoConfigurations)
+        return AVVideoComposition(configuration: configuration)
     }
 
     #if DEBUG
