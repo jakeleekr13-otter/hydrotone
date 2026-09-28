@@ -138,5 +138,15 @@ extension FilterEngine {
         const float3 out = mix(c * (rolled / peak), float3(rolled), white);
         return all(isfinite(out)) ? float4(out, source.a) : source;
     }
+
+    // Luminance-only sharpening (FilterEngine.finishing). The unsharp masks run on RGB, so they also
+    // sharpen colour noise. The pixel keeps its unsharpened colour and takes the sharpened luminance.
+    [[stitchable]] float4 HydroToneLumaTransfer(coreimage::sample_t base, coreimage::sample_t sharp) {
+        const float3 w = float3(0.2126f, 0.7152f, 0.0722f);
+        const float before = dot(base.rgb, w), after = dot(sharp.rgb, w);
+        if (!(before > 1e-5f)) { return float4(sharp.rgb, base.a); }
+        const float3 out = base.rgb * max(0.0f, after / before);
+        return all(isfinite(out)) ? float4(out, base.a) : sharp;
+    }
     """
 }

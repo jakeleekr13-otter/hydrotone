@@ -259,7 +259,13 @@ struct ColorCorrection: Sendable, Equatable {
         v.tonePivot = min(0.6, max(0.3, pow(max(0, analysis.midLuminance), 1 / 2.2)))
         // A bright, sunlit scene already has its contrast: a strong S-curve would crush a dark subject.
         // 0.3 keeps the curve monotonic for any pivot in 0.3...0.6.
-        v.toneCurve = min(0.3, max(0, (preset.contrast - 1) * 2 + 0.12 + haze * 0.12)) * (1 - 0.5 * bright)
+        // Softer tones (28 Sep 2026: the product owner found bright and dark parts too far apart). The
+        // S-curve is at half and clarity and definition at 60% of the earlier values. On the five
+        // AquaColorFix pairs the L* spread fell from 1.25x to 1.13x of AquaColorFix's, the local
+        // contrast from 1.27x to 1.09x, and the gate from 12.54 to 12.23. Weaker settings passed the
+        // gate too, but lifted one dev image's far water over the violet line.
+        let curveSoftening: Float = 0.5, localSoftening: Float = 0.6
+        v.toneCurve = curveSoftening * min(0.3, max(0, (preset.contrast - 1) * 2 + 0.12 + haze * 0.12)) * (1 - 0.5 * bright)
         v.toneCurve = min(0.3, max(0, v.toneCurve + user.contrast * (user.contrast < 0 ? Caps.contrastDown : Caps.contrastUp)))
         // The highlight rule (scene.highlight): such scenes get less brightness, haze shadow lift and mid-tone lift.
         v.brightness = analysis.exposure * 0.45 * (1 - 0.5 * highlight)
@@ -274,9 +280,9 @@ struct ColorCorrection: Sendable, Equatable {
         v.highlightAmount = 0.92 - 0.2 * haze
         // Clarity restores local separation lost to backscatter without inventing texture.
         // Definition works at a broader scale, on the veil over distant water and reef.
-        v.clarity = preset.clarity * (0.65 + haze * 0.35) * 1.2
+        v.clarity = preset.clarity * (0.65 + haze * 0.35) * 1.2 * localSoftening
         v.clarityRadius = (5 + haze * 3) / 480
-        v.definition = preset.clarity * (0.5 + haze * 0.8)
+        v.definition = preset.clarity * (0.5 + haze * 0.8) * localSoftening
         let sharpen = 1 + user.clarity * (user.clarity < 0 ? Caps.clarityDown : Caps.clarityUp)
         v.clarity *= sharpen; v.definition *= sharpen
         // Fine detail: the veil hides fine texture, so haze gets a little more. A dark scene is a noisy

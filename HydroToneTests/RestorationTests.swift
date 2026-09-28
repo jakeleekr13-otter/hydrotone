@@ -917,6 +917,30 @@ final class RestorationTests: XCTestCase {
         }
     }
 
+    func testSharpeningKeepsEachPixelsColourAndTakesOnlyTheSharpenedLuminance() throws {
+        let engine = FilterEngine()
+        let kernel = try XCTUnwrap(engine.lumaKernelForTesting)
+        func solid(_ c: SIMD3<Float>) -> CIImage {
+            CIImage(color: CIColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), colorSpace: FilterEngine.workingSpace)!)
+                .cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+        }
+        func render(_ base: SIMD3<Float>, _ sharp: SIMD3<Float>) throws -> SIMD3<Float> {
+            let out = try XCTUnwrap(kernel.apply(extent: CGRect(x: 0, y: 0, width: 4, height: 4), arguments: [solid(base), solid(sharp)]))
+            var pixel = [Float](repeating: 0, count: 4)
+            engine.context.render(out, toBitmap: &pixel, rowBytes: 16, bounds: CGRect(x: 1, y: 1, width: 1, height: 1),
+                                  format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            return SIMD3(pixel[0], pixel[1], pixel[2])
+        }
+        let luma = SIMD3<Float>(0.2126, 0.7152, 0.0722)
+        // The sharpened pixel carries a colour shift (colour noise). Only its luminance comes through.
+        let base = SIMD3<Float>(0.2, 0.35, 0.5), sharp = SIMD3<Float>(0.3, 0.33, 0.42)
+        let out = try render(base, sharp)
+        XCTAssertEqual((out * luma).sum(), (sharp * luma).sum(), accuracy: 0.002)
+        assertEqual(out / out.sum(), base / base.sum(), accuracy: 0.002)
+        // A black pixel has no colour to keep, so it takes the sharpened pixel.
+        assertEqual(try render(.zero, .init(0.01, 0.02, 0.03)), .init(0.01, 0.02, 0.03), accuracy: 0.001)
+    }
+
     // MARK: Highlight shoulder
 
     func testHighlightShoulderStopsABrightPixelFromClippingAndKeepsItsHue() {
