@@ -1,7 +1,7 @@
 """Draw the app's simple wave mark without external asset dependencies."""
 import math,struct,zlib,json
 from pathlib import Path
-p=Path('MarineLens/Resources/Assets.xcassets/AppIcon.appiconset')
+p=Path('UnderBlue/Resources/Assets.xcassets/AppIcon.appiconset')
 rows=[]
 for y in range(1024):
     row=bytearray([0])

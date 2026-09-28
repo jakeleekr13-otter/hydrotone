@@ -8,7 +8,7 @@ The initial directory was empty. Development proceeded through building the foun
 | Models / Import | Photos picker, Files and share-inbox import, temporary ownership, actual AVAsset inspection |
 | Processing | Shared color engine, fixed clip analysis, player filtering, HDR policy, HDR photo gain map |
 | Export | Sequential reader/writer, original audio packets, options, validation, saved file names, Photos save |
-| MarineLensShare (extension target) | Share sheet entry: copies shared items into the App Group inbox |
+| UnderBlueShare (extension target) | Share sheet entry: copies shared items into the App Group inbox |
 | Commerce | Verified StoreKit ownership and durable Keychain trial reservation |
 | Views | Native home, editor, export and purchase screens |
 
@@ -42,15 +42,15 @@ Device and source profiles select the initial analysis compute policy and retain
 - The HDR version (`PhotoHDR`) is that result times the source's ratio of HDR to tone-mapped SDR, in Rec.2020 luminance. The ratio never darkens and never exceeds the source headroom. So the colour engine never sees HDR values. The video HDR path is different: it filters the HDR frames directly.
 - Every photo output is checked before the user sees it. It must hold one image of the chosen type at full size, and HEIC must hold 10 bits. The HDR check adds two tests: an ISO gain map is present, and the file reopens with headroom above 1.
 - The simulator opens every gain-map photo with headroom 1. So HDR photo export can only be verified on an iPhone.
-- Saved names come from `ExportNaming`: `<source>_MarineLens_<look>.<ext>`. Photos keeps the name through `PHAssetResourceCreationOptions.originalFilename`.
+- Saved names come from `ExportNaming`: `<source>_UnderBlue_<look>.<ext>`. Photos keeps the name through `PHAssetResourceCreationOptions.originalFilename`.
 - Live Photos are treated as still photos. This is a product decision (28 Sep 2026).
 
 ## Import sources
 
 - The Photos picker gives access to the picked items only.
 - Files offers the types this device decodes, read at run time: `CGImageSourceCopyTypeIdentifiers()` for images (RAW included) and `AVURLAsset.audiovisualContentTypes` for movies. A coordinated read downloads an iCloud Drive file before the copy.
-- Share sheet: `MarineLensShare` copies each share into its own folder in the App Group container (`SharedInbox`). The folder stays hidden from the app until the copy is complete.
-- Then the extension opens `marinelens://share` (`SharedInbox.openURL`). iOS has no public call for a share extension to open its app. So the extension asks the `UIApplication` object on its responder chain. A full share opens MarineLens at once. A partial share waits for the Open button, so the person sees what was left out. If iOS refuses, the sheet asks the person to open MarineLens.
+- Share sheet: `UnderBlueShare` copies each share into its own folder in the App Group container (`SharedInbox`). The folder stays hidden from the app until the copy is complete.
+- Then the extension opens `underblue://share` (`SharedInbox.openURL`). iOS has no public call for a share extension to open its app. So the extension asks the `UIApplication` object on its responder chain. A full share opens UnderBlue at once. A partial share waits for the Open button, so the person sees what was left out. If iOS refuses, the sheet asks the person to open UnderBlue.
 - The app opens the newest complete share when its home screen is visible. A newer share replaces an unopened one. An open editor is never replaced. A partial share older than one hour is deleted.
 - Every source ends as a temporary copy that the app owns (`TemporaryFiles`). Then one rule set applies: one item opens the editor, and several photos open the batch screen (Pro). Videos open one at a time.
 
@@ -62,7 +62,7 @@ For HDR→SDR, AVAssetReaderVideoCompositionOutput uses an explicitly Rec.709 Ap
 
 For HDR, decode stays in native 10-bit YUV. HLG stays HLG; PQ stays PQ. Pixel buffers and writer settings agree on transfer function, Rec.2020 primaries/matrix and HEVC Main10. HDR dynamic metadata insertion/preservation is disabled because pixel processing changes the image. Intermediate buffers are not converted to 8-bit. Automated tests verify that encoded highlights still exceed SDR reference white, not just that the container carries HDR flags.
 
-Public Apple APIs can regenerate some Dolby Vision 8.4 metadata, but MarineLens deliberately does not enable or advertise this. Real Dolby Vision and external camera compatibility have not been certified. When Apple's decoder accepts compatible Dolby Vision HLG/PQ base layers, the output is plain HLG/PQ, or SDR.
+Public Apple APIs can regenerate some Dolby Vision 8.4 metadata, but UnderBlue deliberately does not enable or advertise this. Real Dolby Vision and external camera compatibility have not been certified. When Apple's decoder accepts compatible Dolby Vision HLG/PQ base layers, the output is plain HLG/PQ, or SDR.
 
 After export the app checks codec, dimensions, orientation, duration, audio track count, transfer/gamut, HDR bit depth, encoded sample count and native-range decodability. Unit tests separately compare variable presentation timestamps and portrait pixels against the source. A successful writer completion alone does not expose a file to the user.
 

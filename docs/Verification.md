@@ -25,21 +25,21 @@ Still open:
 - A video shorter than 45 s shows no notice.
 - The same check on the iPhone, and in landscape.
 
-## Share sheet opens MarineLens (28 Sep 2026)
+## Share sheet opens UnderBlue (28 Sep 2026)
 
-The extension opens `marinelens://share` after the copy, through the `UIApplication` object on its responder chain.
+The extension opens `underblue://share` after the copy, through the `UIApplication` object on its responder chain.
 
-Checked on the iPhone 17 (iOS 27.0) with a temporary UI test: Photos → Share → MarineLens.
+Checked on the iPhone 17 (iOS 27.0) with a temporary UI test: Photos → Share → UnderBlue.
 
-| Shared item | MarineLens came to the front | Editor |
+| Shared item | UnderBlue came to the front | Editor |
 |---|---|---|
 | 1 video (14 s) | Yes | Opened, showed "Analyzing…" |
 | 1 photo | Yes | Opened with the preview and Natural Dive selected |
 
 Still open:
-- Several photos: MarineLens opens on the batch screen.
-- A partial share: the sheet stays with the note and the Open MarineLens button, and the button opens MarineLens.
-- Share while the editor is open: MarineLens comes to the front on that editor, and the share opens after going back.
+- Several photos: UnderBlue opens on the batch screen.
+- A partial share: the sheet stays with the note and the Open UnderBlue button, and the button opens UnderBlue.
+- Share while the editor is open: UnderBlue comes to the front on that editor, and the share opens after going back.
 - App Review: Apple's extension guide lets only a Today widget open its app. If review objects, remove the open call. The share then waits for the next launch, as before.
 
 Device check note: `xcodebuild test` on the iPhone left the old share extension installed. Install with `xcrun devicectl device install app` before a share-sheet check.
@@ -61,8 +61,8 @@ Built for the simulator. These unit tests pass: ExportNamingTests, FileImportTes
 
 On the simulator, a share placed in the App Group inbox opened in the editor at launch. The extension UI itself was not run. Nothing below was checked on an iPhone yet.
 
-- **Signing: done on 28 Sep 2026.** Automatic signing registered `com.marinelens.app.share` and the App Group `group.com.marinelens.app`. The device build embeds a development profile with the App Group in the app and in the extension. The App Store profile is created again at the next archive.
-- **Share sheet in Photos.** MarineLens appears in the app row for 1 photo, 10 photos and 1 video. It does not appear for 11 photos or 2 videos. After "Added to MarineLens", MarineLens opens by itself, and the share opens in the editor or the batch screen.
+- **Signing: done on 28 Sep 2026.** Automatic signing registered `com.underblue.app.share` and the App Group `group.com.underblue.app`. The device build embeds a development profile with the App Group in the app and in the extension. The App Store profile is created again at the next archive.
+- **Share sheet in Photos.** UnderBlue appears in the app row for 1 photo, 10 photos and 1 video. It does not appear for 11 photos or 2 videos. After "Added to UnderBlue", UnderBlue opens by itself, and the share opens in the editor or the batch screen.
 - **Share edge cases.**
   - A Live Photo opens as the still photo.
   - Share while the editor is open: nothing replaces it; the share opens after going back.
@@ -70,7 +70,7 @@ On the simulator, a share placed in the App Group inbox opened in the editor at 
   - Share a RAW (DNG) from Photos and a file from the Files app.
 - **Import from Files.** HEIC, JPEG, iPhone ProRAW DNG, one other camera RAW (ARW/CR3/NEF), MOV and MP4. Include one iCloud Drive file that is not downloaded yet.
 - **File names in Photos.** Check the name in the photo's info panel after saving:
-  - From Files and the share sheet: `<original>_MarineLens_<look>.jpg` (or `.heic`).
+  - From Files and the share sheet: `<original>_UnderBlue_<look>.jpg` (or `.heic`).
   - From the Photos picker: it depends on the file name the picker delivers. If the picker gives a temporary name, the time-based fallback name appears. Record which one.
 - **RAW on the device.** `CIRAWFilter` decodes the RAW file again for each preview render. Measure preview speed, export time and memory for a RAW of 20 MP or more.
   - Keep the RAW path on `CIRAWFilter`. On the simulator, `CIImage(contentsOf:)` returned only the 1616 px embedded preview.
@@ -111,19 +111,24 @@ Still open, on the iPhone:
 - An iPhone without an HDR display: it is unknown whether photos read with headroom above 1 there.
 - Live Photos: by decision (28 Sep 2026), a Live Photo imports and exports as its still photo. The motion is not kept, because underwater Live Photos are rare. Check that a Live Photo imports as its still photo from the picker, the share sheet and Files.
 
-## Renamed to MarineLens (28 Sep 2026)
+## Renamed to UnderBlue (28 Sep 2026)
 
-HYDRO TONE is a live US trademark for aquatic exercise gear, so the app is now MarineLens. The app was never uploaded, so every ID changed too: bundle IDs `com.marinelens.*`, App Group `group.com.marinelens.app`, product `com.marinelens.pro`, URL scheme `marinelens://`, folders, targets, module and kernels. GitHub: `jakeleekr13-otter/marinelens` and `marinelens-support`.
+The app was never uploaded, so the name and every ID changed:
+- HydroTone: HYDRO TONE is a live US trademark for aquatic exercise gear (reg 1550289, class 28).
+- MarineLens: a live iPhone app already uses that exact name (NEXASPHERE INC., id 6772336245).
+- UnderBlue: the iTunes Search API returned 0 results for "underblue" in the US, KR, JP and GB stores.
+
+New IDs: bundle `com.underblue.app` / `com.underblue.app.share`, App Group `group.com.underblue.app`, product `com.underblue.pro`, URL scheme `underblue://`. Folders, targets, module and kernels use UnderBlue. GitHub: `jakeleekr13-otter/underblue` and `underblue-support` (Pages: https://jakeleekr13-otter.github.io/underblue-support/).
 
 Checked:
-- The built app and share extension have `com.marinelens.app` / `com.marinelens.app.share` and display name MarineLens. The URL scheme is `marinelens`.
-- 86 unit tests passed after the merge (ExportNaming, Diagnostics, PhotoFormat, Preset, Restoration, Trial). 1 device-only test was skipped.
-- `AppStoreAssets/Screenshots/en-US/final-v2/` was regenerated. The label reads MARINELENS. The source captures show no app name.
-- `AppStoreAssets/IAP/MarineLensPro-1024.png` has no text, so it did not change.
+- The built app and share extension have those bundle IDs, display name UnderBlue, and URL scheme `underblue`.
+- 86 unit tests passed (ExportNaming, Diagnostics, PhotoFormat, Preset, Restoration, Trial). 1 device-only test was skipped.
+- `AppStoreAssets/Screenshots/en-US/final-v2/` was regenerated. The label reads UNDERBLUE. The source captures show no app name.
 
 Still open:
-- **Name clash.** A live iPhone app is already named "MarineLens" (NEXASPHERE INC., id 6772336245, since 3 Jun 2026, a marine-surveyor tool). Source: iTunes Search API, US and KR, 28 Sep 2026. Decide on the name before the first upload. USPTO, KIPRIS and EUIPO searches are still unmeasured.
-- On the iPhone, the new bundle ID installs as a new app. Check that the home screen and share sheet show MarineLens. Delete the old HydroTone app.
+- Trademark search for UNDERBLUE: USPTO, KIPRIS, EUIPO. These could not be searched from here.
+- Create the app record in App Store Connect early, so the name is held.
+- On the iPhone, the new bundle ID installs as a new app. Check that the home screen and share sheet show UnderBlue. Delete the old HydroTone app.
 - The new App Group and app IDs get registered on the first device build with automatic signing.
 - The screenshot source captures still show the old colour output. Capture them again after colour tuning ends.
 - `scripts/generate_localizations.py` is stale. Its output differs from the catalog by about 6,000 lines. Do not run it.
@@ -151,8 +156,8 @@ Still open:
    - neutral surfaces look grey (the white reference)
    - the Custom sliders change the preview and the export in the same way
    - HDR highlights stay above SDR white
-6. **Full unit tests.** Run `xcodebuild test -scheme MarineLens -only-testing:MarineLensTests -skip-testing:MarineLensTests/PurchaseTests` on a simulator.
-7. **UI tests.** Run `MarineLensUITests`. See the known failures below.
+6. **Full unit tests.** Run `xcodebuild test -scheme UnderBlue -only-testing:UnderBlueTests -skip-testing:UnderBlueTests/PurchaseTests` on a simulator.
+7. **UI tests.** Run `UnderBlueUITests`. See the known failures below.
 8. **Custom UI by hand.**
    - Custom sliders on a video. The simulator has no videos, so the UI test skips it.
    - Custom on the batch screen. The UI test needs Pro.
@@ -164,8 +169,8 @@ Still open:
 - **PurchaseTests hang on the simulator.** The StoreKit test session fails with `SKInternalErrorDomain Code=3`. It hung the same way at 14:51 on 25 Sep 2026, before any change on this list. Skip it on the simulator.
 - **LongVideoTests can fail under load.** In one full run, the memory growth was 424 MiB against a 220 MiB limit. Another agent was running at the same time. Run alone twice, it passed with 134 MiB and 154 MiB.
 - **UI tests that already failed at `6a850b4` on this simulator:**
-  - `MarineLensUITests.testPhotoImportPresetsCompareExportSaveAndTrialGate`, lines 24–29
-  - `MarineLensUITests.testVideoImportAndLandscapeEditor`: the picker shows "No Videos"
+  - `UnderBlueUITests.testPhotoImportPresetsCompareExportSaveAndTrialGate`, lines 24–29
+  - `UnderBlueUITests.testVideoImportAndLandscapeEditor`: the picker shows "No Videos"
   - `AppStoreScreenshotTests.testPhotoBeforeAndAfter`, line 35
 - **`xcodebuild test` can hang after the last test.** On 28 Sep 2026 the results were complete at 07:46, but the process was still running 10 minutes later. Read the log, then stop the process.
 - **A build can rewrite `Localizable.xcstrings`.** It adds a space before every colon and auto-extracts keys. If `git diff --stat` shows thousands of changed lines, restore the file.

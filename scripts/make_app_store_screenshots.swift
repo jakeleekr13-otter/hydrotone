@@ -21,7 +21,7 @@ func topRect(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> NSRect {
 func image(_ name: String) throws -> NSImage {
     let url = source.appendingPathComponent(name)
     guard let value = NSImage(contentsOf: url) else {
-        throw NSError(domain: "MarineLensScreenshots", code: 1,
+        throw NSError(domain: "UnderBlueScreenshots", code: 1,
                       userInfo: [NSLocalizedDescriptionKey: "Could not read \(url.path)"])
     }
     return value
@@ -60,7 +60,7 @@ func drawHeader(_ headline: String, _ detail: String, number: Int) {
     let pill = topRect(72, 76, 235, 54)
     mint.withAlphaComponent(0.14).setFill()
     NSBezierPath(roundedRect: pill, xRadius: 27, yRadius: 27).fill()
-    drawText("MARINELENS", x: 102, y: 88, width: 210,
+    drawText("UNDERBLUE", x: 102, y: 88, width: 210,
              font: .systemFont(ofSize: 25, weight: .semibold), color: mint)
     drawText(headline, x: 72, y: 166, width: 1176,
              font: .systemFont(ofSize: 78, weight: .bold), color: white, lineHeight: 86)
@@ -95,7 +95,7 @@ func render(_ filename: String, draw: () throws -> Void) throws {
                                         colorSpaceName: .deviceRGB, bytesPerRow: 0,
                                         bitsPerPixel: 0),
           let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
-        throw NSError(domain: "MarineLensScreenshots", code: 2,
+        throw NSError(domain: "UnderBlueScreenshots", code: 2,
                       userInfo: [NSLocalizedDescriptionKey: "Could not create canvas"])
     }
     bitmap.size = NSSize(width: width, height: height)
@@ -106,7 +106,7 @@ func render(_ filename: String, draw: () throws -> Void) throws {
     context.flushGraphics()
     NSGraphicsContext.restoreGraphicsState()
     guard let jpeg = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.94]) else {
-        throw NSError(domain: "MarineLensScreenshots", code: 2,
+        throw NSError(domain: "UnderBlueScreenshots", code: 2,
                       userInfo: [NSLocalizedDescriptionKey: "Could not encode \(filename)"])
     }
     try jpeg.write(to: output.appendingPathComponent(filename), options: .atomic)
@@ -119,7 +119,7 @@ func drawScreenshotCard(_ name: String) throws {
 
 try render("01-before-after.jpg") {
     drawHeader("See the difference.\nInstantly.",
-               "A real MarineLens correction from the same frame.", number: 1)
+               "A real UnderBlue correction from the same frame.", number: 1)
     let before = try image("01-photo-before.png")
     let after = try image("01-photo-after.png")
     let card = topRect(70, 600, 1180, 1096)
@@ -183,13 +183,13 @@ try render("03-video.jpg") {
 
 try render("04-export.jpg") {
     drawHeader("Keep the quality\nyou captured.",
-               "Preserve frame rate, 4K and supported HDR with MarineLens Pro.", number: 4)
+               "Preserve frame rate, 4K and supported HDR with UnderBlue Pro.", number: 4)
     try drawScreenshotCard("04-export-options.png")
 }
 
 try render("05-video-before-after.jpg") {
     drawHeader("Video, before\nand after.",
-               "The same paused frame, corrected by MarineLens.", number: 5)
+               "The same paused frame, corrected by UnderBlue.", number: 5)
     let before = try image("06-video-before.jpg")
     let after = try image("06-video-after.jpg")
     let card = topRect(70, 600, 1180, 1096)
@@ -234,7 +234,7 @@ try render("05-video-before-after.jpg") {
     }
     drawText("Colour that holds together while the scene moves.", x: 74, y: 2190, width: 1160,
              font: .systemFont(ofSize: 46, weight: .semibold), color: white, lineHeight: 58)
-    drawText("MarineLens analyses the clip and applies a temporally stable correction frame after frame.",
+    drawText("UnderBlue analyses the clip and applies a temporally stable correction frame after frame.",
              x: 74, y: 2320, width: 1120, font: .systemFont(ofSize: 34, weight: .regular),
              color: secondary, lineHeight: 48)
 }

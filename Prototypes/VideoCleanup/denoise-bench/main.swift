@@ -8,10 +8,10 @@ import ImageIO
 import UniformTypeIdentifiers
 import VideoToolbox
 
-// Outputs go to HT_PROTO_OUT. Dive clips come from DeveloperMedia/; the HDR test clips from MarineLensTests/Fixtures/.
+// Outputs go to HT_PROTO_OUT. Dive clips come from DeveloperMedia/; the HDR test clips from UnderBlueTests/Fixtures/.
 let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().path
-let root = ProcessInfo.processInfo.environment["HT_PROTO_OUT"] ?? NSTemporaryDirectory() + "marinelens-video-cleanup/denoise"
-let fixtures = repo + "/MarineLensTests/Fixtures/"
+let root = ProcessInfo.processInfo.environment["HT_PROTO_OUT"] ?? NSTemporaryDirectory() + "underblue-video-cleanup/denoise"
+let fixtures = repo + "/UnderBlueTests/Fixtures/"
 let media = (ProcessInfo.processInfo.environment["HT_EVAL_DATA"] ?? repo + "/DeveloperMedia") + "/"
 let strengths: [Float] = [0.25, 0.5, 0.75, 1.0]
 let clipSeconds = 8.0

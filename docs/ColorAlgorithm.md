@@ -1,6 +1,6 @@
 # Colour algorithm
 
-This page describes how MarineLens corrects underwater colour. It is for developers who change the colour pipeline.
+This page describes how UnderBlue corrects underwater colour. It is for developers who change the colour pipeline.
 
 ## Purpose and product rules
 
@@ -49,7 +49,7 @@ Derived values: `greenOverBlue`, `waterColor`, `neutralColor` and `castStrength`
 
 ## ColorCorrection values
 
-All values come from `ColorCorrection.make`. The finishing kernel `MarineLensFinishColor` applies the cast, subject light removal, water tone and red values. It also applies `midLift`, `toneCurve` and `tonePivot`. Core Image filters apply the other tone values and clarity. `waterType` only feeds other values: it is `SceneFactors.waterType`, read by `baseCastGains` and `waterRules`. `RestorationEngine.combined` uses `physicalWeight`.
+All values come from `ColorCorrection.make`. The finishing kernel `UnderBlueFinishColor` applies the cast, subject light removal, water tone and red values. It also applies `midLift`, `toneCurve` and `tonePivot`. Core Image filters apply the other tone values and clarity. `waterType` only feeds other values: it is `SceneFactors.waterType`, read by `baseCastGains` and `waterRules`. `RestorationEngine.combined` uses `physicalWeight`.
 
 ### Cast and water tone
 
@@ -144,7 +144,7 @@ The kernel applies the gains by `FinishingMath.neutralWeight`. Water-like pixels
 |---|---|
 | `clarity`, `clarityRadius` | Fine unsharp mask. Stronger in haze. |
 | `definition`, `definitionRadius` | Broad unsharp mask for the veil over far water and reef. |
-| `detail`, `detailFloor`, `detailRadius` | Fine detail layer (kernel `MarineLensDetail`, mirror `FinishingMath.detail`): the pixel's gamma luminance minus its own small blur, added back on subjects. See below. |
+| `detail`, `detailFloor`, `detailRadius` | Fine detail layer (kernel `UnderBlueDetail`, mirror `FinishingMath.detail`): the pixel's gamma luminance minus its own small blur, added back on subjects. See below. |
 
 Radii are shares of the short image side, so every size looks the same.
 
@@ -161,7 +161,7 @@ Fine texture and water noise have the same size at this scale. On the mola, both
 
 ### Highlight shoulder
 
-Every finishing step can push a highlight past white, and none rolls it off. Before this rule, bright sand clipped in one channel and turned flat mint (r14). So the last finishing step is a shoulder: kernel `MarineLensHighlightShoulder`, CPU mirror `FinishingMath.shoulder`.
+Every finishing step can push a highlight past white, and none rolls it off. Before this rule, bright sand clipped in one channel and turned flat mint (r14). So the last finishing step is a shoulder: kernel `UnderBlueHighlightShoulder`, CPU mirror `FinishingMath.shoulder`.
 
 - The peak is the largest channel in BT.709 / sRGB primaries (`FinishingMath.display`). The smallest output gamut clips first.
 - The ceiling is 1, or the source pixel's own peak when that is higher. So HDR highlights keep their headroom. The restored path passes the unrestored source, so restoration cannot raise the ceiling.
@@ -207,7 +207,7 @@ Custom is the user preset (gear tile). It starts from the Natural values and ren
 
 ## Restoration kernel
 
-The kernel is `MarineLensRestoration` in `RestorationEngine.swift`. `RestorationMath` is its CPU mirror.
+The kernel is `UnderBlueRestoration` in `RestorationEngine.swift`. `RestorationMath` is its CPU mirror.
 
 **Image formation:** `observed = clear x exp(-betaDirect x z) + backscatterInfinity x (1 - exp(-betaBackscatter x z))`, per channel (`RestorationMath.forward`).
 
@@ -234,14 +234,14 @@ The kernels run in Metal. The finishing kernels are Metal source in `FinishingKe
 
 | Kernel | CPU mirror | Test that compares them |
 |---|---|---|
-| `MarineLensFinishColor` | `FinishingMath.color`, `waterLike`, `neutralWeight` | `testFinishingKernelMatchesCPUMirror`, `testFinishingKernelMatchesCPUMirrorWithWhiteReference` |
-| `MarineLensRestoration` | `RestorationMath.inverse` | `testRestorationKernelMatchesCPUMirror` |
-| `MarineLensDetail` | `FinishingMath.detail` | `testDetailKernelMatchesCPUMirror` |
-| `MarineLensHighlightShoulder` | `FinishingMath.shoulder` | `testHighlightShoulderKernelMatchesCPUMirror` |
+| `UnderBlueFinishColor` | `FinishingMath.color`, `waterLike`, `neutralWeight` | `testFinishingKernelMatchesCPUMirror`, `testFinishingKernelMatchesCPUMirrorWithWhiteReference` |
+| `UnderBlueRestoration` | `RestorationMath.inverse` | `testRestorationKernelMatchesCPUMirror` |
+| `UnderBlueDetail` | `FinishingMath.detail` | `testDetailKernelMatchesCPUMirror` |
+| `UnderBlueHighlightShoulder` | `FinishingMath.shoulder` | `testHighlightShoulderKernelMatchesCPUMirror` |
 
 `ColorCorrection.restoredMean` (in `ColorMath.swift`) also mirrors the restoration kernel on one colour, at the plan's mean depth or at a given depth. It skips highlight protection and the output clamp. It predicts the restored water and scene mean. Change it with the kernel.
 
-Other guards in `MarineLensTests/RestorationTests.swift`:
+Other guards in `UnderBlueTests/RestorationTests.swift`:
 
 - `testNeutralScenesStayNeutralOnBothPaths`
 - `testDarkFarWaterKeepsItsHue`, `testNearPaleFishAtFarDepthStaysBlueNotLime`, `testBlueFamilyGuardActsOnlyOnBluePixelsThatTurnGreen`

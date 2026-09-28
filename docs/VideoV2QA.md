@@ -42,4 +42,4 @@ Check for color pumping, one-frame parameter jumps, delayed environment resets, 
 - Portrait orientation, variable timing, with/without audio
 - Short clips, multi-minute clips and a long thermal/memory run
 
-For each representative scene compare Original, MarineLens only, physical restoration only, combined, depth visualization and confidence visualization using the DEBUG comparison method. Record device model, OS, source metadata, selected policy, export FPS, peak memory and thermal transitions.
+For each representative scene compare Original, UnderBlue only, physical restoration only, combined, depth visualization and confidence visualization using the DEBUG comparison method. Record device model, OS, source metadata, selected policy, export FPS, peak memory and thermal transitions.

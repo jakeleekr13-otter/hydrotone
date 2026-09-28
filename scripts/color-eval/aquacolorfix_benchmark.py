@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare MarineLens and AquaColorFix exports made from the same source images.
+"""Compare UnderBlue and AquaColorFix exports made from the same source images.
 
 The benchmark is descriptive: AquaColorFix is a product target, not ground truth.
 Metrics therefore explain the visual gap; they do not declare either output correct.
@@ -214,7 +214,7 @@ def cell(image: Image.Image | None, width: int = 360, height: int = 270) -> Imag
 
 
 def make_sheet(rows: list[tuple[int, Path | None, Path, Path, Image.Image]], output: Path) -> None:
-    labels = ["Source", "MarineLens", "AquaColorFix", "DeltaE H vs A"]
+    labels = ["Source", "UnderBlue", "AquaColorFix", "DeltaE H vs A"]
     cell_width, cell_height, header, row_label = 360, 270, 28, 24
     sheet = Image.new("RGB", (cell_width * 4, header + len(rows) * (cell_height + row_label)), "white")
     draw = ImageDraw.Draw(sheet)
@@ -240,12 +240,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path, default=Path("DeveloperMedia/aquacolorfix"))
     parser.add_argument("--output", type=Path,
-                        default=Path(tempfile.gettempdir()) / "marinelens-aquacolorfix-benchmark")
+                        default=Path(tempfile.gettempdir()) / "underblue-aquacolorfix-benchmark")
     parser.add_argument("--max-dimension", type=int, default=960)
     parser.add_argument("--hydro-files", default=None,
                         help="Score these files instead of the H exports. A pattern with {n} for the pair number, "
                              "for example a harness sheet folder: /out/sheet/p{n}__combined.jpg")
-    parser.add_argument("--label", default="MarineLens", help="Name of the candidate in the report")
+    parser.add_argument("--label", default="UnderBlue", help="Name of the candidate in the report")
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[2]
     data = (repo / args.data).resolve() if not args.data.is_absolute() else args.data
@@ -320,7 +320,7 @@ def main() -> None:
     report = [
         "# AquaColorFix benchmark", "",
         "AquaColorFix is treated as a product-look target, not ground truth. Every pair contains the same",
-        "full-resolution source (`On`), MarineLens output (`Hn`) and AquaColorFix output (`An`). The",
+        "full-resolution source (`On`), UnderBlue output (`Hn`) and AquaColorFix output (`An`). The",
         "AquaColorFix watermark area is excluded from every image with the same mask.", "",
         "| Pair | mean ΔE H→A | mean L* H/A | neutral C H/A | water hue H/A | detail energy H/A |",
         "|---:|---:|---:|---:|---:|---:|",
@@ -332,21 +332,21 @@ def main() -> None:
                       f"{h['water_hue']:.0f}°/{a['water_hue']:.0f}° | {h['detail_energy']:.2f}/{a['detail_energy']:.2f} |")
     report += ["", "## Aggregate", "",
                f"- Mean output gap: ΔE76 {np.mean([r['mean_delta_e_h_to_a'] for r in records]):.2f}.",
-               f"- AquaColorFix mean lightness is {mean('aqua', 'mean_l') - mean('hydro', 'mean_l'):+.1f} L* versus MarineLens.",
-               f"- AquaColorFix neutral-candidate chroma is {(mean('aqua', 'neutral_chroma') / mean('hydro', 'neutral_chroma') - 1) * 100:+.1f}% versus MarineLens.",
-               f"- AquaColorFix fine-detail/noise energy is {(mean('aqua', 'detail_energy') / mean('hydro', 'detail_energy') - 1) * 100:+.1f}% versus MarineLens.",
+               f"- AquaColorFix mean lightness is {mean('aqua', 'mean_l') - mean('hydro', 'mean_l'):+.1f} L* versus UnderBlue.",
+               f"- AquaColorFix neutral-candidate chroma is {(mean('aqua', 'neutral_chroma') / mean('hydro', 'neutral_chroma') - 1) * 100:+.1f}% versus UnderBlue.",
+               f"- AquaColorFix fine-detail/noise energy is {(mean('aqua', 'detail_energy') / mean('hydro', 'detail_energy') - 1) * 100:+.1f}% versus UnderBlue.",
                "- Detail energy combines real detail, sharpening halos and noise; higher is not automatically better.",
                "- Bright-neutral and water masks come from the shared source where available and are heuristic.", ""]
     if "mean_delta_e_reference_to_h" in records[3]:
         pair = records[3]
         report += ["## Independent reference", "",
                    "Pair 4 also has the existing market reference `DeveloperMedia/market/ref/m6.png`.",
-                   f"MarineLens is ΔE76 {pair['mean_delta_e_reference_to_h']:.2f} from it; "
+                   f"UnderBlue is ΔE76 {pair['mean_delta_e_reference_to_h']:.2f} from it; "
                    f"AquaColorFix is {pair['mean_delta_e_reference_to_a']:.2f} from it.", ""]
     report += ["## Global mapping diagnostic", "",
                "A quadratic global RGB transform is fitted on 70% of source pixels and checked on the rest.",
                "An error around 5–8 code values means most of the output is explainable without a spatial or depth model.", "",
-               "| Pair | MarineLens RMSE | AquaColorFix RMSE |", "|---:|---:|---:|"]
+               "| Pair | UnderBlue RMSE | AquaColorFix RMSE |", "|---:|---:|---:|"]
     for record in records:
         if "global_mapping_rmse_h" in record:
             report.append(f"| {record['pair']} | {record['global_mapping_rmse_h']:.2f} | {record['global_mapping_rmse_a']:.2f} |")

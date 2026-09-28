@@ -3,7 +3,7 @@
 This benchmark compares five full-resolution triplets in `DeveloperMedia/aquacolorfix`:
 
 - `On`: source
-- `Hn`: MarineLens output
+- `Hn`: UnderBlue output
 - `An`: AquaColorFix output
 
 AquaColorFix is a product-look target, not ground truth. Its watermark region is excluded from every
@@ -16,7 +16,7 @@ Run it with:
 python3 scripts/color-eval/aquacolorfix_benchmark.py
 ```
 
-The default output is `$TMPDIR/marinelens-aquacolorfix-benchmark` and contains `report.md`,
+The default output is `$TMPDIR/underblue-aquacolorfix-benchmark` and contains `report.md`,
 `benchmark.csv`, `benchmark.json` and `comparison.jpg`.
 
 ## Result
@@ -31,43 +31,43 @@ The default output is `$TMPDIR/marinelens-aquacolorfix-benchmark` and contains `
 
 Aggregate findings:
 
-- Mean MarineLens-to-AquaColorFix gap is ΔE76 **16.14**.
-- Mean source change is almost identical: MarineLens **35.74**, AquaColorFix **36.12**. AquaColorFix
+- Mean UnderBlue-to-AquaColorFix gap is ΔE76 **16.14**.
+- Mean source change is almost identical: UnderBlue **35.74**, AquaColorFix **36.12**. AquaColorFix
   is not simply a stronger correction.
 - AquaColorFix is **3.9 L*** darker on average.
 - Its global L* contrast is 13.2% lower and block-local L* contrast is 9.4% lower. These samples do
   not support CLAHE-like contrast expansion as the main difference.
 - Its bright-neutral chroma is **16.7% lower**. White and grey subjects are more neutral.
-- Its water hue averages about **245°**, versus MarineLens's **254°**. MarineLens more often leaves
+- Its water hue averages about **245°**, versus UnderBlue's **254°**. UnderBlue more often leaves
   water near indigo; AquaColorFix usually moves it toward azure/cyan.
 - Its fine-detail/noise energy is **38.1% higher**. The images visibly contain stronger sharpening
   and more grain. This measurement combines genuine detail, halos and noise, so matching it fully
   is not automatically desirable.
 
-Pair 4 also has an independent target, `DeveloperMedia/market/ref/m6.png`. MarineLens is ΔE76
+Pair 4 also has an independent target, `DeveloperMedia/market/ref/m6.png`. UnderBlue is ΔE76
 **24.03** from it and AquaColorFix is **19.08** from it. This one independent reference supports
 the product owner's visual preference, although it is not enough to establish ground truth generally.
 
 ## What AquaColorFix is doing differently
 
-The channel-gain measurements do not show a missing global red boost in MarineLens. In pairs 1, 4 and
-5, MarineLens raises red more than AquaColorFix. AquaColorFix still produces the more convincing neutral
+The channel-gain measurements do not show a missing global red boost in UnderBlue. In pairs 1, 4 and
+5, UnderBlue raises red more than AquaColorFix. AquaColorFix still produces the more convincing neutral
 subject because it suppresses surviving green and blue differently and separates water from subject
 colour more effectively.
 
-The largest failure is pair 2. MarineLens changes the source by ΔE 65.25, much more than AquaColorFix's
+The largest failure is pair 2. UnderBlue changes the source by ΔE 65.25, much more than AquaColorFix's
 42.52. It turns the fish pale lavender and lifts the blue background. AquaColorFix keeps the deep blue
-water while moving the fish toward warm grey. Increasing MarineLens's overall strength would make this
+water while moving the fish toward warm grey. Increasing UnderBlue's overall strength would make this
 case worse.
 
-Pair 4 exposes the same problem on a white manta: MarineLens leaves a mint cast while AquaColorFix
-neutralises the body and warms the reef. Pair 5 shows MarineLens leaving the reef lavender while
+Pair 4 exposes the same problem on a white manta: UnderBlue leaves a mint cast while AquaColorFix
+neutralises the body and warms the reef. Pair 5 shows UnderBlue leaving the reef lavender while
 AquaColorFix separates a warm reef from blue water.
 
 A cross-validated quadratic RGB mapping explains both apps within roughly 3–9 8-bit code values.
 AquaColorFix is actually more globally explainable in four of five pairs:
 
-| Pair | MarineLens RMSE | AquaColorFix RMSE |
+| Pair | UnderBlue RMSE | AquaColorFix RMSE |
 |---:|---:|---:|
 | 1 | 6.43 | 4.68 |
 | 2 | 6.89 | 2.62 |
@@ -87,7 +87,7 @@ change made from this benchmark.
 2. **Move water toward the target without whitening it.** Reduce the remaining indigo bias, especially
    in pairs 1 and 5, while preserving the saturated blue background in pair 2.
 3. **Use tonal masks for subject correction.** Apply the neutral/warm correction mostly to lit midtones
-   and highlights. Do not add another unconditional red boost; MarineLens already has enough red gain.
+   and highlights. Do not add another unconditional red boost; UnderBlue already has enough red gain.
 4. **Tune tone separately from colour.** AquaColorFix is darker and has less broad contrast. Lower the
    median/highlight level before deciding whether haze removal needs to become stronger.
 5. **Add restrained detail enhancement last.** Raise edge detail with a noise/flat-water guard. Do not

@@ -6,7 +6,7 @@ The app bundles Apple's compressed `DepthAnythingV2SmallF16P6` Core ML package. 
 
 ## DEBUG comparisons
 
-Set one launch argument in the MarineLens scheme, import the same photo, and capture the preview or export:
+Set one launch argument in the UnderBlue scheme, import the same photo, and capture the preview or export:
 
 - `--photo-pipeline=original`
 - `--photo-pipeline=current`
