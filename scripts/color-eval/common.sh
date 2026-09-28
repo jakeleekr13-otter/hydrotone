@@ -1,6 +1,8 @@
 # Shared setup for the colour evaluation scripts (zsh). Source it; do not run it.
 # HT_EVAL_DATA     data root (UIEB, market pairs, real photos). Default: DeveloperMedia/ (git-ignored, outside every Xcode group).
-# HT_EVAL_SOURCES  folder with FilterEngine, RestorationPlan, RestorationEngine, WaterModelEstimator, DepthEstimator.
+# HT_EVAL_SOURCES  folder with the colour sources (FilterEngine, FinishingKernels, FinishingMath, ColorCorrection,
+#                  ColorMath, WaterAnalysis, FilterSettings, DivePreset), RestorationPlan, RestorationEngine,
+#                  WaterModelEstimator and DepthEstimator.
 # HT_EVAL_MARKET   market pairs (raw/, ref/). Default: $HT_EVAL_DATA/market.
 # HT_EVAL_OUT      cache and results root. Default: $TMPDIR/hydrotone-color-eval. Never inside the repo.
 HERE=${0:A:h}
@@ -23,7 +25,9 @@ build_eval() {
         xcrun coremlcompiler compile $REPO/HydroTone/Resources/Models/DepthAnythingV2SmallF16P6.mlpackage $HT_EVAL_OUT/cache > $HT_EVAL_OUT/cache/model.log 2>&1 || { echo "model compile failed"; return 1; }
     fi
     local src=${HT_EVAL_SOURCES:A}
-    swiftc -O -swift-version 6 -o $out/eval $HERE/main.swift $src/FilterEngine.swift $src/RestorationPlan.swift \
+    swiftc -O -swift-version 6 -o $out/eval $HERE/main.swift $src/FilterEngine.swift $src/FinishingKernels.swift \
+        $src/FinishingMath.swift $src/ColorCorrection.swift $src/ColorMath.swift $src/WaterAnalysis.swift \
+        $src/FilterSettings.swift $src/DivePreset.swift $src/RestorationPlan.swift \
         $src/RestorationEngine.swift $src/WaterModelEstimator.swift $src/DepthEstimator.swift $HERE/PlanUniform.swift \
         > $out/build.log 2>&1 || { echo "harness build failed, see $out/build.log"; return 1; }
     ln -sfn $MODEL $out/DepthAnythingV2SmallF16P6.mlmodelc

@@ -217,7 +217,7 @@ The estimator spreads attenuation across channels only as far as the measured ca
 
 ## CPU mirrors and tests
 
-The kernels run in Metal. The CPU mirrors must give the same result:
+The kernels run in Metal. The finishing kernels are Metal source in `FinishingKernels.swift` (`FilterEngine.colorSource`); their CPU mirrors are in `FinishingMath.swift`. The restoration kernel and `RestorationMath` are in `RestorationEngine.swift`. The value rules are in `ColorCorrection.swift`: `make()` and the white reference. `ColorMath.swift` holds the colour spaces, the water target and solver, the restoration mirror and the lift curve. The CPU mirrors must give the same result:
 
 | Kernel | CPU mirror | Test that compares them |
 |---|---|---|
@@ -225,7 +225,7 @@ The kernels run in Metal. The CPU mirrors must give the same result:
 | `HydroToneRestoration` | `RestorationMath.inverse` | `testRestorationKernelMatchesCPUMirror` |
 | `HydroToneHighlightShoulder` | `FinishingMath.shoulder` | `testHighlightShoulderKernelMatchesCPUMirror` |
 
-`ColorCorrection.restoredMean` also mirrors the restoration kernel on one colour, at the plan's mean depth or at a given depth. It skips highlight protection and the output clamp. It predicts the restored water and scene mean. Change it with the kernel.
+`ColorCorrection.restoredMean` (in `ColorMath.swift`) also mirrors the restoration kernel on one colour, at the plan's mean depth or at a given depth. It skips highlight protection and the output clamp. It predicts the restored water and scene mean. Change it with the kernel.
 
 Other guards in `HydroToneTests/RestorationTests.swift`:
 

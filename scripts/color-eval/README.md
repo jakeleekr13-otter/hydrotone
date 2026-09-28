@@ -100,6 +100,8 @@ Environment variables:
 - Results never go into the repo.
 - The first run compiles the Core ML depth model into the cache.
 
+The harness compiles a fixed list of Processing files (`common.sh`, `build_eval`). A new colour source file must be added to that list, or the build fails with a missing symbol.
+
 `tune_eval.sh` prints `report.txt` and writes three sheets: `market_sheet.jpg`, `bmw_sheet.jpg` and `real_sheet.jpg`. Open the sheets and judge them by eye. The numbers do not show everything.
 
 ### Neutral surfaces

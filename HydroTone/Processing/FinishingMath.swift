@@ -1,0 +1,108 @@
+import Foundation
+import simd
+
+/// CPU mirror of the HydroToneFinishColor kernel. Unit tests use it; keep both equal.
+enum FinishingMath {
+    static func color(_ source: SIMD3<Float>, correction v: ColorCorrection) -> SIMD3<Float> {
+        func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {
+            let t = min(1, max(0, (x - low) / max(1e-5, high - low)))
+            return t * t * (3 - 2 * t)
+        }
+        let input = SIMD3(source.x.isFinite ? max(0, source.x) : 0, source.y.isFinite ? max(0, source.y) : 0,
+                          source.z.isFinite ? max(0, source.z) : 0)
+        var c = input * SIMD3(max(0, v.castGains.x), max(0, v.castGains.y), max(0, v.castGains.z))
+        let waterLike = waterLike(c, correction: v)
+        // White reference: pixels that are not water-like, or clearly brighter than the water,
+        // move with the scene's neutral surfaces.
+        c *= SIMD3(repeating: 1) + (pointwiseMax(v.neutralGains, .zero) - 1) * neutralWeight(c, correction: v)
+        // Light removal on subjects: pixels that are not water-like lose part of the water's colour,
+        // at their own luminance. Green and blue never fall below the pixel's red: a grey subject
+        // carries no cast to remove, so it is not made warm.
+        var removed = c * (SIMD3(repeating: 1) + (pointwiseMax(v.subjectTone, .zero) - 1) * (1 - waterLike))
+        removed.y = max(removed.y, min(c.y, c.x)); removed.z = max(removed.z, min(c.z, c.x))
+        let kept = (c * ColorCorrection.luma).sum(), left = (removed * ColorCorrection.luma).sum()
+        if left > 1e-6 { c = removed * (kept / left) }
+        c = ColorCorrection.violetGuard(c, input: input, waterLike: waterLike, strength: v.violetGuard)
+        let lum = (c * ColorCorrection.luma).sum(), scale = 1 + (max(0, v.waterSaturation) - 1) * waterLike
+        c = pointwiseMax(SIMD3(repeating: lum) + (c - SIMD3(repeating: lum)) * scale, .zero)
+        c *= SIMD3(repeating: 1) + (SIMD3(max(0, v.waterTone.x), max(0, v.waterTone.y), max(0, v.waterTone.z)) - 1) * waterLike
+        let greenBlue = c.y / max(c.z, 1e-4)
+        let hue = smoothstep(v.redGateLow, v.redGateHigh, greenBlue) * (1 - smoothstep(1.35, 2.2, greenBlue))
+        let subject = smoothstep(v.subjectRed, v.subjectRed + 0.3, c.x / max(c.y, 1e-4))
+        let rebuilt = max(v.redRebuild, 0) * c.y * hue * (0.6 + 0.4 * subject)
+        c.x += min(rebuilt, max(0, c.y * v.redCeiling - c.x))
+        let l = (c * ColorCorrection.luma).sum()
+        if l > 1e-5 && l < 1 {
+            var x = pow(l, 1 / 2.2)
+            x += max(ColorCorrection.minimumMidLift, v.midLift) * x * (1 - x)
+            let y = min(1, max(0, x + 4 * v.toneCurve * (x - v.tonePivot) * x * (1 - x)))
+            let peak = c.max()
+            c *= min(pow(y, 2.2) / l, max(1, peak) / max(peak, 1e-5))
+        }
+        return c.x.isFinite && c.y.isFinite && c.z.isFinite ? c : input
+    }
+    /// Highlight shoulder, the last finishing step. The HydroToneHighlightShoulder kernel mirrors it.
+    /// The largest channel is read as a BT.709 / sRGB display shows it (`display`), because the
+    /// smallest output gamut clips first. The ceiling is white (1), or the reference pixel's own
+    /// display peak when that is higher (an HDR highlight), so HDR headroom stays.
+    /// - Below `ceiling - shoulderWidth` a pixel is unchanged.
+    /// - Above it the whole pixel is scaled, so its largest channel rolls off smoothly toward the
+    ///   ceiling and never reaches it. The hue stays.
+    /// - A pixel that is bright in every channel (its smallest display channel `paleLow` to
+    ///   `paleHigh` of the ceiling), or pushed far past the ceiling (`whiteLow` to `whiteHigh` times),
+    ///   is a light source or a blown highlight. Its tint came from the gains, so it moves toward
+    ///   white at the same peak. Without this the sun would show a pink ring.
+    static func shoulder(_ c: SIMD3<Float>, reference: SIMD3<Float>) -> SIMD3<Float> {
+        func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {
+            let t = min(1, max(0, (x - low) / max(1e-5, high - low)))
+            return t * t * (3 - 2 * t)
+        }
+        let shown = display(c), peak = shown.max(), ceiling = max(1, display(reference).max())
+        let knee = ceiling - shoulderWidth
+        guard peak.isFinite, peak > knee else { return c }
+        let rolled = knee + shoulderWidth * (1 - exp(-(peak - knee) / shoulderWidth))
+        let white = max(smoothstep(whiteLow, whiteHigh, peak / ceiling), smoothstep(paleLow, paleHigh, shown.min() / ceiling))
+        let out = c * (rolled / peak) * (1 - white) + SIMD3(repeating: rolled) * white
+        return out.x.isFinite && out.y.isFinite && out.z.isFinite ? out : c
+    }
+    static let shoulderWidth: Float = 0.15, whiteLow: Float = 1.3, whiteHigh: Float = 2
+    static let paleLow: Float = 0.65, paleHigh: Float = 0.9
+    /// Linear BT.2020 (the working space) to linear BT.709 / sRGB primaries. Standard colorimetry.
+    static func display(_ c: SIMD3<Float>) -> SIMD3<Float> {
+        SIMD3(1.660491 * c.x - 0.587641 * c.y - 0.072850 * c.z,
+              -0.124550 * c.x + 1.132900 * c.y - 0.008349 * c.z,
+              -0.018151 * c.x - 0.100579 * c.y + 1.118730 * c.z)
+    }
+    /// 0...1: how much the white reference acts on a colour (after the cast gains). Water-like
+    /// pixels get none, unless they are 1.3 to 1.8 times brighter than the water and of another
+    /// chromaticity (a pale belly). Brighter water of the water's own chromaticity gets none.
+    /// The kernel mirrors it.
+    static func neutralWeight(_ c: SIMD3<Float>, correction v: ColorCorrection) -> Float {
+        func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {
+            let t = min(1, max(0, (x - low) / max(1e-5, high - low)))
+            return t * t * (3 - 2 * t)
+        }
+        let water = pointwiseMax(v.waterLit, .zero), lum = (c * ColorCorrection.luma).sum()
+        let waterLum = (water * ColorCorrection.luma).sum()
+        guard waterLum > 1e-4, c.sum() > 1e-5 else { return 1 - waterLike(c, correction: v) }
+        // Chromaticity distance to the water: sum of |channel share - water channel share|.
+        let apart = simd_reduce_add(abs(c / c.sum() - water / water.sum()))
+        let bright = smoothstep(1.3, 1.8, lum / waterLum) * smoothstep(0.08, 0.2, apart)
+        return 1 - waterLike(c, correction: v) * (1 - bright)
+    }
+    /// 0...1: how much a colour (after the cast gains) counts as open water.
+    static func waterLike(_ c: SIMD3<Float>, correction v: ColorCorrection) -> Float {
+        func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {
+            let t = min(1, max(0, (x - low) / max(1e-5, high - low)))
+            return t * t * (3 - 2 * t)
+        }
+        // Chroma separates silver subjects from strongly coloured water, but is unreliable
+        // in murky water. Fading that test prevents small compression steps becoming grey patches.
+        let redness = c.x / max(c.y + c.z, 1e-4)
+        let top = c.max(), pixelChroma = top > 1e-4 ? (top - c.min()) / top : 0
+        let chromaConfidence = smoothstep(0.55, 0.8, v.waterChroma)
+        let chromaMatch = smoothstep(v.waterChroma * 0.5, v.waterChroma * 0.85, pixelChroma)
+        return (1 - smoothstep(v.waterRedness, v.waterRedness + max(0.3, v.waterRedness * 0.6), redness))
+            * (1 - (1 - chromaMatch) * chromaConfidence)
+    }
+}
