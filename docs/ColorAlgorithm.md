@@ -6,10 +6,14 @@ This page describes how UnderBlue corrects underwater colour. It is for develope
 
 - Analysis measures the scene. `ColorCorrection.make(analysis:preset:plan:)` turns the measurements into named values. It is the one pure mapping. `FilterEngine` only applies values.
 - Inside `make()` the rules run in a fixed order: `SceneFactors` (haze, deep, bright, highlight, neon, waterType, cast, restore, mean, water) once, then `baseCastGains`, `presetSaturation`, the user's saturation, `waterRules`, `toneRules`, `presetRules`, the user's temperature, the mid-tone clamp and the white reference. `baseCastGains` and `presetSaturation` return one value. The other helpers write their own values, and their doc comments list them.
+- Preset values are read in several helpers, not only in `presetRules`. See [Built-in presets](#built-in-presets).
 - Photo, batch and video share one entry point: `RestorationEngine.combined`.
 - We use our own simple, explainable logic. General optics is fine. We do not copy research code or tables.
 - Target look: clear cyan-to-blue water, warm natural subjects, more contrast and clarity, slightly brighter. Not grey, not violet or indigo, not neon.
-- Order: particle and noise removal come before colour correction. Sharpening and deblur come after them. Neither is done yet.
+- Order: particle and noise removal come before colour correction. Sharpening and deblur come after them.
+  - Today there is no noise removal and no deblur.
+  - Sharpening does run: two unsharp masks and the [fine detail layer](#clarity).
+  - So the sharpening amplifies noise that no earlier step removed. See [Open problems](#open-problems-and-next-tasks).
 
 ## Pipeline overview
 
@@ -20,12 +24,20 @@ This page describes how UnderBlue corrects underwater colour. It is for develope
    - `current`: the finishing stage (`FilterEngine.finishing`) on the source image, blended by intensity.
    - `depthAware` (the restored path): the restoration kernel, then the finishing stage, blended by intensity.
    - The finishing stage ends with the [highlight shoulder](#highlight-shoulder) on both paths.
-5. The output blends `current` into `depthAware` by `physicalWeight`, which is the plan confidence. A low-confidence fit gives almost exactly `current`.
+5. The output blends `current` into `depthAware` per pixel. The weight is `physicalWeight` (the plan confidence) times a ramp over depth: 0 at depth 0, full at `RestorationEngine.nearDepth` (0.25). Kernel: `UnderBlueDepthBlend`.
+   - A low-confidence fit gives almost exactly `current`.
+   - The nearest pixels also get `current`. The restoration leaves them almost unchanged, but the restored values are made for the restored water. On the O3 sunfish belly (depth 0), the restored water tone turned cyan into green: hue 150 without the ramp, 200 with it (commit `9a92ca5`).
+   - A depth map with a range of 0.05 or less (the constant-depth video plan) uses one weight for the whole frame.
 
 If there is no plan, or the restoration render fails, the output is `FilterEngine.apply` alone (`PhotoProcessor.processed`). Fallback codes are in [Diagnostics](Diagnostics.md#restoration-fallback-codes).
 
 - **Photo:** one image, one analysis, a per-pixel depth map.
-- **Video:** 10 evenly spaced sample frames. It drops outlier samples and averages the rest. Every frame gets the same values and one constant depth. See [Video V2](VideoV2.md) for the mechanics.
+- **Video:** see below and [Video V2](VideoV2.md).
+  - Keyframes: one about every second, from 0 s to 0.1 s before the end. At least 10, at most 120, so a one-hour clip gets one every 30 s (`VideoRestorationAnalyzer.keyframeTimes`).
+  - Scenes: `VideoSceneSplitter` starts a new scene when the keyframe's mean colour is more than 0.04 (OKLab distance) from the running scene mean, and the next keyframe is that far too. So one odd keyframe never starts a scene.
+  - Each scene drops odd keyframes (`sceneInliers`) and averages the rest (`sceneMean`). Depth and the water fit run on at most 10 keyframes per scene. Each scene gets one analysis, one plan and one constant depth.
+  - A scene whose fits all failed borrows the whole clip's plan.
+  - Between two scenes the values cross-fade over at most 1 s (`VideoRestorationAnalysis.moment(at:)`, smoothstep). Each scene gets its own `make()` result, and the results mix.
 
 ## Analysis values
 
@@ -55,7 +67,7 @@ All values come from `ColorCorrection.make`. The finishing kernel `UnderBlueFini
 
 | Value | Meaning |
 |---|---|
-| `castGains` | Per-channel gains: red boost plus a green-to-blue shift. The shift acts only when green/blue > 0.88, and scales with cast and `waterType`. Mean luminance is kept. |
+| `castGains` | Per-channel gains: red boost plus a green-to-blue shift. The shift acts only when green/blue > 0.88, and scales with cast and `waterType`. Mean luminance is kept, within a correction factor of 0.8 to 1.25. |
 | `waterType` | 0 = blue water, 1 = green or teal. Continuous. The water colour's own red loss (not the `redLoss` field) adds to green/blue, so teal counts as green. A neutral scene gets 0 (`waterType(_:)`). |
 | `waterTone` | Gains that move water-like pixels toward the OKLab target from `waterTarget`. |
 | `subjectTone` | Gains for pixels that are not water-like: red 1, green and blue at or below 1. See [Subject light removal](#subject-light-removal). |
@@ -73,9 +85,11 @@ The water-like weight uses a chroma test. The test is off below `waterChroma` 0.
 
 Subjects are lit through the same water, so they carry its colour: blue, or green in green water. The red boost alone left a reef violet and a white belly mint (AquaColorFix pairs 2, 4 and 5, 26 Sep 2026). So pixels that are not water-like lose part of the water's colour.
 
-- `subjectTone` = (1, (Lr / Lg)^k, (Lr / Lb)^k). L is the water colour after the cast gains (`waterLit`). k is `subjectLightRemoval` (0.4) times the cast strength. Green stays in 0.6 to 1 and blue in 0.35 to 1. Green never rises. Water with less green than red left no green to give back, and extra green turns a fish lime.
+- `subjectTone` = (1, (Lr / Lg)^k, (Lr / Lb)^k). L is the water colour after the cast gains (`waterLit`). k is `subjectLightRemoval` (0.4) times `SceneFactors.cast`. That is the larger of `castStrength` and a ramp of the water's OKLab chroma (0 at 0.03, 1 at 0.08). So a colourful reef with a neutral scene mean still counts as cast when the water is clearly blue. `waterTone` and `waterSaturation` are raised to the same power, so a scene with little cast gets almost no water tone. Green stays in 0.6 to 1 and blue in 0.35 to 1. Green never rises. Water with less green than red left no green to give back, and extra green turns a fish lime.
 - The kernel applies it by (1 - water-like weight), at the pixel's own luminance.
 - Green and blue never fall below the pixel's red. A grey subject carries no cast, so it is not made warm; a silver fish stays silver. Beige sand under blue water lands exactly on grey.
+- Blue keeps at least its share of green (blue/green of the pixel before the removal). The removal takes more blue than green, so a cyan-lit pale surface would otherwise end green.
+- A bright pixel that the white reference made nearly grey skips the water saturation and the water tone. The fade runs over pixel chroma (max - min) / max from 0.35 down to 0.15. As a cast on grey, those values read violet or green.
 - A grey scene has grey water and gets gains of one.
 
 The white reference below reads the result, so a neutral surface needs less from it.
@@ -124,11 +138,11 @@ The kernel applies the gains by `FinishingMath.neutralWeight`. Water-like pixels
 | Value | Meaning |
 |---|---|
 | `midLift` | Restored path: gives back light lost with the veil, the backscatter haze that the water adds. It never lifts the median luminance above 0.22. The highlight rule lowers that ceiling to 0.132, and on both paths it may take the lift down to -0.12: the scene is exposed for its bright subject. |
-| `toneCurve`, `tonePivot` | S-curve on gamma luminance around the scene median. Weaker for bright scenes, capped at 0.3. |
-| `brightness` | `exposure` x 0.45 (`CIColorControls`). The highlight rule halves it. |
-| `contrast` | Preset contrast plus haze (`CIColorControls`). |
+| `toneCurve`, `tonePivot` | S-curve on gamma luminance around the scene median. Weaker for bright scenes. The automatic value is halved (`curveSoftening` 0.5, 28 Sep 2026), so it is at most 0.15. Custom Contrast can take it up to 0.3. |
+| `brightness` | `exposure` x 0.45 (`CIColorControls`). The highlight rule halves it. Minus the veil offset: `veilOffset` (0.08) x (1 - `waterType`) x a ramp of the median luminance (0 at 0.2, 1 at 0.3 and above). |
+| `contrast` | Preset contrast (1.04) plus 0.05 x haze (`CIColorControls`). |
 | `saturation` | Preset saturation plus haze. Neon water gets a little less. |
-| `shadowLift`, `highlightAmount` | `CIHighlightShadowAdjust`. `shadowLift` is 0.2 plus 0.15 x haze (0.28 plus 0.22 x haze before 28 Sep 2026); it reaches the mid-tones too, and the market look sits 3 to 6 L* lower there. The highlight rule keeps 40% of its haze part. `highlightAmount` is 0.92 minus 0.2 x haze: every lift pushes the highlights up, and the market look keeps them 5 to 10 L* lower. |
+| `shadowLift`, `highlightAmount` | `CIHighlightShadowAdjust`. `shadowLift` is 0.2 plus 0.15 x haze plus 0.1 x bright (0.28 plus 0.22 x haze before 28 Sep 2026); it reaches the mid-tones too, and the market look sits 3 to 6 L* lower there. The highlight rule keeps 40% of its haze part. `highlightAmount` is 0.92 minus 0.2 x haze: every lift pushes the highlights up, and the market look keeps them 5 to 10 L* lower. |
 | `warmth` | Tropical only: `DivePreset.warmth` (600 K) x min(1, 4 x `castStrength`), so a grey scene gets none. Custom adds the user's Temperature. |
 | `vibrance` | Preset vibrance, lower for colourful or neon scenes. |
 | `physicalWeight` | Restored path only: the plan confidence. |
@@ -138,24 +152,34 @@ The kernel applies the gains by `FinishingMath.neutralWeight`. Water-like pixels
 - dark scenes (median luminance 0.18 down to 0.10), where a few bright spots do not light the scene
 - contrasty scenes (`contrast` 0.35 to 0.5), whose deep shadows need the lift
 
+**`CIColorControls` works on linear values.** The working space is linear Rec. 2020. Measured on 28 Sep 2026 with a one-pixel probe:
+
+- `brightness` is added to the linear value. -0.08 takes every pixel below linear 0.08 to zero or below.
+- `contrast` pivots at linear 0.5, not at the mid-tones. So 1.08 takes every pixel below linear 0.037 to zero.
+- So `contrast` and `brightness` together are a linear gain plus a black offset. On market pair m2, contrast 1.09 subtracts 0.045 and brightness adds 0.046, so they nearly cancel.
+- The names do not say this. It explains the rejected "brightness 0.45 to 0.3" test: without the offset, the contrast step crushed the shadows.
+- No visible black crush was measured: m5 has 4.44% of pixels at or below 3/255, Sea-thru 4.15%.
+
 ### Clarity
 
 | Value | Meaning |
 |---|---|
-| `clarity`, `clarityRadius` | Fine unsharp mask. Stronger in haze. |
-| `definition`, `definitionRadius` | Broad unsharp mask for the veil over far water and reef. |
+| `clarity`, `clarityRadius` | Fine unsharp mask. Stronger in haze. Scaled by `localSoftening` (0.6) since 28 Sep 2026. |
+| `definition`, `definitionRadius` | Broad unsharp mask for the veil over far water and reef. Also scaled by 0.6. |
 | `detail`, `detailFloor`, `detailRadius` | Fine detail layer (kernel `UnderBlueDetail`, mirror `FinishingMath.detail`): the pixel's gamma luminance minus its own small blur, added back on subjects. See below. |
 
 Radii are shares of the short image side, so every size looks the same.
 
+The two unsharp masks change luminance only (kernel `UnderBlueLumaTransfer`). The pixel keeps its colour from before the masks, scaled to the sharpened luminance. On RGB the masks sharpened colour noise too.
+
 **Fine detail layer.** AquaColorFix's images carry about 40% more fine-detail energy than ours did. The difference sits at the pixel scale, not in the broad unsharp masks: its block-local contrast is lower than ours. So a last sharpening step runs after the two unsharp masks:
 
 - The layer is the difference between the pixel's gamma luminance and a Gaussian blur of it. The blur radius is `detailRadius`, 1.2/480 of the short side: 2 px on a 1200 px photo, 7.6 px on a 4032 px export.
-- Differences below `detailFloor` (0.004, doubled in dark scenes) get nothing. From `FinishingMath.detailEdgeLow` (0.15) the layer fades and at `detailEdgeHigh` (0.30) it is off, so an outline gets no halo. In between, texture is amplified by `detail`.
+- Differences below `detailFloor` (0.004, doubled in dark scenes) get nothing. The strength ramps up to full at 3 x the floor. From `FinishingMath.detailEdgeLow` (0.15) the layer fades and at `detailEdgeHigh` (0.30) it is off, so an outline gets no halo. In between, texture is amplified by `detail`.
 - The layer lands where the white reference lands (`FinishingMath.neutralWeight`): subjects, and pale surfaces clearly brighter than the water. Open water gets nothing. The colour kernel's plain water-like weight was tried first and cut the mola and the manta out, because a pale body lit by blue water is water-like.
 - Dark pixels fade in from linear luminance 0.02 to 0.06: they carry the most noise.
 - The pixel is scaled by one factor, so hue and chroma stay, and a pixel at or above luminance one is unchanged.
-- `detail` = `ColorCorrection.fineDetail` (1.3) x (1 + 0.25 x haze) x (1 - 0.5 x deep) x the Custom Clarity factor. Video gets one value per clip like every other value.
+- `detail` = `ColorCorrection.fineDetail` (1.3) x (1 + 0.25 x haze) x (1 - 0.5 x deep) x the Custom Clarity factor. Video gets one value per scene like every other value.
 
 Fine texture and water noise have the same size at this scale. On the mola, both have a median difference of 0.006 and a 75th percentile of 0.012. So no noise floor can tell them apart. The subject gate does that. The floor only drops the flattest pixels.
 
@@ -178,10 +202,13 @@ The UI gives each built-in preset only an intensity slider. Their values are in 
 | Preset | For | What it adds to the automatic result |
 |---|---|---|
 | Natural Dive | any water | Nothing. It is the automatic result and the base for Custom. |
-| Tropical | shallow, bright water | `warmth` 600 K; more saturation and vibrance on subjects |
-| Deep Dive | deep, dark-blue water | More red (`restoration` 0.56); `shadowBoost` 0.10; `waterChroma` 0.85 calms neon water |
+| Tropical | shallow, bright water | `warmth` 600 K; more saturation (1.16) and vibrance (0.22) on subjects; a little more red (`restoration` 0.50) and clarity (0.19) |
+| Deep Dive | deep, dark-blue water | More red (`restoration` 0.56); `shadowBoost` 0.10; `waterChroma` 0.85 calms neon water; more clarity (0.25) and cast removal (0.18) |
 
-- Preset terms sit in one helper, `presetRules`. Natural and Custom get none. `make()` adds Custom's temperature after it.
+Natural values: `restoration` 0.45, `saturation` 1.08, `vibrance` 0.18, `clarity` 0.16, `castRemoval` 0.16, `contrast` 1.04. All presets share `contrast` 1.04.
+
+- Preset values enter in several helpers: `restoration` in `SceneFactors`, `castRemoval` in `baseCastGains`, `saturation` in `presetSaturation`, `waterChroma` in `waterRules`, `contrast`, `clarity` and `vibrance` in `toneRules`.
+- `presetRules` holds only the terms Natural and Custom never get: `warmth`, `shadowBoost` and the water saturation give-back. `make()` adds Custom's temperature after it.
 - The extra saturation of a preset is meant for subjects. Water-like pixels give it back (`waterSaturation`), so the water keeps Natural's saturation.
 - `waterChroma` scales the water tone's chroma ceiling. The water tone keeps the water's hue, so calmer water does not turn violet.
 - Warmth is applied as light: the source is taken as lit at 6500 K + warmth and shown at 6500 K. A green tint of 1 per 100 K keeps the shift yellow, not orange.
@@ -211,14 +238,18 @@ The kernel is `UnderBlueRestoration` in `RestorationEngine.swift`. `RestorationM
 
 **Image formation:** `observed = clear x exp(-betaDirect x z) + backscatterInfinity x (1 - exp(-betaBackscatter x z))`, per channel (`RestorationMath.forward`).
 
-The inverse removes the backscatter, then multiplies by `1 / transmission`. These limits apply. Most are in `RestorationLimits`; `channelRecoverability` is in the plan.
+The inverse removes the backscatter, then multiplies by `1 / transmission`.
+
+It acts on a slightly blurred source (radius 0.0015 of the short side, at least 1.5 px). The source's fine detail (source minus blur) comes back times the pixel's own restoration ratio, restored blur / blur (kernel `UnderBlueRestoredDetail`). Without this, far water got about twice the noise per signal (IMG_7260): the veil removal takes signal, not noise, and the division scales both.
+
+These limits apply. Most are in `RestorationLimits`; `channelRecoverability` is in the plan.
 
 | Limit | Value or rule |
 |---|---|
 | `transmissionFloor` | 0.28 |
 | `maximumGain` | Red 1.32 + 0.45 x red survival, green 1.55, blue 1.45, spread by cast (`WaterModelEstimator`) |
 | Highlight protection | From peak 0.72 to 1.0, up to 80% of the source is kept |
-| `maximumOutput` | 1.15; 8 for HDR video export (`exportPlan`) |
+| `maximumOutput` | 1.15; 8 for HDR video (`RestorationEngine.combined(_:moment:settings:filter:preservesHDR:)`) |
 | `channelRecoverability` | Per-channel share of the correction that is applied |
 
 Two hue rules run last:
@@ -259,6 +290,8 @@ Video averaging treats the white reference apart. `sceneInliers` judges frames b
 
 A change to one kernel needs the same change in its mirror.
 
+If the finishing kernel fails to compile, `FilterEngine.colorStage` falls back to a colour matrix: cast gains times white-reference gains, and a red rebuild at 0.3 of its value. There is no tone curve, water tone or subject light removal.
+
 ## How to evaluate a change
 
 Use [scripts/color-eval](../scripts/color-eval/README.md). It compiles the app's own `Processing` sources.
@@ -275,30 +308,44 @@ Water hue uses OKLab. CIELAB hue cannot separate azure (273), pure blue (306) an
 
 ## Current scorecard
 
-Colour code after the AquaColorFix tuning of 28 Sep 2026. "Before" is `c411a2e`, measured by the same harness on the same day.
+Three code states appear below:
+
+- "Before" is `c411a2e`, before the AquaColorFix tuning.
+- "Tuning" is the first AquaColorFix tuning commit of 28 Sep 2026 (`4fa62e3`).
+- "HEAD" is `b4594ab`, measured on 28 Sep 2026 in the evening. Since the tuning commit it added the fine detail layer, per-scene video values, the softer tone and luminance-only sharpening, the violet-band and green-cast fixes, the veil offset, the restoration detail split and the depth blend.
+
+Only the gate, the market pairs and the UIEB holdout were re-measured at HEAD. Every other figure in this section is from the tuning commit or older.
 
 **AquaColorFix gate** (five private triplets; see [the benchmark](AquaColorFixBenchmark.md)), mean deltaE to the AquaColorFix output:
 
-| Set | Before | Now |
-|---|---|---|
-| Gate pairs 2, 4, 5 | 20.70 | 12.50 |
-| All five pairs, photo path | 16.85 | 11.18 |
-| All five pairs, video path | 17.26 | 11.81 |
-
-**Market pairs** (m1-m4: private before/after pairs the product owner chose as the target look; see the harness README), deltaE to the market "after":
-
-| Pair | Original | Before | Now |
+| Set | Before | Tuning | HEAD |
 |---|---|---|---|
-| m1 | 34.0 | 23.1 | 23.1 |
-| m2 | 32.7 | 15.3 | 23.7 |
-| m3 | 17.5 | 22.0 | 22.4 |
-| m4 | 25.0 | 18.3 | 20.1 |
-| m5 | 39.0 | 29.1 | 28.0 |
-| m6 | 33.9 | 25.2 | 22.9 |
+| Gate pairs 2, 4, 5, photo path | 20.70 | 12.50 | 12.31 |
+| Gate pairs 2, 4, 5, video path | unmeasured | unmeasured | 12.85 |
+| All five pairs, photo path | 16.85 | 11.18 | 10.59 |
+| All five pairs, video path | 17.26 | 11.81 | 11.23 |
 
-m2 got worse: its mid-tones are now darker than its target (mean L* 31 against 42; before 35.5). The AquaColorFix look keeps a dark scene dark, the m2 target lifts it. This is a product decision; see [Verification](Verification.md). m3 is a mood grade and needs a preset.
+HEAD per pair, photo path: p1 7.40, p2 14.18, p3 8.60, p4 9.94, p5 12.82. Water hue (OKLab, ours / AquaColorFix): 238/240, 262/263, 239/242, 236/239, 248/240.
 
-**UIEB dev, 40 images:** deltaE 19.20 (before 19.35; 24.16 before the 25 Sep 2026 changes). Video path 18.87 (before 18.95). The original images score 24.51. Indigo or violet water: 0. Green water left: 1 of 6. Beats the original on 82% (before 85%). The best images improved (576: 11.0 to 10.2; 433: 19.5 to 18.2); 108 got worse (21.0 to 23.6, a bright scene we now darken).
+**Market pairs** (m1-m6: private before/after pairs the product owner chose as the target look; see the harness README), deltaE to the market "after", full resolution:
+
+| Pair | Original | Before | Tuning | HEAD |
+|---|---|---|---|---|
+| m1 | 34.0 | 23.1 | 23.1 | 23.0 |
+| m2 | 32.7 | 15.3 | 23.7 | 23.9 |
+| m3 | 17.5 | 22.0 | 22.4 | 22.1 |
+| m4 | 25.0 | 18.3 | 20.1 | 17.5 |
+| m5 | 39.0 | 29.1 | 28.0 | 18.4 |
+| m6 | 33.9 | 25.2 | 22.9 | 22.4 |
+
+m2 got worse at the tuning commit and stays there. Two causes were measured:
+
+- Its mid-tones are darker than its target: mean L* 31 against 42.
+- m2 is green water (`waterType` 0.95). The water tone moves it to azure 240 in full. The water solver sits at both bounds (blue gain 2.2, chroma scale 1.6). Red is 0 on 70% of the pixels; the target has 10% (harness at 960 px).
+
+The AquaColorFix look keeps a dark scene dark, the m2 target lifts it. This is a product decision; see [Verification](Verification.md). m3 is a mood grade and needs a preset.
+
+**UIEB dev, 40 images** (tuning commit; unmeasured at HEAD): deltaE 19.20 (before 19.35; 24.16 before the 25 Sep 2026 changes). Video path 18.87 (before 18.95). The original images score 24.51. Indigo or violet water: 0. Green water left: 1 of 6. Beats the original on 82% (before 85%). The best images improved (576: 11.0 to 10.2; 433: 19.5 to 18.2); 108 got worse (21.0 to 23.6, a bright scene we now darken).
 
 **UIEB holdout, 40 images:**
 
@@ -309,23 +356,40 @@ m2 got worse: its mid-tones are now darker than its target (mean L* 31 against 4
 | `f9b073d` | 20.60 |
 | `b8db6df` | 21.01 |
 | `6fd84cf` | 20.12 |
-| 28 Sep 2026 tuning | unmeasured |
+| Tuning (`4fa62e3`) | unmeasured |
+| HEAD (`b4594ab`), photo path | 20.44 |
+| HEAD (`b4594ab`), video path (`uniform`) | 20.44 |
 
-Holdout deltaE rose from 20.00 at `f548c29` to 21.01 at `b8db6df`. The market direction moved away from UIEB's muted references. The white reference brought it back to 20.12. The 28 Sep 2026 tuning was not run on holdout yet.
+Holdout deltaE rose from 20.00 at `f548c29` to 21.01 at `b8db6df`. The market direction moved away from UIEB's muted references. The white reference brought it back to 20.12.
+
+At HEAD it is 20.44. Over the same work the AquaColorFix gate fell from 20.70 to 12.31. So the gate gains are specific to the AquaColorFix look; they do not carry over to UIEB. HEAD beats the original on 28 of 40 holdout images (70%).
+
+HEAD holdout, green-water sources (original far hue below 180, CIELAB), 6 images:
+
+| Variant | Still green | deltaE |
+|---|---|---|
+| UIEB reference | 6 | – |
+| Original | 5 | 33.47 |
+| Grey world | 0 | 21.22 |
+| HEAD photo path | 1 | 27.44 |
+
+The references keep green water green. HEAD keeps 1 green, makes 3 cyan, 1 neutral and 1 at CIELAB hue 265 or above. A plain grey-world balance scores 6 deltaE better on these images.
+
+HEAD holdout plan confidence: min 0.589, p10 0.623, median 0.664, p90 0.683, max 0.688. Depth confidence: 0.666 to 0.695. So `physicalWeight` is about 0.66 on every image.
 
 **Real dive photos, 15, no reference:** none is pushed into indigo or violet. r04's anemone is really magenta (295 in the original, 300 now). Before the 25 Sep 2026 changes, 12 were.
 
 **Neutral grey ramp:** max Lab chroma 0.01 on both paths (before: 0.97 on the video path, the harness's `uniform` stand-in).
 
-**Neutral surfaces**, OKLab chroma (0 = colourless), before and after the 28 Sep 2026 tuning:
+**Neutral surfaces**, OKLab chroma (0 = colourless), before and after the tuning commit (unmeasured at HEAD):
 
-| Surface | Original | Photo path, before | Photo path, now | Video path, before | Video path, now | Sea-thru |
+| Surface | Original | Photo path, before | Photo path, tuning | Video path, before | Video path, tuning | Sea-thru |
 |---|---|---|---|---|---|---|
 | m5 sand | 0.109 | 0.032 | 0.036 | 0.014 | 0.033 | 0.004 |
 | m5 chart, grey row | 0.132 | 0.034 | 0.063 | 0.046 | 0.057 | 0.079 |
 | m6 manta belly | 0.111 | 0.026 | 0.029 | 0.033 | 0.046 | 0.063 |
 
-The chroma rose on all three, most on the chart. The residual changed side: before it was cyan (hue 184 to 217), now it is green-yellow (126 to 173), because the light removal takes more blue than green. The harness guard "neutral surfaces do not rise" is not met by this change; the AquaColorFix bright-neutral chroma fell from 0.065 to 0.043.
+The chroma rose on all three, most on the chart. The residual changed side: before it was cyan (hue 184 to 217), at the tuning commit it is green-yellow (126 to 173), because the light removal takes more blue than green. The harness guard "neutral surfaces do not rise" is not met by this change; the AquaColorFix bright-neutral chroma fell from 0.065 to 0.043.
 
 ## Decision record
 
@@ -359,7 +423,7 @@ No separate figure is recorded here for these four. The scorecard shows the comb
 |---|---|
 | Jerlov coefficient priors | No measurable gain. They are copied tables. |
 | Clear-water veil in the style of UWCNN | deltaE 26.1 against a 24.2 baseline, 40 images |
-| Per-pixel depth for video, including optical-flow depth warping | On photos, per-pixel depth was not better than constant depth. Per-pixel minus constant: +0.54 deltaE on dev, +0.25 on holdout, at that time. |
+| Per-pixel depth for video, including optical-flow depth warping | On photos, per-pixel depth was not better than constant depth. Per-pixel minus constant: +0.54 deltaE on dev, +0.25 on holdout, at that time. At HEAD (`b4594ab`) photos keep per-pixel depth: it beats constant depth on the AquaColorFix pairs (10.59 against 11.23) and on 5 of 6 market pairs (m1 is the exception, 23.0 against 20.6). On the holdout they tie (20.44). |
 | A finer water-fit beta grid (0.05 to 0.01) | deltaE changed by 0.03 |
 | A fixed recipe, for example a +36 magenta tint | It pushes blue water violet. The rules adapt to the measured cast instead. |
 | The highlight rule without its dark-scene and contrast fades | UIEB 12324 mean L* fell from 32.2 to 16.3 |
@@ -382,7 +446,7 @@ AquaColorFix is a competing app whose look the product owner prefers. [The bench
 - Its water sits near azure.
 - It is about 4 L* darker, with less broad contrast and more sharpening.
 
-The sharpening and any depth change were not taken.
+Its stronger sharpening was taken in part, as the [fine detail layer](#clarity) (`07c004d`). No depth change was taken.
 
 ## Comparison with Sea-thru
 
@@ -421,7 +485,7 @@ Limits:
 - Near subjects on the constant-depth video path go darker and greener. `keepBlueFamily` covers only blue-family pixels.
 - On an iPhone 17 (iOS 27.0), both kernel/CPU-mirror tests and the two device-only depth tests pass (4 test suites, 65 tests, 0 failures). One depth inference took 22 ms. Full video export speed on an iPhone is unmeasured.
 - Mood grades like m3 are out of scope for automatic correction.
-- m5 stays much brighter than Sea-thru (mean L* 58.3 against 36.4). Its original is already bright (60.1).
+- m5 stays brighter than Sea-thru: mean L* 46.7 at HEAD against 36.4 (58.3 before the veil offset). Its original is already bright (60.1).
 - On m6 the reef under the manta is olive-green (photo path) or yellow-green (video path). On Sea-thru it is brown.
 - The detail layer has one strength for every scene. Pairs 1 and 4 now carry more fine-detail energy than AquaColorFix (9.4 and 8.6 against 6.7 and 7.7): their sources are busier. A source-detail measurement in the analysis could set the strength per scene; it is not built.
 - Against AquaColorFix: pair 2's fish keeps a faint green-yellow tint (chroma about 0.02) and is about 10 L* brighter. The darker half of pair 4's manta keeps some mint. Pair 5's fish school is pale cyan where AquaColorFix has it warm. Pairs 4 and 5 stay 4 to 6 L* brighter in the mid-tones.
