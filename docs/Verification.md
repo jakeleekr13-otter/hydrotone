@@ -35,6 +35,18 @@ On the simulator, a share placed in the App Group inbox opened in the editor at 
 - **RAW on the device.** `CIRAWFilter` decodes the RAW file again for each preview render. Measure preview speed, export time and memory for a RAW of 20 MP or more.
   - Keep the RAW path on `CIRAWFilter`. On the simulator, `CIImage(contentsOf:)` returned only the 1616 px embedded preview.
 
+## Colour tuning against AquaColorFix (28 Sep 2026)
+
+The colour rules changed to move toward the AquaColorFix look ([benchmark](AquaColorFixBenchmark.md)). Run again before release:
+
+- **Holdout.** Not run after this change. The last value (20.12 combined, 20.10 uniform) is from `6fd84cf`.
+- **Presets on the new colour.** Tropical and Deep Dive were not re-checked. The Natural Dive pin in `PresetTests` was regenerated; that is the product change.
+- **Market pairs by eye.** m1 and m4 lost about 1.5 ΔE against their targets and m2 lost 3.9 (its mid-tones are darker than the target). The AquaColorFix gate gained 8.2. Decide by eye which look the product wants on m2 (a dark, murky turtle scene).
+- **Custom sliders.** The tone values under the sliders changed (shadow lift, highlight compression). Re-measure the caps in `CustomAdjustments.Caps`.
+- **Real video.** The subject light removal and the trusted blue reference were not seen on video. Watch a bright fish or diver against blue water for a warm flicker.
+- **Depth model on Core AI.** iOS 27 ships `CoreAI.framework` (`AIModel`, `InferenceFunction`, `.aimodel`), and `apple/coreai-models` has a Depth Anything **v3 small** export (float32). Our depth model is Depth Anything v2 small fp16 on Core ML. Nothing in the app's colour path uses a model; only `DepthEstimator` would change. Decide later whether to add an iOS 27 path; it needs a new depth-quality and holdout measurement, because the model is different.
+- **Video: values that follow the light.** Today a clip gets one set of values from 10 samples. So a clip whose light changes is right in some parts and wrong in others (the product owner, 28 Sep 2026). The analysis is a 48x48 statistic and needs no model. It can run on every frame or every few frames and be smoothed over time before `make()`. Only the depth model is costly, and the record says per-pixel depth did not help video. Design this as its own step. It changes `VideoRestorationAnalysis`, not the colour rules.
+
 ## Final round checklist
 
 1. **Colour scorecard.** Run `scripts/color-eval/tune_eval.sh <name>`. Check every guard in [the harness README](../scripts/color-eval/README.md#guards-used-for-tuning).

@@ -253,7 +253,7 @@ final class RestorationTests: XCTestCase {
         let engine = FilterEngine()
         let values = colorOnly { $0.castGains = .init(1.3, 0.85, 1.2); $0.redRebuild = 0.25; $0.subjectRed = 0.4
             $0.midLift = 0.5; $0.toneCurve = 0.25; $0.tonePivot = 0.42
-            $0.waterTone = .init(0.8, 1.15, 0.7); $0.waterRedness = 0.12
+            $0.waterTone = .init(0.8, 1.15, 0.7); $0.waterRedness = 0.12; $0.subjectTone = .init(1, 0.8, 0.45)
             $0.waterSaturation = 0.6; $0.waterChroma = 0.8; $0.redCeiling = 1.05; $0.violetGuard = 0.7 }
         // Water-like, partly water-like, grey (silver) and subject colours, a blue pixel whose red
         // passes green (violet guard), and a gated pixel whose rebuilt red hits the ceiling.
@@ -345,12 +345,15 @@ final class RestorationTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(target.z, 215, "hue \(hue)")
             XCTAssertLessThanOrEqual(target.z, 265, "hue \(hue)")
         }
-        // Inside the band the hue is only nudged, never pushed across it.
+        // The target is azure (waterHueGoal): the hue moves toward it and never past it.
         for hue: Float in [230, 245, 258] {
             let target = ColorCorrection.waterTarget(.init(0.45, 0.15, hue), waterType: 0, murky: 0)
-            XCTAssertLessThanOrEqual(abs(target.z - hue), 12)
-            XCTAssertLessThanOrEqual(target.z, max(hue, 262))
+            let goal = ColorCorrection.waterHueGoal
+            XCTAssertGreaterThanOrEqual(target.z, min(hue, goal) - 1e-3)
+            XCTAssertLessThanOrEqual(target.z, max(hue, goal) + 1e-3)
         }
+        XCTAssertEqual(ColorCorrection.waterTarget(.init(0.45, 0.15, 258), waterType: 0, murky: 0).z,
+                       ColorCorrection.waterHueGoal, accuracy: 1e-3)
         // A frame-filling magenta anemone (hue 295) is not water: no change at all.
         let anemone = SIMD3<Float>(0.5, 0.28, 295)
         XCTAssertEqual(ColorCorrection.waterTarget(anemone, waterType: 0, murky: 0), anemone)
@@ -371,8 +374,8 @@ final class RestorationTests: XCTestCase {
         XCTAssertGreaterThan(oklch(neon).y, 0.28)
         let values = ColorCorrection.make(analysis: scene(water: neon, mid: 0.07, contrast: 0.06), preset: .natural)
         let out = oklch(toned(neon, values))
-        XCTAssertLessThan(out.y, 0.14)
-        XCTAssertGreaterThan(out.y, 0.04)          // calmed, not grey
+        XCTAssertLessThan(out.y, 0.2)              // calmed: about a third of its chroma is gone
+        XCTAssertGreaterThan(out.y, 0.1)           // deep, dark water keeps its deep blue, not grey
         XCTAssertLessThan(out.z, 265)             // never toward indigo
         XCTAssertGreaterThan(out.z, 215)
         XCTAssertLessThan(values.waterSaturation, 1)
@@ -631,7 +634,9 @@ final class RestorationTests: XCTestCase {
     /// A shallow blue scene with pale sand under a strong cyan cast (numbers close to market pair m5).
     private func sandScene(share: Float = 0.2) -> WaterAnalysis {
         var analysis = scene(water: .init(0.01, 0.23, 0.65), mid: 0.2, contrast: 0.3)
-        analysis.neutralRed = 0.28; analysis.neutralGreen = 0.59; analysis.neutralBlue = 0.67
+        // A white surface lit by blue water (a belly, sand at depth). Beige sand (0.28, 0.59, 0.67) is
+        // already neutralised by the subject light removal, so it would leave the reference nothing to do.
+        analysis.neutralRed = 0.16; analysis.neutralGreen = 0.34; analysis.neutralBlue = 0.72
         analysis.neutralShare = share; analysis.highShare = 0.3
         return analysis
     }
@@ -644,8 +649,16 @@ final class RestorationTests: XCTestCase {
         let analysis = sandScene(), sand = analysis.neutralColor
         let current = ColorCorrection.make(analysis: analysis, preset: .natural)
         var without = current; without.neutralGains = .one
-        XCTAssertGreaterThan(finishedChroma(sand, without), 0.05)
+        // The light removal leaves a blue remainder (chroma about 0.04); the reference takes it out.
+        XCTAssertGreaterThan(finishedChroma(sand, without), 0.03)
         XCTAssertLessThan(finishedChroma(sand, current), 0.02)
+        // Beige sand under the same water is neutral from the light removal alone, and the reference
+        // then leaves it as it is.
+        var beige = analysis; beige.neutralRed = 0.28; beige.neutralGreen = 0.59; beige.neutralBlue = 0.67
+        let beigeValues = ColorCorrection.make(analysis: beige, preset: .natural)
+        var beigeWithout = beigeValues; beigeWithout.neutralGains = .one
+        XCTAssertLessThan(finishedChroma(beige.neutralColor, beigeWithout), 0.02)
+        XCTAssertLessThan(finishedChroma(beige.neutralColor, beigeValues), 0.02)
         // Restored path: the sand is seen after veil removal, at the plan's (constant) depth.
         // Near sand keeps a cyan cast after restoration; the rule removes it.
         var acted = false
@@ -658,13 +671,17 @@ final class RestorationTests: XCTestCase {
             var restoredWithout = restored; restoredWithout.neutralGains = .one
             XCTAssertLessThan(finishedChroma(seen, restored), 0.02)
             XCTAssertLessThanOrEqual(finishedChroma(seen, restored), finishedChroma(seen, restoredWithout) + 1e-6)
-            if finishedChroma(seen, restoredWithout) > 0.04 { acted = true }
+            if finishedChroma(seen, restoredWithout) > 0.03 { acted = true }
         }
         XCTAssertTrue(acted, "no restored case kept a cast for the rule to remove")
-        // Red goes up, blue goes down, and green never rises more than 5%.
+        // The reference removes a cool cast: red goes up, blue goes down. Green never rises more than
+        // the luminance normalisation adds (the bound is one before it).
         XCTAssertGreaterThan(current.neutralGains.x, 1)
         XCTAssertLessThan(current.neutralGains.z, 1)
         XCTAssertLessThanOrEqual(current.neutralGains.y, 1.05 + 1e-5)
+        // A warm remainder gets no gains at all: the reference never takes red or adds blue.
+        var warm = analysis; warm.neutralRed = 0.6; warm.neutralGreen = 0.45; warm.neutralBlue = 0.3
+        XCTAssertEqual(ColorCorrection.make(analysis: warm, preset: .natural).neutralGains, .one)
     }
 
     func testWhiteReferenceDoesNotNeutraliseTheWater() {
@@ -681,10 +698,45 @@ final class RestorationTests: XCTestCase {
             XCTAssertGreaterThan(lch.z, 180)           // cyan to blue, not indigo
             XCTAssertLessThan(lch.z, 270)
         }
-        // A strongly blue "reference" looks like pale water near the surface, so it is ignored.
-        var paleWater = analysis
-        paleWater.neutralRed = 0.16; paleWater.neutralGreen = 0.34; paleWater.neutralBlue = 0.72
-        XCTAssertEqual(ColorCorrection.make(analysis: paleWater, preset: .natural).neutralGains, .one)
+        // The reference itself is strongly blue (a white surface lit by blue water looks like pale
+        // water near the surface, and no colour test tells them apart). It is trusted, because the
+        // open water is protected by neutralWeight, as checked above.
+        XCTAssertGreaterThan(analysis.neutralBlue / max(analysis.neutralRed, analysis.neutralGreen), 1.8)
+    }
+
+    // MARK: Subject light removal
+
+    func testSubjectsLoseTheWaterLightButWaterAndGreyScenesDoNot() {
+        // Blue water: subjects that are not water-like lose blue (and never gain green), at their own luminance.
+        let values = ColorCorrection.make(analysis: scene(water: .init(0.02, 0.07, 0.35)), preset: .natural)
+        XCTAssertEqual(values.subjectTone.x, 1)
+        XCTAssertLessThan(values.subjectTone.z, 0.7)
+        XCTAssertLessThanOrEqual(values.subjectTone.y, 1)
+        XCTAssertGreaterThanOrEqual(values.subjectTone.z, 0.35)
+        let colorOnly = { var v = values; v.redRebuild = 0; v.midLift = 0; v.toneCurve = 0; v.neutralGains = .one; return v }()
+        var without = colorOnly; without.subjectTone = .one
+        let reef = SIMD3<Float>(0.12, 0.16, 0.30)   // a blue-lit subject: redder than the water
+        let with = FinishingMath.color(reef, correction: colorOnly), plain = FinishingMath.color(reef, correction: without)
+        XCTAssertLessThan(with.z / with.y, plain.z / plain.y * 0.8, "blue against green goes down")
+        XCTAssertEqual((with * ColorCorrection.luma).sum(), (plain * ColorCorrection.luma).sum(), accuracy: 1e-3, "luminance is kept")
+        // The open water is water-like and keeps exactly the water tone.
+        let water = values.waterLit / values.castGains
+        assertEqual(FinishingMath.color(water, correction: colorOnly), FinishingMath.color(water, correction: without), accuracy: 1e-4)
+        // Green water takes green as well as blue from subjects. A grey scene takes nothing.
+        let teal = ColorCorrection.make(analysis: scene(water: .init(0.02, 0.2, 0.12)), preset: .natural)
+        XCTAssertLessThan(teal.subjectTone.y, 0.9)
+        let grey = WaterAnalysis(meanRed: 0.2, meanGreen: 0.2, meanBlue: 0.2, midLuminance: 0.2,
+                                 waterRed: 0.1, waterGreen: 0.1, waterBlue: 0.1)
+        XCTAssertEqual(ColorCorrection.make(analysis: grey, preset: .natural).subjectTone, .one)
+    }
+
+    func testBrightSubjectDarkensAHighlightScene() throws {
+        // The highlight rule may lower the mid-tones a little: the scene is exposed for its bright subject.
+        let plain = scene(water: .init(0.02, 0.25, 0.4), mid: 0.2, contrast: 0.18)
+        var belly = plain; belly.highShare = 0.12
+        XCTAssertLessThan(ColorCorrection.make(analysis: belly, preset: .natural).midLift, 0)
+        XCTAssertEqual(ColorCorrection.make(analysis: plain, preset: .natural).midLift, 0)
+        XCTAssertGreaterThanOrEqual(ColorCorrection.make(analysis: belly, preset: .natural).midLift, -0.12)
     }
 
     func testSceneWithoutNeutralSurfacesIsUnchangedByTheWhiteReference() throws {

@@ -22,7 +22,9 @@ final class CustomPresetTests: XCTestCase {
     }
     private func sandScene() -> WaterAnalysis {
         var analysis = scene(water: .init(0.01, 0.23, 0.65), mid: 0.2, contrast: 0.3)
-        analysis.neutralRed = 0.28; analysis.neutralGreen = 0.59; analysis.neutralBlue = 0.67
+        // A white surface lit by blue water (a belly, sand at depth). Beige sand (0.28, 0.59, 0.67) is
+        // already neutralised by the subject light removal, so it would leave the reference nothing to do.
+        analysis.neutralRed = 0.16; analysis.neutralGreen = 0.34; analysis.neutralBlue = 0.72
         analysis.neutralShare = 0.2; analysis.highShare = 0.3
         return analysis
     }

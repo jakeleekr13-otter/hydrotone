@@ -13,7 +13,8 @@ let outCSV = args[3]
 let split = args.count > 4 ? args[4] : "all"
 let sheetDir: URL? = args.count > 5 ? URL(fileURLWithPath: args[5]) : nil
 let sheetNames: Set<String>? = args.count > 6 ? Set(try String(contentsOfFile: args[6], encoding: .utf8).split(separator: "\n").map(String.init)) : nil
-let maxDim: CGFloat = 640
+// HT_EVAL_MAXDIM overrides the render size (the AquaColorFix benchmark measures at 960).
+let maxDim: CGFloat = CGFloat(Double(ProcessInfo.processInfo.environment["HT_EVAL_MAXDIM"] ?? "") ?? 640)
 
 let engine = FilterEngine()
 let depthEstimator = DepthEstimator()
@@ -174,6 +175,38 @@ for name in selected {
     } catch { }
     guard let depthMap else { print("depth failed \(name)"); continue }
     let current = engine.apply(source, settings: settings)
+    if ProcessInfo.processInfo.environment["HT_EVAL_LOG"] != nil {
+        let a = analysis
+        print("\(name) analysis: redLoss=\(a.redLoss) contrast=\(a.contrast) sat=\(a.saturation) mean=(\(a.meanRed),\(a.meanGreen),\(a.meanBlue)) mid=\(a.midLuminance) water=(\(a.waterRed),\(a.waterGreen),\(a.waterBlue)) neutral=(\(a.neutralRed),\(a.neutralGreen),\(a.neutralBlue)) share=\(a.neutralShare) high=\(a.highShare)")
+        for (label, c) in [("current", ColorCorrection.make(analysis: analysis, preset: settings.preset)),
+                           ("restored", plan.map { ColorCorrection.make(analysis: analysis, preset: settings.preset, plan: $0) })] {
+            guard let c else { continue }
+            print("\(name) \(label): gains=(\(c.castGains.x),\(c.castGains.y),\(c.castGains.z)) water=(\(c.waterTone.x),\(c.waterTone.y),\(c.waterTone.z))x\(c.waterSaturation) redness=\(c.waterRedness) chroma=\(c.waterChroma) type=\(c.waterType) guard=\(c.violetGuard) gate=\(c.redGateLow) rebuild=\(c.redRebuild) subjectRed=\(c.subjectRed) midLift=\(c.midLift) curve=\(c.toneCurve)@\(c.tonePivot) bright=\(c.brightness) contrast=\(c.contrast) sat=\(c.saturation) shadows=\(c.shadowLift) clarity=\(c.clarity) def=\(c.definition) vib=\(c.vibrance) weight=\(c.physicalWeight) neutral=(\(c.neutralGains.x),\(c.neutralGains.y),\(c.neutralGains.z)) subject=(\(c.subjectTone.x),\(c.subjectTone.y),\(c.subjectTone.z)) waterLit=(\(c.waterLit.x),\(c.waterLit.y),\(c.waterLit.z))")
+        }
+        // Probe: one colour (working space, linear) through the colour kernel alone and through the whole
+        // finishing chain, so a tuning run can see what each stage does to the water, the neutral surface and the subject.
+        func probe(_ c: SIMD3<Float>, _ v: ColorCorrection) -> String {
+            let kernel = FinishingMath.color(c, correction: v)
+            let color = CIImage(color: CIColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), colorSpace: FilterEngine.workingSpace)!)
+                .cropped(to: CGRect(x: 0, y: 0, width: 16, height: 16))
+            var px = [Float](repeating: 0, count: 4)
+            engine.context.render(engine.finishing(color, correction: v), toBitmap: &px, rowBytes: 16,
+                                  bounds: CGRect(x: 8, y: 8, width: 1, height: 1), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            func f(_ x: SIMD3<Float>) -> String { let l = ColorCorrection.oklch(x); return "(\(String(format: "%.3f,%.3f,%.3f", x.x, x.y, x.z))) h\(Int(l.z)) C\(String(format: "%.3f", l.y))" }
+            return "in \(f(c)) -> kernel \(f(kernel)) waterLike \(String(format: "%.2f", FinishingMath.waterLike(c * v.castGains, correction: v))) neutralW \(String(format: "%.2f", FinishingMath.neutralWeight(c * v.castGains, correction: v))) -> chain \(f(SIMD3(px[0], px[1], px[2])))"
+        }
+        let currentValues = ColorCorrection.make(analysis: analysis, preset: settings.preset)
+        for (label, c) in [("water", a.waterColor), ("neutral", a.neutralColor), ("mean", a.meanColor)] where c.max() > 0 {
+            print("\(name) probe current \(label): \(probe(c, currentValues))")
+            if let plan {
+                let v = ColorCorrection.make(analysis: analysis, preset: settings.preset, plan: plan)
+                let sorted = plan.depth.values.sorted()
+                let restored = ColorCorrection.restoredMean(c, plan: plan, depth: label == "neutral" ? sorted[sorted.count * 35 / 100] : nil)
+                print("\(name) probe restored \(label): \(probe(restored, v))")
+            }
+        }
+        if let p = plan { print("\(name) plan: conf=\(p.confidence) depthConf=\(p.depthConfidence) fit=\(p.waterFitConfidence) binf=\(p.backscatterInfinity) betaD=\(p.betaDirect) betaB=\(p.betaBackscatter) rec=\(p.channelRecoverability) medianDepth=\(p.depth.median)") }
+    }
     var outputs: [String: CIImage] = ["original": source, "grayworld": grayWorld(source), "current": current]
     if let plan, let raw = try? restoration.restore(source, plan: plan) {
         outputs["restoration"] = engine.blend(source, raw, amount: plan.confidence)

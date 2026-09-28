@@ -252,6 +252,9 @@ struct ColorCorrection: Sendable, Equatable {
     var vibrance: Float = 0
     /// Weight of the depth-aware path in RestorationEngine.combined (the plan confidence).
     var physicalWeight: Float = 0
+    /// Light removal on subjects: gains (red 1, green and blue at or below the water's own share) for
+    /// pixels that are not water-like, applied at the pixel's own luminance. One means no removal.
+    var subjectTone = SIMD3<Float>(repeating: 1)
     /// White-reference gains. They move the scene's near-neutral surfaces toward grey and act on
     /// pixels that are not water-like, so the water keeps its colour. One means no reference.
     var neutralGains = SIMD3<Float>(repeating: 1)
@@ -322,7 +325,7 @@ struct ColorCorrection: Sendable, Equatable {
         // Natural Dive keeps the plain ceiling; a preset may calm neon water further (DivePreset.waterChroma).
         let ceiling = preset == .natural ? 0.1 / later : 0.1 / later * preset.waterChroma
         let target = waterTarget(seenLCh, waterType: type, murky: deep * haze, keep: keep, source: oklch(water),
-                                 ceiling: ceiling, murkyFloor: 0.14 / later)
+                                 ceiling: ceiling, murkyFloor: 0.22 / later)
         // More chroma than the water has is only for murky water; elsewhere it would push
         // water-coloured subjects (silver fish, blue reef) away from grey and take their red.
         let tone = waterCorrection(from: seen, to: target, maximumSaturation: target.y > seenLCh.y + 0.005 ? 1.6 : 1)
@@ -331,6 +334,17 @@ struct ColorCorrection: Sendable, Equatable {
         let cast = max(analysis.castStrength, min(1, max(0, (oklch(water).y - 0.03) / 0.05)))
         v.waterTone = SIMD3(pow(tone.gains.x, cast), pow(tone.gains.y, cast), pow(tone.gains.z, cast))
         v.waterSaturation = pow(tone.saturation, cast)
+        // Subjects are lit through the same water, so they carry its colour: blue, or green in green
+        // water. The red boost alone then leaves a reef violet and a white belly mint. So pixels that
+        // are not water-like lose part of the water's colour: green and blue against red, by
+        // subjectLightRemoval of the water's own ratios, at the pixel's own luminance. Green never
+        // rises: water with less green than red left no green to give back, and extra green turns a
+        // fish lime. The white reference below reads the result, so a neutral surface needs less
+        // from it. Grey water gets none.
+        let light = pointwiseMax(lit, SIMD3(repeating: 1e-3))
+        let removal = subjectLightRemoval * cast
+        v.subjectTone = SIMD3(1, min(1, max(0.6, pow(light.x / light.y, removal))),
+                              min(1, max(0.35, pow(light.x / light.z, removal))))
         // The restored water is only an estimate at one depth and can be purer than the real far
         // water, so the water-like test takes the wider of the estimate and the source water.
         func redness(_ c: SIMD3<Float>) -> Float { c.x / max(1e-4, c.y + c.z) }
@@ -369,10 +383,14 @@ struct ColorCorrection: Sendable, Equatable {
         let highlight = key * open * min(1, max(0, (analysis.highShare - 0.02) / 0.05))
         v.brightness = analysis.exposure * 0.45 * (1 - 0.5 * highlight)
         v.contrast = preset.contrast + haze * 0.05
-        // Global contrast alone can bury a dark diver or reef, so lift the lower tones.
-        v.shadowLift = 0.28 + haze * 0.22 * (1 - 0.6 * highlight) + bright * 0.1
+        // Global contrast alone can bury a dark diver or reef, so lift the lower tones. The lift
+        // reaches the mid-tones too, so it stays moderate: the market look sits 3 to 6 L* below the
+        // earlier values in the mid-tones, with the same shadows.
+        v.shadowLift = 0.2 + haze * 0.15 * (1 - 0.6 * highlight) + bright * 0.1
         v.shadowLift += max(0, user.brightness) * Caps.brightnessUp
-        v.highlightAmount = 0.92
+        // Hazy scenes get their highlights compressed: every lift above pushes them up, and the
+        // market look keeps the highlights 5 to 10 L* lower than the earlier values did.
+        v.highlightAmount = 0.92 - 0.2 * haze
         // Clarity restores local separation lost to backscatter without inventing texture.
         // Definition works at a broader scale, on the veil over distant water and reef.
         v.clarity = preset.clarity * (0.65 + haze * 0.35) * 1.2
@@ -407,8 +425,10 @@ struct ColorCorrection: Sendable, Equatable {
         }
         // Custom: the user's temperature on top of the automatic result (no preset warmth).
         v.warmth += user.temperature * Caps.temperature
-        // Brightness down lowers the mid-tones on both paths. The white reference below sees the result.
-        v.midLift = min(0.9, max(minimumMidLift, v.midLift + min(0, user.brightness) * Caps.brightnessDown))
+        // A scene lit by a large bright subject is exposed for that subject, so its mid-tones may go a
+        // little darker (the highlight rule, both paths). Brightness down lowers the mid-tones on both
+        // paths. The white reference below sees the result.
+        v.midLift = min(0.9, max(minimumMidLift, v.midLift - 0.12 * highlight + min(0, user.brightness) * Caps.brightnessDown))
         v.waterLit = lit
         v.neutralGains = whiteReference(analysis, correction: v, plan: plan)
         return v.sanitized()
@@ -440,17 +460,21 @@ struct ColorCorrection: Sendable, Equatable {
         var probe = v
         probe.neutralGains = .one
         let lch = oklch(FinishingMath.color(seen, correction: probe))
-        // Only a pale water cast counts: OKLab hue green to cyan-blue (150 to 235), chroma below 0.10.
-        // A blue remainder may be a blue subject, and a warm one is a real colour.
-        let castHue = smoothstep(120, 150, lch.z) * (1 - smoothstep(235, 255, lch.z))
+        // Only a pale remainder counts (OKLab chroma below 0.10, none from 0.18): the candidates are
+        // the bright, low-chroma surfaces, so a pale remainder of any hue is a cast. A colourful
+        // remainder is a real colour, such as a yellow fish, and is kept.
         let pale = 1 - smoothstep(0.10, 0.18, lch.y)
-        // A strongly blue reference (blue well above green and red) looks the same as pale, bright
-        // water near the surface, so it is not trusted.
-        let blueLit = 1 - smoothstep(1.4, 1.8, reference.z / max(1e-4, max(reference.x, reference.y)))
-        let strength = evidence * blueLit * castHue * pale * FinishingMath.neutralWeight(seen * v.castGains, correction: v)
+        // A strongly blue reference is trusted too: a white belly, a grey fish or sand lit by blue
+        // water is as blue as pale water near the surface, and no colour test tells them apart. The
+        // open water is safe either way, because the kernel applies the gains by neutralWeight, which
+        // leaves water-like pixels alone unless they are clearly brighter than the water and of
+        // another chromaticity.
+        let strength = evidence * pale * FinishingMath.neutralWeight(seen * v.castGains, correction: v)
         guard strength > 0.001 else { return .one }
-        // Red may rise up to 3 times. Green never rises more than 5%: extra green turns fish lime.
-        let low = SIMD3<Float>(0.5, 0.5, 0.5), high = SIMD3<Float>(3, 1.05, 1.5)
+        // The reference removes a water cast, which is cool: red may rise up to 3 times, green and
+        // blue may fall to half, and none moves the other way. A warm remainder is a real colour, or
+        // the restoration's own red, and gets gains of one. (Extra green also turns fish lime.)
+        let low = SIMD3<Float>(1, 0.5, 0.5), high = SIMD3<Float>(3, 1, 1)
         let base = seen * pointwiseMax(v.castGains, .zero)
         func level(_ g: SIMD3<Float>) -> SIMD3<Float> {
             let bounded = pointwiseMin(high, pointwiseMax(low, g))
@@ -537,18 +561,16 @@ struct ColorCorrection: Sendable, Equatable {
         return out
     }
 
-    /// Clear-water target in OKLab (L, C, hue): same lightness, hue kept inside a cyan-to-blue
-    /// band that never reaches indigo, chroma kept natural. Hues already inside the band are only
-    /// nudged toward its middle. Green and teal water get a bluer lower edge. Near-grey water keeps
-    /// its hue. Colours no open water has (red to yellow, and violet or magenta such as a large
-    /// anemone) are not water, so they keep hue and chroma.
+    /// Clear-water target in OKLab (L, C, hue): same lightness, hue moved to azure (waterHueGoal),
+    /// chroma kept natural. The move is in full: the market look puts every clear-water scene near
+    /// one azure, whatever the source hue. Near-grey water keeps its hue. Colours no open water
+    /// has (red to yellow, and violet or magenta such as a large anemone) are not water, so they
+    /// keep hue and chroma.
     /// `source` is the OKLCh of the untouched water colour; plausibility is judged on it, because
     /// the red boost can move restored water toward violet.
     static func waterTarget(_ water: SIMD3<Float>, waterType: Float, murky: Float, keep: Float = 0,
                             source: SIMD3<Float>? = nil, ceiling: Float = 0.07, murkyFloor: Float = 0.085) -> SIMD3<Float> {
-        let low = 222 + 12 * waterType, high: Float = 262
-        let inside = min(high, max(low, water.z))
-        let goal = inside + (238 - inside) * 0.5
+        let goal = waterHueGoal
         let plausible = waterPlausibility(source ?? water)
         let hueWeight = min(1, max(0, (water.y - 0.015) / 0.025)) * plausible
         let hue = water.z + (goal - water.z) * hueWeight
@@ -559,8 +581,14 @@ struct ColorCorrection: Sendable, Equatable {
         return SIMD3(water.x, chroma, hue)
     }
 
+    /// The OKLab hue every clear-water scene is moved to: azure. Cyan is about 200, pure blue 264.
+    static let waterHueGoal: Float = 240
+    /// Share of the water's colour taken from subjects (see subjectTone), as an exponent on the
+    /// water's green/red and blue/red ratios.
+    static let subjectLightRemoval: Float = 0.4
+
     /// Per-channel gains plus a chroma scale (around luminance) that move `from` to the OKLab
-    /// target at the same luminance. Gains stay inside 0.45...2 and the chroma scale inside
+    /// target at the same luminance. Gains stay inside 0.35...2.2 and the chroma scale inside
     /// 0.25...maximumSaturation (at most 1.6). A small cost on each change, and a larger one on
     /// any red loss, picks the gentlest solution.
     static func waterCorrection(from: SIMD3<Float>, to target: SIMD3<Float>,
@@ -574,7 +602,7 @@ struct ColorCorrection: Sendable, Equatable {
             let raw = SIMD3(exp(p.x), exp(p.y), exp(-p.y))
             let scaled = toned(from, gains: .one, saturation: exp(p.z))
             let g = raw * luminance / max(1e-6, (scaled * raw * luma).sum())
-            return SIMD3(min(2, max(0.45, g.x)), min(2, max(0.45, g.y)), min(2, max(0.45, g.z)))
+            return SIMD3(min(2.2, max(0.35, g.x)), min(2.2, max(0.35, g.y)), min(2.2, max(0.35, g.z)))
         }
         func ab(_ p: SIMD3<Float>) -> SIMD2<Float> {
             let v = oklab(toned(from, gains: gains(p), saturation: exp(p.z)))
@@ -589,13 +617,13 @@ struct ColorCorrection: Sendable, Equatable {
             return simd_length_squared(goal - ab(p)) + (weight * p * p).sum() + 0.05 * redLoss * redLoss
         }
         func bounded(_ p: SIMD3<Float>) -> SIMD3<Float> {
-            SIMD3(min(0.4, max(-0.5, p.x)), min(0.7, max(-0.7, p.y)), min(topScale, max(log(0.25), p.z)))
+            SIMD3(min(0.4, max(-0.5, p.x)), min(0.85, max(-0.85, p.y)), min(topScale, max(log(0.25), p.z)))
         }
         // A coarse grid first: nearly single-channel water (green almost zero) has flat
         // directions where a local solve stalls. Then a few damped Gauss-Newton steps.
         var best = SIMD3<Float>(0, 0, 0), bestCost = cost(best)
         for x in stride(from: Float(-0.5), through: 0.4, by: 0.1) {
-            for y in stride(from: Float(-0.7), through: 0.7, by: 0.14) {
+            for y in stride(from: Float(-0.85), through: 0.85, by: 0.17) {
                 for scale: Float in [0.25, 0.35, 0.5, 0.7, 1, 1.25, 1.6] {
                     let p = bounded(SIMD3(x, y, log(scale))), c = cost(p)
                     if c < bestCost { best = p; bestCost = c }
@@ -621,6 +649,19 @@ struct ColorCorrection: Sendable, Equatable {
                 if c.isFinite, c < bestCost { best = p; bestCost = c; improved = true } else { length /= 2 }
             }
             if !improved { break }
+        }
+        // Polish with a short pattern search: a damped step can stop a degree or two short of the goal.
+        var delta: Float = 0.02
+        for _ in 0..<40 {
+            var moved = false
+            for axis in 0..<3 {
+                for sign: Float in [1, -1] {
+                    var p = best; p[axis] += sign * delta; p = bounded(p)
+                    let c = cost(p)
+                    if c.isFinite, c < bestCost { best = p; bestCost = c; moved = true }
+                }
+            }
+            if !moved { delta /= 2; if delta < 1e-4 { break } }
         }
         let result = gains(best), saturation = exp(best.z)
         guard result.x.isFinite, result.y.isFinite, result.z.isFinite, saturation.isFinite else { return (.one, 1) }
@@ -688,6 +729,7 @@ struct ColorCorrection: Sendable, Equatable {
         if !(v.waterTone.x.isFinite && v.waterTone.y.isFinite && v.waterTone.z.isFinite) { v.waterTone = fallback.waterTone }
         if !(v.waterLit.x.isFinite && v.waterLit.y.isFinite && v.waterLit.z.isFinite) { v.waterLit = fallback.waterLit }
         if !(v.neutralGains.x.isFinite && v.neutralGains.y.isFinite && v.neutralGains.z.isFinite) { v.neutralGains = fallback.neutralGains }
+        if !(v.subjectTone.x.isFinite && v.subjectTone.y.isFinite && v.subjectTone.z.isFinite) { v.subjectTone = fallback.subjectTone }
         v.midLift = min(0.9, max(Self.minimumMidLift, v.midLift))
         v.toneCurve = min(0.3, max(0, v.toneCurve))
         v.physicalWeight = min(1, max(0, v.physicalWeight))
@@ -696,7 +738,7 @@ struct ColorCorrection: Sendable, Equatable {
 
     #if DEBUG
     var logDescription: String {
-        "gains=(\(castGains.x),\(castGains.y),\(castGains.z)) water=(\(waterTone.x),\(waterTone.y),\(waterTone.z))x\(waterSaturation)@\(waterRedness)/\(waterChroma) type=\(waterType) ceiling=\(redCeiling) guard=\(violetGuard) gate=\(redGateLow) redRebuild=\(redRebuild) subjectRed=\(subjectRed) midLift=\(midLift) curve=\(toneCurve)@\(tonePivot) brightness=\(brightness) contrast=\(contrast) saturation=\(saturation) shadows=\(shadowLift) clarity=\(clarity) definition=\(definition) warmth=\(warmth) vibrance=\(vibrance) physicalWeight=\(physicalWeight) neutral=(\(neutralGains.x),\(neutralGains.y),\(neutralGains.z))"
+        "gains=(\(castGains.x),\(castGains.y),\(castGains.z)) water=(\(waterTone.x),\(waterTone.y),\(waterTone.z))x\(waterSaturation)@\(waterRedness)/\(waterChroma) type=\(waterType) ceiling=\(redCeiling) guard=\(violetGuard) gate=\(redGateLow) redRebuild=\(redRebuild) subjectRed=\(subjectRed) midLift=\(midLift) curve=\(toneCurve)@\(tonePivot) brightness=\(brightness) contrast=\(contrast) saturation=\(saturation) shadows=\(shadowLift) clarity=\(clarity) definition=\(definition) warmth=\(warmth) vibrance=\(vibrance) physicalWeight=\(physicalWeight) neutral=(\(neutralGains.x),\(neutralGains.y),\(neutralGains.z)) subject=(\(subjectTone.x),\(subjectTone.y),\(subjectTone.z))"
     }
     #endif
 }
@@ -715,6 +757,13 @@ enum FinishingMath {
         // White reference: pixels that are not water-like, or clearly brighter than the water,
         // move with the scene's neutral surfaces.
         c *= SIMD3(repeating: 1) + (pointwiseMax(v.neutralGains, .zero) - 1) * neutralWeight(c, correction: v)
+        // Light removal on subjects: pixels that are not water-like lose part of the water's colour,
+        // at their own luminance. Green and blue never fall below the pixel's red: a grey subject
+        // carries no cast to remove, so it is not made warm.
+        var removed = c * (SIMD3(repeating: 1) + (pointwiseMax(v.subjectTone, .zero) - 1) * (1 - waterLike))
+        removed.y = max(removed.y, min(c.y, c.x)); removed.z = max(removed.z, min(c.z, c.x))
+        let kept = (c * ColorCorrection.luma).sum(), left = (removed * ColorCorrection.luma).sum()
+        if left > 1e-6 { c = removed * (kept / left) }
         c = ColorCorrection.violetGuard(c, input: input, waterLike: waterLike, strength: v.violetGuard)
         let lum = (c * ColorCorrection.luma).sum(), scale = 1 + (max(0, v.waterSaturation) - 1) * waterLike
         c = pointwiseMax(SIMD3(repeating: lum) + (c - SIMD3(repeating: lum)) * scale, .zero)
@@ -826,7 +875,7 @@ final class FilterEngine: Sendable {
     #include <CoreImage/CoreImage.h>
     using namespace metal;
 
-    [[stitchable]] float4 HydroToneFinishColor(coreimage::sample_t source, float4 gains, float4 water, float4 shape, float4 red, float4 tone, float4 neutral, float4 waterLit) {
+    [[stitchable]] float4 HydroToneFinishColor(coreimage::sample_t source, float4 gains, float4 water, float4 shape, float4 red, float4 tone, float4 neutral, float4 waterLit, float4 subjectTone) {
         const float3 input = max(source.rgb, float3(0.0f));
         float3 c = input * max(gains.rgb, float3(0.0f));
         // Redder subjects stay protected, with a broad transition through similar water colours.
@@ -851,6 +900,16 @@ final class FilterEngine: Sendable {
                 * smoothstep(0.08f, 0.2f, d.r + d.g + d.b);
         }
         c *= mix(float3(1.0f), max(neutral.rgb, float3(0.0f)), 1.0f - waterLike * (1.0f - bright));
+        // Light removal on subjects (subjectTone.rgb): pixels that are not water-like lose part of the
+        // water's colour, at their own luminance. Green and blue never fall below the pixel's red, so
+        // a grey subject is not made warm. FinishingMath.color mirrors it.
+        {
+            float3 removed = c * mix(float3(1.0f), max(subjectTone.rgb, float3(0.0f)), 1.0f - waterLike);
+            removed.gb = max(removed.gb, min(c.gb, float2(c.r)));
+            const float kept = dot(c, float3(0.2126f, 0.7152f, 0.0722f));
+            const float left = dot(removed, float3(0.2126f, 0.7152f, 0.0722f));
+            if (left > 1e-6f) { c = removed * (kept / left); }
+        }
         // In a blue pixel, red above green reads violet: gains may not lift red past green or the
         // pixel's own red. In water-like pixels (weighted by shape.w) red stops at green.
         const float blue = smoothstep(1.3f, 2.0f, c.b / max(max(c.r, c.g), 1e-4f));
@@ -995,7 +1054,8 @@ final class FilterEngine: Sendable {
             CIVector(x: CGFloat(v.redRebuild), y: CGFloat(v.redGateLow), z: CGFloat(v.redGateHigh), w: CGFloat(v.subjectRed)),
             CIVector(x: CGFloat(v.toneCurve), y: CGFloat(v.tonePivot), z: CGFloat(v.midLift), w: 0),
             CIVector(x: CGFloat(v.neutralGains.x), y: CGFloat(v.neutralGains.y), z: CGFloat(v.neutralGains.z), w: 0),
-            CIVector(x: CGFloat(v.waterLit.x), y: CGFloat(v.waterLit.y), z: CGFloat(v.waterLit.z), w: 0)
+            CIVector(x: CGFloat(v.waterLit.x), y: CGFloat(v.waterLit.y), z: CGFloat(v.waterLit.z), w: 0),
+            CIVector(x: CGFloat(v.subjectTone.x), y: CGFloat(v.subjectTone.y), z: CGFloat(v.subjectTone.z), w: 0)
         ]) ?? image
     }
     func blend(_ source: CIImage, _ target: CIImage, amount: Float) -> CIImage {
