@@ -169,6 +169,34 @@ final class RestorationTests: XCTestCase {
         }
     }
 
+    /// IMG_7260 (28 Sep 2026): the veil takes signal, not noise, and the division by the
+    /// transmission scales both, so far water got twice the noise per signal. Fine detail now
+    /// grows with the signal only.
+    func testRestorationDoesNotRaiseNoisePerSignal() throws {
+        let engine = FilterEngine(), restoration = RestorationEngine()
+        let map = try NormalizedDepthMap(width: 4, height: 4, values: .init(repeating: 0.95, count: 16))
+        let plan = RestorationPlan(depth: map, depthSource: .monocular, depthStatistics: .init(minimum: 0.95, maximum: 0.95, median: 0.95),
+            backscatterInfinity: .init(0.043, 0.086, 0.121), betaDirect: .init(1.2, 0.6, 0.4), betaBackscatter: .init(1.2, 1.6, 1.6),
+            confidence: 0.8, limits: .init(), transmissionFloorPixelPercentage: 0, maximumGainPixelPercentage: 0)
+        // Far water with a one-pixel checkerboard in green (the noise).
+        let size = 64, water = SIMD3<Float>(0.06, 0.12, 0.3), noise: Float = 0.006
+        var rgba = [Float]()
+        for y in 0..<size { for x in 0..<size { rgba += [water.x, water.y + ((x + y) % 2 == 0 ? noise : -noise), water.z, 1] } }
+        let image = CIImage(bitmapData: rgba.withUnsafeBytes { Data($0) }, bytesPerRow: size * 16,
+                            size: CGSize(width: size, height: size), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+        var out = [Float](repeating: 0, count: size * size * 4)
+        engine.context.render(try restoration.restore(image, plan: plan), toBitmap: &out, rowBytes: size * 16,
+                              bounds: CGRect(x: 0, y: 0, width: size, height: size), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+        var greens = [Float]()
+        for y in 8..<(size - 8) { for x in 8..<(size - 8) { greens.append(out[(y * size + x) * 4 + 1]) } }
+        let mean = greens.reduce(0, +) / Float(greens.count)
+        let spread = sqrt(greens.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Float(greens.count))
+        let signal = mean / water.y
+        XCTAssertLessThan(signal, 1)                               // the veil took part of the green
+        XCTAssertLessThanOrEqual(spread / noise, signal * 1.1)     // noise grows no faster than the signal
+        XCTAssertGreaterThan(spread / noise, signal * 0.5)         // and the detail is kept
+    }
+
     func testConfidenceFallbackAndDeterminism() {
         let current = SIMD3<Float>(0.1, 0.3, 0.6), restored = SIMD3<Float>(0.7, 0.5, 0.2)
         XCTAssertEqual(RestorationMath.confidenceBlend(current: current, restored: restored, confidence: 0), current)

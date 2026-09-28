@@ -1,4 +1,5 @@
 import CoreImage
+import CoreImage.CIFilterBuiltins
 
 struct RestorationPixelResult: Sendable, Equatable {
     let color: SIMD3<Float>
@@ -109,11 +110,17 @@ enum RestorationMath {
 
 final class RestorationEngine: Sendable {
     private let kernel: CIColorKernel?
+    private let detailKernel: CIColorKernel?
 
     init() {
         let kernels = try? CIKernel.kernels(withMetalString: Self.metalSource)
         kernel = kernels?.first { $0.name == "HydroToneRestoration" } as? CIColorKernel
+        detailKernel = kernels?.first { $0.name == "HydroToneRestoredDetail" } as? CIColorKernel
     }
+
+    /// The blur (share of the short side, at least 1.5 px) that splits the source into the part
+    /// the restoration acts on and the fine detail. See restore(_:plan:).
+    static let detailSplitRadius: Float = 0.0015
 
     private static let metalSource = """
     #include <CoreImage/CoreImage.h>
@@ -163,21 +170,43 @@ final class RestorationEngine: Sendable {
         if (!all(isfinite(restored))) { restored = max(source.rgb, float3(0.0f)); }
         return float4(restored, source.a);
     }
+
+    // Fine detail on the restored image: the source's detail (source - low) times the pixel's own
+    // restoration ratio (restoredLow / low), not 1 / transmission. See restore(_:plan:).
+    [[stitchable]] float4 HydroToneRestoredDetail(coreimage::sample_t source, coreimage::sample_t low,
+                                                  coreimage::sample_t restoredLow, float4 maximumGain) {
+        const float3 ratio = clamp(max(restoredLow.rgb, float3(0.0f)) / max(low.rgb, float3(1e-4f)),
+                                   float3(0.0f), max(maximumGain.rgb, float3(1.0f)));
+        const float3 out = max(restoredLow.rgb + (source.rgb - low.rgb) * ratio, float3(0.0f));
+        return all(isfinite(out)) ? float4(out, source.a) : restoredLow;
+    }
     """
 
+    /// The restoration removes the veil and divides by the transmission. On fine detail that is
+    /// mostly noise: the veil takes signal, not noise, and the division then scales both. Far water
+    /// got about twice the noise per signal (IMG_7260, 28 Sep 2026). So the restoration acts on a
+    /// slightly blurred source, and the source's fine detail comes back at the pixel's own
+    /// restoration ratio. The mean colour is the same; detail keeps its share of the signal.
     func restore(_ image: CIImage, plan: RestorationPlan) throws -> CIImage {
         guard let kernel else { throw RestorationError.kernelUnavailable }
         let depth = try depthImage(plan.depth, matching: image.extent)
         let limits = plan.limits
-        let output = kernel.apply(extent: image.extent, arguments: [
-            image, depth,
+        let short = Float(min(image.extent.width, image.extent.height))
+        let blur = CIFilter.gaussianBlur()
+        blur.inputImage = image.clampedToExtent()
+        blur.radius = max(1.5, Self.detailSplitRadius * (short.isFinite ? short : 0))
+        let low = detailKernel == nil ? image : (blur.outputImage ?? image).cropped(to: image.extent)
+        let restoredLow = kernel.apply(extent: image.extent, arguments: [
+            low, depth,
             vector(plan.backscatterInfinity), vector(plan.betaDirect), vector(plan.betaBackscatter),
             CIVector(x: CGFloat(limits.transmissionFloor), y: CGFloat(limits.highlightStart),
                      z: CGFloat(limits.highlightEnd), w: CGFloat(limits.maximumOutput)),
             vector(limits.maximumGain), vector(plan.channelRecoverability)
         ])
-        guard let output else { throw RestorationError.kernelUnavailable }
-        return output.cropped(to: image.extent)
+        guard let restoredLow else { throw RestorationError.kernelUnavailable }
+        guard let detailKernel, low !== image else { return restoredLow.cropped(to: image.extent) }
+        let output = detailKernel.apply(extent: image.extent, arguments: [image, low, restoredLow, vector(limits.maximumGain)])
+        return (output ?? restoredLow).cropped(to: image.extent)
     }
 
     private func depthImage(_ map: NormalizedDepthMap, matching extent: CGRect) throws -> CIImage {
