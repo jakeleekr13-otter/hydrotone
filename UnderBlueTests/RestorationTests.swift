@@ -197,6 +197,48 @@ final class RestorationTests: XCTestCase {
         XCTAssertGreaterThan(spread / noise, signal * 0.5)         // and the detail is kept
     }
 
+    /// O3 (28 Sep 2026): the sunfish's belly is at depth 0, where the restoration changes nothing,
+    /// but the restored values are made for the restored water. The nearest pixels now take the
+    /// current result; a constant-depth plan (video) keeps one weight for the frame.
+    func testNearestPixelsTakeTheCurrentResult() throws {
+        let engine = FilterEngine(), restoration = RestorationEngine()
+        let belly = SIMD3<Float>(0.22, 0.45, 0.54)
+        let settings = FilterSettings(preset: .natural, intensity: 0.8, analysis: scene(water: .init(0.04, 0.085, 0.29), mid: 0.13))
+        let image = CIImage(color: CIColor(red: CGFloat(belly.x), green: CGFloat(belly.y), blue: CGFloat(belly.z),
+                                           colorSpace: FilterEngine.workingSpace)!).cropped(to: CGRect(x: 0, y: 0, width: 64, height: 8))
+        func pixel(_ output: CIImage, x: Int) -> SIMD3<Float> {
+            var p = [Float](repeating: 0, count: 4)
+            engine.context.render(output, toBitmap: &p, rowBytes: 16, bounds: CGRect(x: x, y: 4, width: 1, height: 1),
+                                  format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            return SIMD3(p[0], p[1], p[2])
+        }
+        func plan(_ depth: [Float]) throws -> RestorationPlan {
+            RestorationPlan(depth: try NormalizedDepthMap(width: depth.count, height: 2, values: depth + depth), depthSource: .monocular,
+                depthStatistics: .init(minimum: 0, maximum: 1, median: 0.5), backscatterInfinity: parameters.infinity,
+                betaDirect: parameters.betaDirect, betaBackscatter: parameters.betaBackscatter, confidence: 0.7, limits: .init(),
+                transmissionFloorPixelPercentage: 0, maximumGainPixelPercentage: 0)
+        }
+        func oldBlend(_ p: RestorationPlan) throws -> CIImage {
+            let values = restoration.corrections(settings: settings, plan: p)
+            let current = engine.apply(image, correction: values.current, intensity: 0.8)
+            let finished = engine.finishing(try restoration.restore(image, plan: p), correction: values.restored, reference: image)
+            return engine.blend(current, engine.blend(image, finished, amount: 0.8), amount: values.restored.physicalWeight)
+        }
+        // Left half at depth 0, right half at depth 1.
+        let split = try plan([0, 0, 0, 0, 1, 1, 1, 1])
+        let values = restoration.corrections(settings: settings, plan: split)
+        let out = try restoration.combined(image, plan: split, settings: settings, filter: engine)
+        let current = engine.apply(image, correction: values.current, intensity: 0.8)
+        assertEqual(pixel(out, x: 2), pixel(current, x: 2), accuracy: 0.004)
+        // x 44 is the centre of the sixth depth sample (depth 1): the full physical weight, as before.
+        let far = try oldBlend(split)
+        assertEqual(pixel(out, x: 44), pixel(far, x: 44), accuracy: 0.004)
+        // Constant depth: the old frame-wide weight, even near.
+        let flat = try plan(.init(repeating: 0.1, count: 8))
+        assertEqual(pixel(try restoration.combined(image, plan: flat, settings: settings, filter: engine), x: 30),
+                    pixel(try oldBlend(flat), x: 30), accuracy: 0.004)
+    }
+
     func testConfidenceFallbackAndDeterminism() {
         let current = SIMD3<Float>(0.1, 0.3, 0.6), restored = SIMD3<Float>(0.7, 0.5, 0.2)
         XCTAssertEqual(RestorationMath.confidenceBlend(current: current, restored: restored, confidence: 0), current)

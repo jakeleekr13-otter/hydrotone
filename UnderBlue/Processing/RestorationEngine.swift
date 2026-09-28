@@ -111,11 +111,15 @@ enum RestorationMath {
 final class RestorationEngine: Sendable {
     private let kernel: CIColorKernel?
     private let detailKernel: CIColorKernel?
+    private let depthBlendKernel: CIColorKernel?
+    /// Depth (normalized) from which a pixel takes the full restored result. See combined().
+    static let nearDepth: Float = 0.25
 
     init() {
         let kernels = try? CIKernel.kernels(withMetalString: Self.metalSource)
         kernel = kernels?.first { $0.name == "UnderBlueRestoration" } as? CIColorKernel
         detailKernel = kernels?.first { $0.name == "UnderBlueRestoredDetail" } as? CIColorKernel
+        depthBlendKernel = kernels?.first { $0.name == "UnderBlueDepthBlend" } as? CIColorKernel
     }
 
     /// The blur (share of the short side, at least 1.5 px) that splits the source into the part
@@ -180,6 +184,14 @@ final class RestorationEngine: Sendable {
         const float3 out = max(restoredLow.rgb + (source.rgb - low.rgb) * ratio, float3(0.0f));
         return all(isfinite(out)) ? float4(out, source.a) : restoredLow;
     }
+
+    // The current and the restored result mixed per pixel: weights.x (the physical weight) times a
+    // ramp over depth 0 to weights.y. See RestorationEngine.combined.
+    [[stitchable]] float4 UnderBlueDepthBlend(coreimage::sample_t current, coreimage::sample_t depthAware,
+                                              coreimage::sample_t depthSample, float4 weights) {
+        const float w = weights.x * smoothstep(0.0f, max(1e-4f, weights.y), clamp(depthSample.r, 0.0f, 1.0f));
+        return mix(current, depthAware, clamp(w, 0.0f, 1.0f));
+    }
     """
 
     /// The restoration removes the veil and divides by the transmission. On fine detail that is
@@ -239,8 +251,21 @@ final class RestorationEngine: Sendable {
         let physicallyRestored = try restore(image, plan: plan)
         let finished = filter.finishing(physicallyRestored, correction: values.restored, reference: image)
         let depthAware = filter.blend(image, finished, amount: amount)
-        // Low-confidence fits approach the exact current UnderBlue output.
-        return filter.blend(current, depthAware, amount: values.restored.physicalWeight)
+        // Low-confidence fits approach the exact current UnderBlue output. So do the nearest pixels
+        // (depth 0 to nearDepth): the restoration leaves them almost as they are, but the restored
+        // values are made for the restored water. On the sunfish's belly (depth 0) the restored
+        // water tone turned the unrestored cyan green (28 Sep 2026, O3: hue 150 -> 200).
+        // A constant-depth plan (video, one depth per scene) keeps one weight for the frame.
+        let weight = values.restored.physicalWeight
+        let values = plan.depth.values
+        guard let nearest = values.min(), let farthest = values.max(), farthest - nearest > 0.05,
+              let depthBlendKernel else {
+            return filter.blend(current, depthAware, amount: weight)
+        }
+        let depth = try depthImage(plan.depth, matching: image.extent)
+        let mixed = depthBlendKernel.apply(extent: image.extent, arguments: [current, depthAware, depth,
+            CIVector(x: CGFloat(weight), y: CGFloat(Self.nearDepth), z: 0, w: 0)])
+        return (mixed ?? filter.blend(current, depthAware, amount: weight)).cropped(to: image.extent)
     }
 
     /// The correction values combined applies: one set for the source image, one for the restored image.
