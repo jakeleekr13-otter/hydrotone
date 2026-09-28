@@ -122,6 +122,7 @@ Checked:
 - `AppStoreAssets/IAP/MarineLensPro-1024.png` has no text, so it did not change.
 
 Still open:
+- **Name clash.** A live iPhone app is already named "MarineLens" (NEXASPHERE INC., id 6772336245, since 3 Jun 2026, a marine-surveyor tool). Source: iTunes Search API, US and KR, 28 Sep 2026. Decide on the name before the first upload. USPTO, KIPRIS and EUIPO searches are still unmeasured.
 - On the iPhone, the new bundle ID installs as a new app. Check that the home screen and share sheet show MarineLens. Delete the old HydroTone app.
 - The new App Group and app IDs get registered on the first device build with automatic signing.
 - The screenshot source captures still show the old colour output. Capture them again after colour tuning ends.
