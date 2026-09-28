@@ -34,7 +34,7 @@ If there is no plan, or the restoration render fails, the output is `FilterEngin
 - **Photo:** one image, one analysis, a per-pixel depth map.
 - **Video:** see below and [Video V2](VideoV2.md).
   - Keyframes: one about every second, from 0 s to 0.1 s before the end. At least 10, at most 120, so a one-hour clip gets one every 30 s (`VideoRestorationAnalyzer.keyframeTimes`).
-  - Scenes: `VideoSceneSplitter` starts a new scene when the keyframe's mean colour is more than 0.04 (OKLab distance) from the running scene mean, and the next keyframe is that far too. So one odd keyframe never starts a scene.
+  - Scenes: `VideoSceneSplitter` starts a new scene when a keyframe's mean colour is far from the running scene mean: more than 0.04 in OKLab distance. The next keyframe must be that far too, so one odd keyframe never starts a scene.
   - Each scene drops odd keyframes (`sceneInliers`) and averages the rest (`sceneMean`). Depth and the water fit run on at most 10 keyframes per scene. Each scene gets one analysis, one plan and one constant depth.
   - A scene whose fits all failed borrows the whole clip's plan.
   - Between two scenes the values cross-fade over at most 1 s (`VideoRestorationAnalysis.moment(at:)`, smoothstep). Each scene gets its own `make()` result, and the results mix.
@@ -312,7 +312,11 @@ Three code states appear below:
 
 - "Before" is `c411a2e`, before the AquaColorFix tuning.
 - "Tuning" is the first AquaColorFix tuning commit of 28 Sep 2026 (`4fa62e3`).
-- "HEAD" is `b4594ab`, measured on 28 Sep 2026 in the evening. Since the tuning commit it added the fine detail layer, per-scene video values, the softer tone and luminance-only sharpening, the violet-band and green-cast fixes, the veil offset, the restoration detail split and the depth blend.
+- "HEAD" is `b4594ab`, measured on 28 Sep 2026 in the evening. Since the tuning commit it added:
+  - the fine detail layer and per-scene video values
+  - the softer tone and luminance-only sharpening
+  - the violet-band and green-cast fixes, and the veil offset
+  - the restoration detail split and the depth blend
 
 Only the gate, the market pairs and the UIEB holdout were re-measured at HEAD. Every other figure in this section is from the tuning commit or older.
 
@@ -389,7 +393,7 @@ HEAD holdout plan confidence: min 0.589, p10 0.623, median 0.664, p90 0.683, max
 | m5 chart, grey row | 0.132 | 0.034 | 0.063 | 0.046 | 0.057 | 0.079 |
 | m6 manta belly | 0.111 | 0.026 | 0.029 | 0.033 | 0.046 | 0.063 |
 
-The chroma rose on all three, most on the chart. The residual changed side: before it was cyan (hue 184 to 217), at the tuning commit it is green-yellow (126 to 173), because the light removal takes more blue than green. The harness guard "neutral surfaces do not rise" is not met by this change; the AquaColorFix bright-neutral chroma fell from 0.065 to 0.043.
+The chroma rose on all three, most on the chart. The residual changed side. Before it was cyan (hue 184 to 217). At the tuning commit it is green-yellow (126 to 173), because the light removal takes more blue than green. The harness guard "neutral surfaces do not rise" is not met by this change; the AquaColorFix bright-neutral chroma fell from 0.065 to 0.043.
 
 ## Decision record
 
@@ -423,7 +427,7 @@ No separate figure is recorded here for these four. The scorecard shows the comb
 |---|---|
 | Jerlov coefficient priors | No measurable gain. They are copied tables. |
 | Clear-water veil in the style of UWCNN | deltaE 26.1 against a 24.2 baseline, 40 images |
-| Per-pixel depth for video, including optical-flow depth warping | On photos, per-pixel depth was not better than constant depth. Per-pixel minus constant: +0.54 deltaE on dev, +0.25 on holdout, at that time. At HEAD (`b4594ab`) photos keep per-pixel depth: it beats constant depth on the AquaColorFix pairs (10.59 against 11.23) and on 5 of 6 market pairs (m1 is the exception, 23.0 against 20.6). On the holdout they tie (20.44). |
+| Per-pixel depth for video, including optical-flow depth warping | On photos, per-pixel depth was not better than constant depth. Per-pixel minus constant: +0.54 deltaE on dev, +0.25 on holdout, at that time. At HEAD (`b4594ab`) photos keep per-pixel depth. It beats constant depth on the AquaColorFix pairs (10.59 against 11.23). It also wins on 5 of 6 market pairs; m1 is the exception (23.0 against 20.6). On the holdout they tie (20.44). |
 | A finer water-fit beta grid (0.05 to 0.01) | deltaE changed by 0.03 |
 | A fixed recipe, for example a +36 magenta tint | It pushes blue water violet. The rules adapt to the measured cast instead. |
 | The highlight rule without its dark-scene and contrast fades | UIEB 12324 mean L* fell from 32.2 to 16.3 |
@@ -485,7 +489,7 @@ Limits:
 - Near subjects on the constant-depth video path go darker and greener. `keepBlueFamily` covers only blue-family pixels.
 - On an iPhone 17 (iOS 27.0), both kernel/CPU-mirror tests and the two device-only depth tests pass (4 test suites, 65 tests, 0 failures). One depth inference took 22 ms. Full video export speed on an iPhone is unmeasured.
 - Mood grades like m3 are out of scope for automatic correction.
-- m5 stays brighter than Sea-thru: mean L* 46.7 at HEAD against 36.4 (58.3 before the veil offset). Its original is already bright (60.1).
+- m5 stays brighter than Sea-thru: mean L* 46.7 at HEAD against 36.4 (58.3 at `6fd84cf`). Its original is already bright (60.1).
 - On m6 the reef under the manta is olive-green (photo path) or yellow-green (video path). On Sea-thru it is brown.
 - The detail layer has one strength for every scene. Pairs 1 and 4 now carry more fine-detail energy than AquaColorFix (9.4 and 8.6 against 6.7 and 7.7): their sources are busier. A source-detail measurement in the analysis could set the strength per scene; it is not built.
 - Against AquaColorFix: pair 2's fish keeps a faint green-yellow tint (chroma about 0.02) and is about 10 L* brighter. The darker half of pair 4's manta keeps some mint. Pair 5's fish school is pale cyan where AquaColorFix has it warm. Pairs 4 and 5 stay 4 to 6 L* brighter in the mid-tones.
@@ -500,8 +504,49 @@ Limits:
 - Tropical moves some cyan or green water a little greener (m1 water hue 216 to 212, m2 240 to 225). In r10 it gives the sun core a light peach tint.
 - The particle filter and temporal denoiser are prototypes in `Prototypes/VideoCleanup`. They are not wired in.
 
-Next steps:
+## Open problems and next tasks
 
-- Add particle removal and temporal denoising before colour correction. Both are prototypes in `Prototypes/VideoCleanup`.
-- Add sharpening and deblur after them.
-- Measure full video export speed on an iPhone, with the particle filter and denoiser wired in.
+Status on 28 Sep 2026, HEAD `b4594ab`.
+
+### Reported by the product owner
+
+The product owner still sees these four problems by eye on current outputs (28 Sep 2026). No harness metric shows them yet, so the gate cannot see them either.
+
+| Symptom | Related measurements so far | At HEAD |
+|---|---|---|
+| Green cast is made stronger | Neutral-surface residual turned green-yellow (hue 126 to 173) at the tuning commit. m6 reef under the manta is olive-green. The O3 belly was green (OKLab hue 150) until `9a92ca5`. | unmeasured |
+| Violet appears | Deep Dive turns 12.1% of r11's pixels lavender. The violet band near the sun (IMG_7287) was fixed in `29f677d`. | unmeasured; the images are not collected yet |
+| Colours are flat: everything comes out beige | On 8682 the target has 9.6% warm pixels, ours had 0% (28 Sep 2026, at `c092902`). Pair 5's fish school is pale cyan where AquaColorFix has it warm. | unmeasured |
+| Strong noise | O3 colour noise after luminance-only sharpening: flat water 1.28 against AquaColorFix 0.96, fish 3.29 against 1.81. The detail layer adds grain to bright open water; its cause is unmeasured. No step removes noise before the sharpening. | unmeasured |
+
+### Found in the 28 Sep 2026 review
+
+All measured at HEAD. The numbers are in the [scorecard](#current-scorecard) and in [Tone and brightness](#tone-and-brightness).
+
+1. **Green water is forced to azure.** The hue goal 240 acts in full, whatever `waterType` is. The references keep green water green; we keep 1 of 6. On m2 the water solver sits at both bounds and red is 0 on 70% of the pixels. The gate pairs are blue water (`waterType` 0 on four, 0.57 on pair 4), so the gate never tests this.
+2. **The gate is also the tuning set.** The gate fell from 20.70 to 12.31 while the UIEB holdout moved from 20.12 to 20.44. No independent set checks the product look.
+3. **Plan confidence is nearly flat.** It is 0.62 to 0.68 on 80% of the holdout. So "a low-confidence fit gives `current`" almost never acts.
+4. **`contrast` and `brightness` are a linear gain and a black offset.** Their names do not say so, and two filters nearly cancel each other on dark scenes.
+5. **The luminance weights do not match the working space.** `ColorCorrection.luma`, `FilterEngine.analyze`, the finishing kernels and `WaterModelEstimator` use BT.709 weights (0.2126, 0.7152, 0.0722). The working space is linear Rec. 2020, whose weights are (0.2627, 0.6780, 0.0593). `lab`, `oklab` and `PhotoHDR` use the Rec. 2020 weights. On the pair 1 water colour the difference is about 6%; red is under-weighted by 19%.
+6. **Sharpening runs without noise removal.** This breaks the product rule on order (see [Purpose and product rules](#purpose-and-product-rules)).
+7. **The veil offset rests on one image.** Its evidence is m5 alone. Only gate pair 4 has a median luminance of 0.2 or more (0.21), and it is teal (`waterType` 0.57), so its offset is tiny. The code comment says "median 0.2 to 0.3", but the full offset also applies above 0.3.
+
+### Tasks, in order
+
+1. **Make each reported symptom measurable.**
+   - Collect the images that show each symptom from the product owner. Keep them in `DeveloperMedia/`, never under `UnderBlueTests/`.
+   - Add one number per symptom to `aquacolorfix_eval.sh`:
+     - green cast: share of subject pixels (not water-like) with OKLab hue 110 to 170 and chroma 0.03 or more
+     - violet: share of pixels with OKLab hue 282 to 330 and chroma 0.03 or more
+     - flat and beige: subject chroma (75th percentile) and the share of warm pixels (OKLab hue 20 to 90), against the source and AquaColorFix
+     - noise: colour noise in flat patches, measured on PNG output, not on the harness's q0.85 JPEG
+   - Done when each symptom shows as a number on its own images.
+2. **Find the step behind each symptom.** Follow one pixel per symptom through the chain with the `HT_EVAL_LOG` probe: cast gains, subject light removal, white reference, water tone, red rebuild, `CIColorControls`, shadow lift, sharpening, detail layer. Start with these two ideas. Neither is measured yet:
+   - beige: subject light removal, the white reference and "green and blue never fall below red" together pull every subject toward a grey-warm colour
+   - green: the light removal takes more blue than green
+3. **Green water.** Scale the hue move by `waterType`, so green water keeps more of its own hue. Check m2, the 6 green-water holdout images and the gate.
+4. **Noise.** Put a noise step before the colour correction (the denoiser prototype in `Prototypes/VideoCleanup`). Or lower the unsharp masks and the detail layer where the source is noisy. Measure on O3 and IMG_7260, on PNG.
+5. **Confidence.** Make plan and depth confidence follow the real fit quality. Or state that the weight is a fixed 0.66.
+6. **Explainable tone values.** Replace `CIColorControls` contrast and brightness with a named gain and a named black offset. Move `luma` to the Rec. 2020 weights. Both need a retune, so do them after tasks 1 to 4.
+7. **A second look set.** Add images that no tuning step used, scored against the product look, as a holdout for the gate.
+8. **Carried over.** Particle removal before colour correction; deblur after it. Measure the full video export speed on an iPhone once the algorithm is done.
