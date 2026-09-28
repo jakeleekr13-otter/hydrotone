@@ -50,16 +50,28 @@ struct EditorView: View {
                 ZoomablePreview(image: preview, zoom: $zoom) { model.requestDetailPreview() }
             }
             if model.loading {
-                if model.analyzing { ProgressView("Analyzing…") } else { ProgressView("Opening…") }
+                if model.analyzing { VStack(spacing: 12) { longVideoNotice; ProgressView("Analyzing…") } }
+                else { ProgressView("Opening…") }
             } else if model.analyzing {
                 // Video stays playable while the scene is analysed; the colour updates when it finishes.
-                HStack(spacing: 8) { ProgressView(); Text("Analyzing…").font(.footnote.weight(.medium)) }
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .background(.regularMaterial, in: Capsule())
-                    .frame(maxHeight: .infinity, alignment: .top).padding(.top, 12)
-                    .accessibilityElement(children: .combine)
+                VStack(spacing: 8) {
+                    longVideoNotice
+                    HStack(spacing: 8) { ProgressView(); Text("Analyzing…").font(.footnote.weight(.medium)) }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(.regularMaterial, in: Capsule())
+                        .accessibilityElement(children: .combine)
+                }.frame(maxHeight: .infinity, alignment: .top).padding(.top, 12)
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
+    }
+    @ViewBuilder private var longVideoNotice: some View {
+        if model.isLongVideo {
+            Text("Analysis and correction can take longer for longer videos.")
+                .font(.footnote).multilineTextAlignment(.center)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, 16)
+        }
     }
     private var controls: some View {
         @Bindable var model = model

@@ -22,7 +22,10 @@ final class EditorModel {
     private var clipStart: CMTime?
     private var clipObserver: Any?
     static let clipSeconds = 3.0
+    /// From this length on, the editor warns that analysis and export take longer.
+    static let longVideoSeconds = 45.0
     var metadata: VideoMetadata?
+    var isLongVideo: Bool { (metadata?.duration ?? 0) >= Self.longVideoSeconds }
     var videoAnalysis: VideoRestorationAnalysis?
     var capability = ExportCapability.photo
     let video: VideoExporter

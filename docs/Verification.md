@@ -15,6 +15,16 @@ This page lists the checks that are still open. The product owner decided to fin
 | `e02c19e` | Tropical and Deep Dive tuned to match their names |
 | `7651372` | Custom Saturation and Temperature made visible (wider ranges) |
 
+## Long-video notice (28 Sep 2026)
+
+A video of 45 s or more shows "Analysis and correction can take longer for longer videos." above "Analyzing…" (`EditorModel.longVideoSeconds`).
+
+Checked on the iPhone 17 simulator (iOS 27.0), in Korean, with a 50 s clip: the notice showed above "분석 중…".
+
+Still open:
+- A video shorter than 45 s shows no notice.
+- The same check on the iPhone, and in landscape.
+
 ## Share sheet opens HydroTone (28 Sep 2026)
 
 The extension opens `hydrotone://share` after the copy, through the `UIApplication` object on its responder chain.

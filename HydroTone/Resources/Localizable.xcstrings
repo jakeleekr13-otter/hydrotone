@@ -320,6 +320,41 @@
         }
       }
     },
+    "Analysis and correction can take longer for longer videos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analysis and correction can take longer for longer videos."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "動画の長さによっては、分析と補正に時間がかかる場合があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "동영상의 길이에 따라 분석 시간과 보정 시간이 길어질 수 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频越长，分析和校正所需的时间可能越长。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影片越長，分析和校正所需的時間可能越長。"
+          }
+        }
+      }
+    },
     "Analyzing…" : {
       "extractionState" : "manual",
       "localizations" : {
