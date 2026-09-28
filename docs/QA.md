@@ -33,7 +33,7 @@ Run these before an App Store release:
 - Camera RAW: iPhone ProRAW DNG and one other camera (ARW, CR3 or NEF). Check full resolution, preview speed and memory.
 - Share sheet from Photos and from Files, and Import from Files with an iCloud Drive file that is not downloaded yet. Check the saved file names in Photos.
 - GoPro, DJI Osmo Action and Insta360 samples: H.264/HEVC, 8/10-bit, 1080p/4K, 30/60 fps, portrait/landscape, variable timing, with/without audio.
-- iPhone HLG/Dolby Vision, external-camera HLG/HDR10 and unusual compatible Dolby Vision clips. Inspect every result in Photos, QuickTime/AVAsset and a metadata tool. Confirm HydroTone never labels output Dolby Vision.
+- iPhone HLG/Dolby Vision, external-camera HLG/HDR10 and unusual compatible Dolby Vision clips. Inspect every result in Photos, QuickTime/AVAsset and a metadata tool. Confirm MarineLens never labels output Dolby Vision.
 - Multi-minute and long 4K exports on the oldest supported iPhone. Measure peak memory, thermal behavior, sustained frame rate and free-space estimates with Instruments.
 - Run the dedicated [Video V2 real-world matrix](VideoV2QA.md); specifically inspect temporal color pumping, depth-map popping and environment transitions.
 - Background, lock, phone call, memory warning, thermal critical, disk-full and Photos permission-denied flows. Confirm cleanup and trial rollback.

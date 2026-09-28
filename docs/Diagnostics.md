@@ -12,7 +12,7 @@ The current implementation follows Apple's native diagnostics path without addin
 - MetricKit receives Apple's crash, hang, CPU, disk-write, energy and performance reports. Reports stay local, are capped at one MiB each, and are pruned to six reports/seven days.
 - The Diagnostics screen explains the report, prepares it only when requested, lets the user inspect/share it with the system share sheet, and lets the user delete it. No report is uploaded automatically.
 - TestFlight/App Store crash reports remain available through Xcode Organizer when the user shares diagnostics with Apple. Release archives and dSYMs must be retained for symbolication.
-- TestFlight crash reports are shared automatically with the developer. App Store crash availability depends on the customer's analytics-sharing setting. These reports are reviewed in Xcode Organizer rather than delivered as HydroTone support email.
+- TestFlight crash reports are shared automatically with the developer. App Store crash availability depends on the customer's analytics-sharing setting. These reports are reviewed in Xcode Organizer rather than delivered as MarineLens support email.
 - The in-app diagnostic JSON is never sent automatically. The user explicitly chooses Mail or another destination from the system share sheet.
 - `OSSignposter` measures video exports. The exporter cancels on critical thermal state or memory pressure and removes partial output.
 
@@ -38,7 +38,7 @@ Automatic retry is limited to idempotent reads. Photo saving, purchases, restore
 
 ## Restoration fallback codes
 
-`kind = restorationFallback`, `domain = HydroTone`. The code tells which step fell back to the standard correction. Codes are stable; new stages only append.
+`kind = restorationFallback`, `domain = MarineLens`. The code tells which step fell back to the standard correction. Codes are stable; new stages only append.
 
 | Code | Stage | Meaning |
 |---|---|---|
@@ -60,7 +60,7 @@ Before release:
 
 1. Keep every App Store/TestFlight archive and dSYM in Xcode Organizer.
 2. Test detached-from-debugger crashes, hangs, memory pressure, thermal pressure and disk-full behavior on physical iPhones.
-3. Review Console output for `subsystem == "com.hydrotone.app"`; verify no media names or paths appear.
+3. Review Console output for `subsystem == "com.marinelens.app"`; verify no media names or paths appear.
 4. Review an exported diagnostic JSON before sharing and confirm the screen disclosure remains accurate after changing metrics.
 5. Triage frequency by `operation + kind + domain + code`, then reproduce with the same media class. Do not add media identifiers to correlate users.
 6. If a future backend is added, make diagnostic upload opt-in, document retention/deletion, update App Privacy disclosures, and obtain a separate product decision before enabling it.

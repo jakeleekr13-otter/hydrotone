@@ -4,21 +4,21 @@ Last reviewed: 2026-09-25
 
 ## Xcode configuration
 
-- Product: `HydroTone`
-- Bundle ID: `com.hydrotone.app`
+- Product: `MarineLens`
+- Bundle ID: `com.marinelens.app`
 - Version: `1.0`
 - Build: `1`
 - Minimum OS: iOS 26.0
 - Signing: Automatic, team `M3HJ7YK7N7`
-- Share extension: `HydroToneShare`, bundle ID `com.hydrotone.app.share`, embedded in the app
-- App Group: `group.com.hydrotone.app`, in both the app and the extension entitlements. Automatic signing registered both on 28 Sep 2026. The old App Store profile has no App Group, so the next archive creates a new one.
+- Share extension: `MarineLensShare`, bundle ID `com.marinelens.app.share`, embedded in the app
+- App Group: `group.com.marinelens.app`, in both the app and the extension entitlements. Automatic signing registered both on 28 Sep 2026. The old App Store profile has no App Group, so the next archive creates a new one.
 - App icon: 1024×1024 PNG without alpha
 - Release debug information: DWARF with dSYM
 - Release validation, whole-module optimization and dead-code stripping: enabled
 - Non-exempt encryption: `NO` (the app contains no proprietary encryption)
 - App category in the generated Info.plist: `public.app-category.photography`
 
-All four targets—`HydroTone`, `HydroToneShare`, `HydroToneTests` and `HydroToneUITests`—are explicitly limited to:
+All four targets—`MarineLens`, `MarineLensShare`, `MarineLensTests` and `MarineLensUITests`—are explicitly limited to:
 
 - Supported platforms: `iphoneos iphonesimulator`
 - Targeted device family: iPhone (`1`)
@@ -28,14 +28,14 @@ All four targets—`HydroTone`, `HydroToneShare`, `HydroToneTests` and `HydroTon
 
 The latest device build was verified with `UIDeviceFamily = [1]`, `CFBundleSupportedPlatforms = ["iPhoneOS"]` and `LSRequiresIPhoneOS = true`. Xcode may still list iPad simulators as run destinations because iPhone-only apps can run in iPadOS compatibility mode. This does not enable native iPad support and does not require iPad screenshots.
 
-The add-only Photos usage description is localised through `InfoPlist.xcstrings`. The privacy manifest declares no tracking and lists required-reason API usage for disk space, file timestamps and app-only UserDefaults. The share extension calls none of the required-reason APIs; its code was checked on 28 Sep 2026. So it has no privacy manifest of its own. HydroTone has no automatic analytics or diagnostic upload.
+The add-only Photos usage description is localised through `InfoPlist.xcstrings`. The privacy manifest declares no tracking and lists required-reason API usage for disk space, file timestamps and app-only UserDefaults. The share extension calls none of the required-reason APIs; its code was checked on 28 Sep 2026. So it has no privacy manifest of its own. MarineLens has no automatic analytics or diagnostic upload.
 
 ## Prepared App Store Connect values
 
 - App name: `MarineLens` (availability must be confirmed in App Store Connect)
 - Platform: iOS
 - Primary language: English (U.S.)
-- Suggested SKU: `HYDROTONE-IOS-001`
+- Suggested SKU: `MARINELENS-IOS-001`
 - Subtitle: `Underwater colour, restored`
 - Primary category: Photo & Video
 - Secondary category: None
@@ -51,9 +51,9 @@ The complete English and Korean descriptions, promotional text, keywords and rev
 
 ## Public support and privacy pages
 
-- Support URL: <https://jakeleekr13-otter.github.io/hydrotone-support/support/>
-- Privacy Policy URL: <https://jakeleekr13-otter.github.io/hydrotone-support/privacy/>
-- Public website repository: <https://github.com/jakeleekr13-otter/hydrotone-support>
+- Support URL: <https://jakeleekr13-otter.github.io/marinelens-support/support/>
+- Privacy Policy URL: <https://jakeleekr13-otter.github.io/marinelens-support/privacy/>
+- Public website repository: <https://github.com/jakeleekr13-otter/marinelens-support>
 - Support email: `support@enheart.me`
 - Privacy email: `privacy@enheart.me`
 
@@ -91,17 +91,17 @@ The first image is an authentic same-frame before/after comparison. The source c
 
 An App Preview video is optional and is intentionally omitted from the first submission.
 
-The optional 1024×1024 promoted-IAP image is `AppStoreAssets/IAP/HydroTonePro-1024.png`. It is not the IAP review screenshot. The required review screenshot must show the real HydroTone Pro screen, the localised App Store price, feature list, one-time purchase wording and Restore Purchase button.
+The optional 1024×1024 promoted-IAP image is `AppStoreAssets/IAP/MarineLensPro-1024.png`. It is not the IAP review screenshot. The required review screenshot must show the real MarineLens Pro screen, the localised App Store price, feature list, one-time purchase wording and Restore Purchase button.
 
-## HydroTone Pro In-App Purchase
+## MarineLens Pro In-App Purchase
 
 - Type: Non-Consumable
 - Reference name: `MarineLens Pro`
-- Product ID: `com.hydrotone.pro`
+- Product ID: `com.marinelens.pro`
 - English display name: `MarineLens Pro`
 - English description: `Unlimited photos, full video, 4K and HDR`
 - Availability: match the app's selected territories
-- App Store Server Notifications URL: leave blank; HydroTone has no server
+- App Store Server Notifications URL: leave blank; MarineLens has no server
 - Family Sharing: leave off for the first release unless it is explicitly tested and accepted as an irreversible setting
 
 The production price is still a business decision. The local StoreKit configuration's USD 4.99 value is test data and must not be treated as a configured production price. The first IAP must be included in the same App Review submission as app version 1.0.
@@ -116,23 +116,23 @@ The production price is still a business decision. The local StoreKit configurat
 - [ ] Complete the age-rating questionnaire with no mature, social, advertising, gambling or unrestricted-web content; expected result is 4+.
 - [ ] Enter the copyright owner using the Apple Developer account's legal name.
 - [ ] Enter a reachable App Review contact name, email and international-format phone number.
-- [ ] Create `com.hydrotone.pro`, choose its production price and tax category, and add its localisation.
-- [ ] Capture and upload the real HydroTone Pro purchase-screen review screenshot.
+- [ ] Create `com.marinelens.pro`, choose its production price and tax category, and add its localisation.
+- [ ] Capture and upload the real MarineLens Pro purchase-screen review screenshot.
 - [ ] Upload the six iPhone screenshots.
 - [ ] Paste the prepared description, promotional text, keywords and App Review notes.
 - [ ] Publish the App Privacy answers and verify the Product Page Preview.
 - [ ] Upload and select a fresh archive built from the final source.
-- [ ] Add both iOS app version 1.0 and HydroTone Pro to the same draft submission.
+- [ ] Add both iOS app version 1.0 and MarineLens Pro to the same draft submission.
 
 ## Before each upload
 
 1. Increase `CURRENT_PROJECT_VERSION` for every build previously uploaded to App Store Connect. Build `1` can be reused only if it has never been uploaded.
 2. Increase `MARKETING_VERSION` only when creating a new App Store version.
-   Change both numbers in the `HydroTone` **and** `HydroToneShare` targets. A mismatch fails App Store validation.
+   Change both numbers in the `MarineLens` **and** `MarineLensShare` targets. A mismatch fails App Store validation.
 3. Run the physical-device matrices in `QA.md` and `VideoV2QA.md`.
 4. Select **Any iOS Device (arm64)**, then Product → Archive.
 5. In Organizer, run **Validate App** before **Distribute App**.
-   Confirm the archive contains `PlugIns/HydroToneShare.appex`, and that both profiles include the App Group.
+   Confirm the archive contains `PlugIns/MarineLensShare.appex`, and that both profiles include the App Group.
 6. Retain the archive and dSYM for crash symbolication.
 7. Confirm the uploaded build reports iPhone-only device family and no Mac, Catalyst or Vision availability.
 
@@ -149,18 +149,18 @@ Do not upload the existing local archive blindly: create a fresh archive after t
 
 - TestFlight shares available crash reports through Xcode Organizer and App Store Connect TestFlight feedback.
 - App Store crash reports appear in Organizer when customers share diagnostics with Apple.
-- HydroTone's MetricKit/error summary remains on the device until the user opens Diagnostics, prepares the JSON report and explicitly shares it.
+- MarineLens's MetricKit/error summary remains on the device until the user opens Diagnostics, prepares the JSON report and explicitly shares it.
 - The local report includes privacy-safe aggregated photo/video restoration fallback events as well as common import, preview, export, save and purchase failures.
 - The report excludes photos, videos, filenames, file paths, location, per-pixel data, raw error descriptions and `userInfo`.
-- HydroTone has no automatic diagnostic upload, analytics backend or automatic support-email transmission.
+- MarineLens has no automatic diagnostic upload, analytics backend or automatic support-email transmission.
 - Customers should email private diagnostic reports to `support@enheart.me`, not attach them to a public GitHub issue.
 
 ## Complimentary Pro access
 
-`com.hydrotone.pro` is a non-consumable In-App Purchase. After the app is **Ready for Distribution** and the IAP is **Approved**:
+`com.marinelens.pro` is a non-consumable In-App Purchase. After the app is **Ready for Distribution** and the IAP is **Approved**:
 
-1. App Store Connect → Apps → HydroTone → In-App Purchases.
-2. Open HydroTone Pro and scroll to **Offer Codes**.
+1. App Store Connect → Apps → MarineLens → In-App Purchases.
+2. Open MarineLens Pro and scroll to **Offer Codes**.
 3. Create a **Free Offer**, select the intended eligibility groups and territories.
 4. For a few friends, create a custom code with a small redemption limit and share its redemption URL. One-time-use batches currently start at 500 codes.
 5. Codes can be valid for at most six months. The unlocked non-consumable itself does not expire after redemption.

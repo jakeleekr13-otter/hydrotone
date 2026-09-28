@@ -1,4 +1,4 @@
-"""Generate HydroTone's English, Korean, Japanese, Simplified and Traditional Chinese catalog."""
+"""Generate MarineLens's English, Korean, Japanese, Simplified and Traditional Chinese catalog."""
 import json
 from pathlib import Path
 
@@ -117,6 +117,6 @@ for key, translations in sorted(T.items()):
         localized[locale] = {"stringUnit": {"state": "translated", "value": value}}
     strings[key] = {"extractionState": "manual", "localizations": localized}
 
-Path("HydroTone/Resources/Localizable.xcstrings").write_text(
+Path("MarineLens/Resources/Localizable.xcstrings").write_text(
     json.dumps({"sourceLanguage": "en", "strings": strings, "version": "1.0"}, ensure_ascii=False, indent=2) + "\n"
 )

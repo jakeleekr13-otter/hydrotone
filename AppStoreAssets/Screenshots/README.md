@@ -14,6 +14,6 @@ Suggested upload order and captions:
 
 The older `en-US/raw` and `en-US/final` sets are retained for comparison only. Upload the JPEG files from `final-v2`.
 
-The UIEB files under the local developer fixtures are academic/non-commercial benchmark data and must not appear in App Store assets or be redistributed. The v2 set uses only the developer-owned photo/video fixtures and actual HydroTone output.
+The UIEB files under the local developer fixtures are academic/non-commercial benchmark data and must not appear in App Store assets or be redistributed. The v2 set uses only the developer-owned photo/video fixtures and actual MarineLens output.
 
 Korean caption copy and full App Store metadata are in `docs/AppStoreMetadata.md`.

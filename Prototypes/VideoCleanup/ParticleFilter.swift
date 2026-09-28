@@ -388,11 +388,11 @@ final class ParticleFilter {
     /// Returns nil when the Metal kernels fail to compile. The caller then uses frames unchanged.
     init?(context: CIContext, settings: Settings = Settings()) {
         guard let kernels = try? CIKernel.kernels(withMetalString: Self.metalSource),
-              let luma = kernels.first(where: { $0.name == "HydroToneSpeckLuma" }) as? CIColorKernel,
-              let peak = kernels.first(where: { $0.name == "HydroToneSpeckPeak" }),
-              let mask = kernels.first(where: { $0.name == "HydroToneSpeckMask" }),
-              let fill = kernels.first(where: { $0.name == "HydroToneSpeckFill" }),
-              let tiles = kernels.first(where: { $0.name == "HydroToneSpeckTiles" }),
+              let luma = kernels.first(where: { $0.name == "MarineLensSpeckLuma" }) as? CIColorKernel,
+              let peak = kernels.first(where: { $0.name == "MarineLensSpeckPeak" }),
+              let mask = kernels.first(where: { $0.name == "MarineLensSpeckMask" }),
+              let fill = kernels.first(where: { $0.name == "MarineLensSpeckFill" }),
+              let tiles = kernels.first(where: { $0.name == "MarineLensSpeckTiles" }),
               let motion = MotionEstimator() else { return nil }
         self.context = context
         self.settings = settings
@@ -565,14 +565,14 @@ final class ParticleFilter {
     };
 
     // Perceptual luma: square root of linear Rec. 709 luma, so thresholds act alike in dark and bright water.
-    [[stitchable]] float4 HydroToneSpeckLuma(coreimage::sample_t s) {
+    [[stitchable]] float4 MarineLensSpeckLuma(coreimage::sample_t s) {
         const float l = sqrt(max(dot(s.rgb, float3(0.2126f, 0.7152f, 0.0722f)), 0.0f));
         return float4(l, l, l, 1.0f);
     }
 
     // r: centre minus the brightest ring point. g: contrast a spot needs here. b: blurred luma.
     // p = (ring radius, floor, spread gain, max contrast).
-    [[stitchable]] float4 HydroToneSpeckPeak(coreimage::sampler lum, float4 p, coreimage::destination dest) {
+    [[stitchable]] float4 MarineLensSpeckPeak(coreimage::sampler lum, float4 p, coreimage::destination dest) {
         const float2 c = dest.coord();
         const float centre = lum.sample(lum.transform(c)).r;
         float hi = -1.0e4f, lo = 1.0e4f, sum = 0.0f;
@@ -608,7 +608,7 @@ final class ParticleFilter {
 
     // 1 when any pixel of this 8x8 tile is a spot candidate (contrast above the need), else 0.
     // Tile (i, j) covers origin + 8 * (i, j) and the 7 pixels after it on each axis.
-    [[stitchable]] float4 HydroToneSpeckTiles(coreimage::sampler peak, float2 origin, coreimage::destination dest) {
+    [[stitchable]] float4 MarineLensSpeckTiles(coreimage::sampler peak, float2 origin, coreimage::destination dest) {
         const float2 base = origin + 8.0f * floor(dest.coord());
         for (int y = 0; y < 8; y++) {
             for (int x = 0; x < 8; x++) {
@@ -625,7 +625,7 @@ final class ParticleFilter {
     // The flow images hold one texel per 64 px block; fm = (origin of block (0, 0) in this image, block count x, y).
     // Pixels whose 9x9 window touches no candidate tile return 0 at once. Outside the extent the peak map is
     // clamped, so the window is clamped to the extent before the tiles are looked up.
-    [[stitchable]] float4 HydroToneSpeckMask(coreimage::sampler cur, coreimage::sampler n0, coreimage::sampler n1,
+    [[stitchable]] float4 MarineLensSpeckMask(coreimage::sampler cur, coreimage::sampler n0, coreimage::sampler n1,
                                              coreimage::sampler n2, coreimage::sampler flowA, coreimage::sampler flowB,
                                              coreimage::sampler tiles, float4 q, float4 q2, float4 e, float4 fm,
                                              coreimage::destination dest) {
@@ -660,7 +660,7 @@ final class ParticleFilter {
     }
 
     // Replaces marked pixels with the mean of the unmarked ring pixels (the local background).
-    [[stitchable]] float4 HydroToneSpeckFill(coreimage::sampler src, coreimage::sampler mask, float4 p,
+    [[stitchable]] float4 MarineLensSpeckFill(coreimage::sampler src, coreimage::sampler mask, float4 p,
                                              coreimage::destination dest) {
         const float2 c = dest.coord();
         const float4 s = src.sample(src.transform(c));

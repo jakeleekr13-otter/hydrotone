@@ -88,13 +88,13 @@ An App Preview video isn't required for the first release. If produced later, sh
 
 The IAP review screenshot should show the MarineLens Pro screen with the one-time purchase wording, feature list, localised App Store price and Restore Purchase button. If a promoted-IAP image is used, prepare a flattened 1024 × 1024 RGB JPG/PNG without rounded corners.
 
-The optional promoted-IAP image is ready at `AppStoreAssets/IAP/HydroTonePro-1024.png`. A separate real in-app purchase-screen review screenshot is still required.
+The optional promoted-IAP image is ready at `AppStoreAssets/IAP/MarineLensPro-1024.png`. A separate real in-app purchase-screen review screenshot is still required.
 
 ## Public URLs
 
-**Support:** https://jakeleekr13-otter.github.io/hydrotone-support/support/
+**Support:** https://jakeleekr13-otter.github.io/marinelens-support/support/
 
-**Privacy Policy:** https://jakeleekr13-otter.github.io/hydrotone-support/privacy/
+**Privacy Policy:** https://jakeleekr13-otter.github.io/marinelens-support/privacy/
 
 **Support email:** support@enheart.me
 
@@ -102,4 +102,4 @@ The optional promoted-IAP image is ready at `AppStoreAssets/IAP/HydroTonePro-102
 
 ## App Review notes
 
-MarineLens processes imported photos and videos entirely on device. No account or cloud service is used. The free trial allows one photo export and one video export limited to the first 10 seconds at up to 1080p SDR. MarineLens Pro is the non-consumable product `com.hydrotone.pro`. Completed exports are offered to the user before add-only Photos permission is requested. The share extension copies shared photos or videos into the app's App Group container on the device, then opens MarineLens to edit them. Diagnostics remain local and are shared only when the user explicitly uses the system share sheet.
+MarineLens processes imported photos and videos entirely on device. No account or cloud service is used. The free trial allows one photo export and one video export limited to the first 10 seconds at up to 1080p SDR. MarineLens Pro is the non-consumable product `com.marinelens.pro`. Completed exports are offered to the user before add-only Photos permission is requested. The share extension copies shared photos or videos into the app's App Group container on the device, then opens MarineLens to edit them. Diagnostics remain local and are shared only when the user explicitly uses the system share sheet.

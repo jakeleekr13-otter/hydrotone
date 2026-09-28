@@ -200,10 +200,10 @@ final class ParticleFilterV1 {
     /// Returns nil when the Metal kernels fail to compile. The caller then uses frames unchanged.
     init?(context: CIContext, settings: Settings = Settings()) {
         guard let kernels = try? CIKernel.kernels(withMetalString: Self.metalSource),
-              let luma = kernels.first(where: { $0.name == "HydroToneSpeckLuma" }) as? CIColorKernel,
-              let peak = kernels.first(where: { $0.name == "HydroToneSpeckPeak" }),
-              let mask = kernels.first(where: { $0.name == "HydroToneSpeckMask" }),
-              let fill = kernels.first(where: { $0.name == "HydroToneSpeckFill" }) else { return nil }
+              let luma = kernels.first(where: { $0.name == "MarineLensSpeckLuma" }) as? CIColorKernel,
+              let peak = kernels.first(where: { $0.name == "MarineLensSpeckPeak" }),
+              let mask = kernels.first(where: { $0.name == "MarineLensSpeckMask" }),
+              let fill = kernels.first(where: { $0.name == "MarineLensSpeckFill" }) else { return nil }
         self.context = context
         self.settings = settings
         lumaKernel = luma; peakKernel = peak; maskKernel = mask; fillKernel = fill
@@ -342,14 +342,14 @@ final class ParticleFilterV1 {
     };
 
     // Perceptual luma: square root of linear Rec. 709 luma, so thresholds act alike in dark and bright water.
-    [[stitchable]] float4 HydroToneSpeckLuma(coreimage::sample_t s) {
+    [[stitchable]] float4 MarineLensSpeckLuma(coreimage::sample_t s) {
         const float l = sqrt(max(dot(s.rgb, float3(0.2126f, 0.7152f, 0.0722f)), 0.0f));
         return float4(l, l, l, 1.0f);
     }
 
     // r: centre minus the brightest ring point. g: contrast a spot needs here. b: blurred luma.
     // p = (ring radius, floor, spread gain, max contrast).
-    [[stitchable]] float4 HydroToneSpeckPeak(coreimage::sampler lum, float4 p, coreimage::destination dest) {
+    [[stitchable]] float4 MarineLensSpeckPeak(coreimage::sampler lum, float4 p, coreimage::destination dest) {
         const float2 c = dest.coord();
         const float centre = lum.sample(lum.transform(c)).r;
         float hi = -1.0e4f, lo = 1.0e4f, sum = 0.0f;
@@ -382,7 +382,7 @@ final class ParticleFilterV1 {
     // r: how strongly this pixel belongs to a drifting spot, 0...1. A spot centre within 4 px marks it,
     // so the camera's dark sharpening halo around a speck is covered too.
     // q = (neighbour count, match ratio, context radius, context tolerance). q2.x = floor.
-    [[stitchable]] float4 HydroToneSpeckMask(coreimage::sampler cur, coreimage::sampler n0, coreimage::sampler n1,
+    [[stitchable]] float4 MarineLensSpeckMask(coreimage::sampler cur, coreimage::sampler n0, coreimage::sampler n1,
                                              coreimage::sampler n2, coreimage::sampler flowA, coreimage::sampler flowB,
                                              float4 q, float4 q2, coreimage::destination dest) {
         const float2 c = dest.coord();
@@ -408,7 +408,7 @@ final class ParticleFilterV1 {
     }
 
     // Replaces marked pixels with the mean of the unmarked ring pixels (the local background).
-    [[stitchable]] float4 HydroToneSpeckFill(coreimage::sampler src, coreimage::sampler mask, float4 p,
+    [[stitchable]] float4 MarineLensSpeckFill(coreimage::sampler src, coreimage::sampler mask, float4 p,
                                              coreimage::destination dest) {
         const float2 c = dest.coord();
         const float4 s = src.sample(src.transform(c));
