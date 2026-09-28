@@ -111,18 +111,20 @@ Still open, on the iPhone:
 - An iPhone without an HDR display: it is unknown whether photos read with headroom above 1 there.
 - Live Photos: by decision (28 Sep 2026), a Live Photo imports and exports as its still photo. The motion is not kept, because underwater Live Photos are rare. Check that a Live Photo imports as its still photo from the picker, the share sheet and Files.
 
-## User-facing name is MarineLens (28 Sep 2026)
+## Renamed to MarineLens (28 Sep 2026)
 
-The app, share sheet, UI text in all 5 languages, export file names, and App Store text now say MarineLens. Bundle IDs, `com.marinelens.pro`, the App Group, the keychain service, the `marinelens://` scheme, and target names stay MarineLens.
+HYDRO TONE is a live US trademark for aquatic exercise gear, so the app is now MarineLens. The app was never uploaded, so every ID changed too: bundle IDs `com.marinelens.*`, App Group `group.com.marinelens.app`, product `com.marinelens.pro`, URL scheme `marinelens://`, folders, targets, module and kernels. GitHub: `jakeleekr13-otter/marinelens` and `marinelens-support`.
 
-Checked: the built app and share extension both have `CFBundleDisplayName = MarineLens`. ExportNamingTests, DiagnosticsTests and PhotoFormatTests passed on the simulator.
+Checked:
+- The built app and share extension have `com.marinelens.app` / `com.marinelens.app.share` and display name MarineLens. The URL scheme is `marinelens`.
+- 86 unit tests passed after the merge (ExportNaming, Diagnostics, PhotoFormat, Preset, Restoration, Trial). 1 device-only test was skipped.
+- `AppStoreAssets/Screenshots/en-US/final-v2/` was regenerated. The label reads MARINELENS. The source captures show no app name.
+- `AppStoreAssets/IAP/MarineLensPro-1024.png` has no text, so it did not change.
 
 Still open:
-- The home screen and share sheet on the iPhone show MarineLens.
-- Run `scripts/make_app_store_screenshots.swift` again. The PNGs in `AppStoreAssets/Screenshots/` still say MARINELENS.
-- `AppStoreAssets/IAP/MarineLensPro-1024.png` may show the old name. Check it and redraw it if needed.
-- The support and privacy pages (`marinelens-support` repo) still use the old name.
-- Trademark check for MarineLens: USPTO class 9, KIPRIS. Then check that the name is free in App Store Connect.
+- On the iPhone, the new bundle ID installs as a new app. Check that the home screen and share sheet show MarineLens. Delete the old HydroTone app.
+- The new App Group and app IDs get registered on the first device build with automatic signing.
+- The screenshot source captures still show the old colour output. Capture them again after colour tuning ends.
 - `scripts/generate_localizations.py` is stale. Its output differs from the catalog by about 6,000 lines. Do not run it.
 
 ## Final round checklist
