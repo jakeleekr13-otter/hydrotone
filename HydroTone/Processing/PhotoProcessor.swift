@@ -36,8 +36,18 @@ actor PhotoProcessor {
     }
 
     func open(_ url: URL) throws -> CIImage {
+        if UTType(filenameExtension: url.pathExtension)?.conforms(to: .rawImage) == true { return try openRAW(url) }
         guard let image = CIImage(contentsOf: url, options: [.applyOrientationProperty: true, .expandToHDR: true]),
               image.extent.width > 0, image.extent.height > 0 else { throw HydroError.unreadable }
+        return image
+    }
+    /// Camera RAW needs CIRAWFilter. On iOS, CIImage(contentsOf:) returned only the small embedded
+    /// preview (1616 px long side for a 5472 px Sony ARW). The filter's default output is Apple's standard
+    /// SDR rendering, upright. A RAW this device can't decode is reported as unsupported, not exported small.
+    private func openRAW(_ url: URL) throws -> CIImage {
+        guard let image = CIRAWFilter(imageURL: url)?.outputImage, image.extent.width > 0, image.extent.height > 0 else {
+            throw HydroError.unsupported
+        }
         return image
     }
     func analyze(_ url: URL) async throws -> WaterAnalysis {

@@ -18,6 +18,7 @@ final class BatchModel: Identifiable {
     struct Item: Identifiable {
         let id = UUID()
         let url: URL
+        var originalName: String?
         var analysis: WaterAnalysis?
         var original: CGImage?
         var corrected: CGImage?
@@ -45,12 +46,15 @@ final class BatchModel: Identifiable {
     private var interruption: String?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
-    init(urls: [URL], diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init()) {
+    init(media: [ImportedMedia], diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init()) {
         self.diagnostics = diagnostics
         self.adjustmentStore = adjustmentStore
         adjustments = adjustmentStore.load()
         photos = PhotoProcessor(diagnostics: diagnostics)
-        items = urls.map { Item(url: $0) }
+        items = media.map { Item(url: $0.url, originalName: $0.originalName) }
+    }
+    convenience init(urls: [URL], diagnostics: DiagnosticRecorder, adjustmentStore: CustomAdjustmentsStore = .init()) {
+        self.init(media: urls.map { ImportedMedia(url: $0, kind: .photo) }, diagnostics: diagnostics, adjustmentStore: adjustmentStore)
     }
 
     /// Photos that can still be saved. Saved photos drop out, so a second Save All has nothing stale to report.
@@ -147,7 +151,9 @@ final class BatchModel: Identifiable {
                 defer { TemporaryFiles.remove(output) }
                 do {
                     try Task.checkCancellation()
-                    try await PhotoLibrarySaver().save(output, kind: .photo)
+                    let name = ExportNaming.fileName(source: items[index].originalName, preset: look(for: items[index]).preset,
+                                                     extension: output.pathExtension)
+                    try await PhotoLibrarySaver().save(output, kind: .photo, fileName: name)
                     items[index].state = .saved
                     savedCount += 1
                 } catch is CancellationError { break } catch {

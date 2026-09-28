@@ -15,6 +15,26 @@ This page lists the checks that are still open. The product owner decided to fin
 | `e02c19e` | Tropical and Deep Dive tuned to match their names |
 | `7651372` | Custom Saturation and Temperature made visible (wider ranges) |
 
+## Import, share sheet and file names (28 Sep 2026, not committed yet)
+
+Built for the simulator. These unit tests pass: ExportNamingTests, FileImportTests, PhotoTests, LocalizationTests and BatchTests. FileImportTests uses a RAW sample from DeveloperMedia.
+
+On the simulator, a share placed in the App Group inbox opened in the editor at launch. The extension UI itself was not run. Nothing below was checked on an iPhone yet.
+
+- **Signing.** Register the App Group `group.com.hydrotone.app` and the bundle ID `com.hydrotone.app.share` (Xcode automatic signing on the first device build). Then build to the iPhone.
+- **Share sheet in Photos.** HydroTone appears in the app row for 1 photo, 10 photos and 1 video. It does not appear for 11 photos or 2 videos. After "Added to HydroTone", open HydroTone: the share opens in the editor or the batch screen.
+- **Share edge cases.**
+  - A Live Photo opens as the still photo.
+  - Share while the editor is open: nothing replaces it; the share opens after going back.
+  - Free user shares 5 photos: only the first opens, with the Pro notice.
+  - Share a RAW (DNG) from Photos and a file from the Files app.
+- **Import from Files.** HEIC, JPEG, iPhone ProRAW DNG, one other camera RAW (ARW/CR3/NEF), MOV and MP4. Include one iCloud Drive file that is not downloaded yet.
+- **File names in Photos.** Check the name in the photo's info panel after saving:
+  - From Files and the share sheet: `<original>_HydroTone_<look>.jpg`.
+  - From the Photos picker: it depends on the file name the picker delivers. If the picker gives a temporary name, the time-based fallback name appears. Record which one.
+- **RAW on the device.** `CIRAWFilter` decodes the RAW file again for each preview render. Measure preview speed, export time and memory for a RAW of 20 MP or more.
+  - Keep the RAW path on `CIRAWFilter`. On the simulator, `CIImage(contentsOf:)` returned only the 1616 px embedded preview.
+
 ## Final round checklist
 
 1. **Colour scorecard.** Run `scripts/color-eval/tune_eval.sh <name>`. Check every guard in [the harness README](../scripts/color-eval/README.md#guards-used-for-tuning).
@@ -54,6 +74,7 @@ This page lists the checks that are still open. The product owner decided to fin
   - `HydroToneUITests.testPhotoImportPresetsCompareExportSaveAndTrialGate`, lines 24–29
   - `HydroToneUITests.testVideoImportAndLandscapeEditor`: the picker shows "No Videos"
   - `AppStoreScreenshotTests.testPhotoBeforeAndAfter`, line 35
+- **`xcodebuild test` can hang after the last test.** On 28 Sep 2026 the results were complete at 07:46, but the process was still running 10 minutes later. Read the log, then stop the process.
 - **A build can rewrite `Localizable.xcstrings`.** It adds a space before every colon and auto-extracts keys. If `git diff --stat` shows thousands of changed lines, restore the file.
 
 ## Done on 25 Sep 2026

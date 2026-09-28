@@ -9,7 +9,7 @@ def add(name, text):
     return ident(name)
 project = ident('project')
 configs = {}
-for scope in ['project', 'app', 'tests', 'uitests']:
+for scope in ['project', 'app', 'tests', 'uitests', 'share']:
     refs = []
     for config in ['Debug', 'Release']:
         settings = {'SWIFT_VERSION':'6.0','IPHONEOS_DEPLOYMENT_TARGET':'26.0','SDKROOT':'iphoneos','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','TARGETED_DEVICE_FAMILY':'1','SUPPORTS_MACCATALYST':'NO','SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD':'NO','SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD':'NO','CLANG_ENABLE_MODULES':'YES','SWIFT_APPROACHABLE_CONCURRENCY':'YES'}
@@ -17,27 +17,42 @@ for scope in ['project', 'app', 'tests', 'uitests']:
             settings.update({'SWIFT_OPTIMIZATION_LEVEL':'-Onone' if config=='Debug' else '-O','DEBUG_INFORMATION_FORMAT':'dwarf' if config=='Debug' else 'dwarf-with-dsym','ENABLE_TESTABILITY':'YES' if config=='Debug' else 'NO','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG' if config=='Debug' else ''})
             if config == 'Release': settings.update({'SWIFT_COMPILATION_MODE':'wholemodule','VALIDATE_PRODUCT':'YES','DEAD_CODE_STRIPPING':'YES','COPY_PHASE_STRIP':'YES','ENABLE_NS_ASSERTIONS':'NO'})
         else:
-            settings.update({'PRODUCT_NAME':'$(TARGET_NAME)','PRODUCT_BUNDLE_IDENTIFIER':{'app':'com.hydrotone.app','tests':'com.hydrotone.tests','uitests':'com.hydrotone.uitests'}[scope], 'GENERATE_INFOPLIST_FILE':'YES','CODE_SIGN_STYLE':'Automatic','DEVELOPMENT_TEAM':'M3HJ7YK7N7'})
+            settings.update({'PRODUCT_NAME':'$(TARGET_NAME)','PRODUCT_BUNDLE_IDENTIFIER':{'app':'com.hydrotone.app','tests':'com.hydrotone.tests','uitests':'com.hydrotone.uitests','share':'com.hydrotone.app.share'}[scope], 'GENERATE_INFOPLIST_FILE':'YES','CODE_SIGN_STYLE':'Automatic','DEVELOPMENT_TEAM':'M3HJ7YK7N7'})
         if scope == 'app':
             settings.update({'INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription':'Save your finished photos and videos to your library.','INFOPLIST_KEY_ITSAppUsesNonExemptEncryption':'NO','INFOPLIST_KEY_LSApplicationCategoryType':'public.app-category.photography','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone':'UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight','CODE_SIGN_ENTITLEMENTS':'HydroTone/Resources/HydroTone.entitlements','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','MARKETING_VERSION':'1.0','CURRENT_PROJECT_VERSION':'1','INFOPLIST_KEY_CFBundleDisplayName':'HydroTone'})
         if scope == 'tests': settings.update({'TEST_HOST':'$(BUILT_PRODUCTS_DIR)/HydroTone.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HydroTone','BUNDLE_LOADER':'$(TEST_HOST)'})
         if scope == 'uitests': settings['TEST_TARGET_NAME']='HydroTone'
+        # The share extension's versions must match the app's, or App Store validation rejects the build.
+        if scope == 'share': settings.update({'CODE_SIGN_ENTITLEMENTS':'HydroToneShare/HydroToneShare.entitlements','INFOPLIST_FILE':'HydroToneShare/Info.plist','INFOPLIST_KEY_CFBundleDisplayName':'HydroTone','MARKETING_VERSION':'1.0','CURRENT_PROJECT_VERSION':'1','SKIP_INSTALL':'YES','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks'})
         body=' '.join(f'{k} = "{v}";' for k,v in settings.items())
         refs.append(add(scope+config,f'isa = XCBuildConfiguration; buildSettings = {{ {body} }}; name = {config};'))
     configs[scope] = add(scope+'configlist',f'isa = XCConfigurationList; buildConfigurations = ({",".join(refs)},); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;')
 products=[]; groups=[]; targets=[]
-for scope,name,kind in [('app','HydroTone','application'),('tests','HydroToneTests','bundle.unit-test'),('uitests','HydroToneUITests','bundle.ui-testing')]:
+share_target=ident('sharetarget')
+for scope,name,kind in [('app','HydroTone','application'),('tests','HydroToneTests','bundle.unit-test'),('uitests','HydroToneUITests','bundle.ui-testing'),('share','HydroToneShare','app-extension')]:
     # Developer media (UIEB, dive clips, market pairs) lives in DeveloperMedia/ at the repo root, outside every
     # synchronized group. Anything under HydroToneTests/ ships in the test bundle, git-ignored or not.
     exceptions=''
+    # The share extension also compiles SharedInbox.swift from the app folder. Its Info.plist is not a resource.
+    exception_files={'app':'Import/SharedInbox.swift','share':'Info.plist'}.get(scope)
+    if exception_files:
+        exception_set=add(scope+'exceptions',f'isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = ({exception_files},); target = {share_target};')
+        exceptions=f'exceptions = ({exception_set},); '
     group=add(scope+'group',f'isa = PBXFileSystemSynchronizedRootGroup; {exceptions}path = {name}; sourceTree = "<group>";')
     groups.append(group)
-    ext='app' if scope=='app' else 'xctest'
-    product=add(scope+'product',f'isa = PBXFileReference; explicitFileType = {"wrapper.application" if scope=="app" else "wrapper.cfbundle"}; path = {name}.{ext}; sourceTree = BUILT_PRODUCTS_DIR;')
+    ext={'app':'app','share':'appex'}.get(scope,'xctest')
+    filetype={'app':'wrapper.application','share':'"wrapper.app-extension"'}.get(scope,'wrapper.cfbundle')
+    product=add(scope+'product',f'isa = PBXFileReference; explicitFileType = {filetype}; path = {name}.{ext}; sourceTree = BUILT_PRODUCTS_DIR;')
     products.append(product)
     phases=[add(scope+p,f'isa = PBX{p}BuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;') for p in ['Sources','Frameworks','Resources']]
     deps=[]
-    if scope!='app':
+    if scope=='app':
+        # The app embeds the share extension and builds it first.
+        embedded=add('appembedfile',f'isa = PBXBuildFile; fileRef = {ident("shareproduct")}; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }};')
+        phases.append(add('appembed',f'isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = ({embedded},); name = "Embed Foundation Extensions"; runOnlyForDeploymentPostprocessing = 0;'))
+        proxy=add('appshareproxy',f'isa = PBXContainerItemProxy; containerPortal = {project}; proxyType = 1; remoteGlobalIDString = {share_target}; remoteInfo = HydroToneShare;')
+        deps.append(add('appsharedep',f'isa = PBXTargetDependency; target = {share_target}; targetProxy = {proxy};'))
+    elif scope!='share':
         proxy=add(scope+'proxy',f'isa = PBXContainerItemProxy; containerPortal = {project}; proxyType = 1; remoteGlobalIDString = {ident("apptarget")}; remoteInfo = HydroTone;')
         deps.append(add(scope+'dep',f'isa = PBXTargetDependency; target = {ident("apptarget")}; targetProxy = {proxy};'))
     targets.append(add(scope+'target',f'isa = PBXNativeTarget; buildConfigurationList = {configs[scope]}; buildPhases = ({",".join(phases)},); buildRules = (); dependencies = ({",".join(deps)}); fileSystemSynchronizedGroups = ({group},); name = {name}; productName = {name}; productReference = {product}; productType = "com.apple.product-type.{kind}";'))

@@ -7,16 +7,19 @@ struct ImportedMedia: Identifiable, Sendable {
     let id = UUID()
     let url: URL
     let kind: Kind
+    /// The name the file had before import. Saved results are named after it (ExportNaming).
+    var originalName: String?
 }
 
 struct MediaFile: Transferable, Sendable {
     let url: URL
+    let originalName: String
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(importedContentType: .movie) { received in
-            MediaFile(url: try TemporaryFiles.copyImport(received.file))
+            MediaFile(url: try TemporaryFiles.copyImport(received.file), originalName: received.file.lastPathComponent)
         }
         FileRepresentation(importedContentType: .image) { received in
-            MediaFile(url: try TemporaryFiles.copyImport(received.file))
+            MediaFile(url: try TemporaryFiles.copyImport(received.file), originalName: received.file.lastPathComponent)
         }
     }
 }
@@ -32,6 +35,12 @@ enum TemporaryFiles {
         try StorageCheck.require(bytes: Int64(bytes))
         let target = try makeURL(extension: source.pathExtension)
         do { try FileManager.default.copyItem(at: source, to: target); return target }
+        catch { remove(target); throw error }
+    }
+    /// Moves a file the app already owns (a share from the extension) into this folder.
+    static func adopt(_ source: URL) throws -> URL {
+        let target = try makeURL(extension: source.pathExtension)
+        do { try FileManager.default.moveItem(at: source, to: target); return target }
         catch { remove(target); throw error }
     }
     static func remove(_ url: URL?) {

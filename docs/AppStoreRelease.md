@@ -10,13 +10,15 @@ Last reviewed: 2026-09-25
 - Build: `1`
 - Minimum OS: iOS 26.0
 - Signing: Automatic, team `M3HJ7YK7N7`
+- Share extension: `HydroToneShare`, bundle ID `com.hydrotone.app.share`, embedded in the app
+- App Group: `group.com.hydrotone.app`, in both the app and the extension entitlements. Register it and the extension bundle ID in the developer account before the first device build or archive. Xcode automatic signing can do this.
 - App icon: 1024×1024 PNG without alpha
 - Release debug information: DWARF with dSYM
 - Release validation, whole-module optimization and dead-code stripping: enabled
 - Non-exempt encryption: `NO` (the app contains no proprietary encryption)
 - App category in the generated Info.plist: `public.app-category.photography`
 
-All three targets—`HydroTone`, `HydroToneTests` and `HydroToneUITests`—are explicitly limited to:
+All four targets—`HydroTone`, `HydroToneShare`, `HydroToneTests` and `HydroToneUITests`—are explicitly limited to:
 
 - Supported platforms: `iphoneos iphonesimulator`
 - Targeted device family: iPhone (`1`)
@@ -126,6 +128,7 @@ The production price is still a business decision. The local StoreKit configurat
 
 1. Increase `CURRENT_PROJECT_VERSION` for every build previously uploaded to App Store Connect. Build `1` can be reused only if it has never been uploaded.
 2. Increase `MARKETING_VERSION` only when creating a new App Store version.
+   Change both numbers in the `HydroTone` **and** `HydroToneShare` targets. A mismatch fails App Store validation.
 3. Run the physical-device matrices in `QA.md` and `VideoV2QA.md`.
 4. Select **Any iOS Device (arm64)**, then Product → Archive.
 5. In Organizer, run **Validate App** before **Distribute App**.

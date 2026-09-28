@@ -17,6 +17,11 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(try localized("Select Photo", "en"), "Select Photo")
     }
 
+    func testImportStringsAreLocalized() {
+        XCTAssertEqual(try localized("Import from Files", "ko"), "파일에서 가져오기")
+        XCTAssertEqual(try localized("Only the first %lld photos were opened.", "zh-Hant"), "僅開啟了前 %lld 張照片。")
+    }
+
     func testErrorMessagesAreLocalized() {
         XCTAssertEqual(try localized("There isn’t enough free storage. Free up some space and try again.", "ko"),
                        "저장 공간이 부족합니다. 공간을 확보한 후 다시 시도하세요.")

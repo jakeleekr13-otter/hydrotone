@@ -39,6 +39,8 @@ final class EditorModel {
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var cancellationNotice = String(localized: "Export cancelled")
     var completedURL: URL?
+    /// Fixed when the export finishes, so the name matches the look that was exported.
+    private var completedName: String?
     var saving = false
     var loading = true
     /// True while scene analysis (depth + water model) runs. Export waits for it, so the file matches the preview.
@@ -253,6 +255,8 @@ final class EditorModel {
                 do {
                     try Task.checkCancellation()
                     if reserved { try trial.commit(media.kind); reserved = false }
+                    completedName = ExportNaming.fileName(source: media.originalName, preset: chosenSettings.preset,
+                                                          extension: output.pathExtension)
                     completedURL = output
                 } catch { TemporaryFiles.remove(output); throw error }
             } catch is CancellationError { notice = cancellationNotice }
@@ -267,13 +271,13 @@ final class EditorModel {
         saving = true
         defer { saving = false }
         do {
-            try await PhotoLibrarySaver().save(completedURL, kind: media.kind)
+            try await PhotoLibrarySaver().save(completedURL, kind: media.kind, fileName: completedName)
             TemporaryFiles.remove(completedURL)
             self.completedURL = nil
             notice = String(localized: "Saved to Photos")
         } catch { report(error, operation: .save) }
     }
-    func discardCompleted() { TemporaryFiles.remove(completedURL); completedURL = nil }
+    func discardCompleted() { TemporaryFiles.remove(completedURL); completedURL = nil; completedName = nil }
     func cancelForBackground() {
         guard exporting else { return }
         cancellationNotice = String(localized: "Export cancelled because HydroTone went into the background. Keep the app open and try again. Your trial hasn’t been used.")

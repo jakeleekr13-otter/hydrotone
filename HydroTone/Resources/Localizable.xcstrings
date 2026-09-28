@@ -2140,6 +2140,41 @@
         }
       }
     },
+    "Import from Files" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from Files"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルから読み込む"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "파일에서 가져오기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从文件导入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從檔案匯入"
+          }
+        }
+      }
+    },
     "Importing %lld of %lld…" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2521,6 +2556,76 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "一次購買，每次潛水都能用。"
+          }
+        }
+      }
+    },
+    "Only the first %lld photos were opened." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the first %lld photos were opened."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最初の%lld枚の写真だけを開きました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "처음 %lld장의 사진만 열었습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅打开了前 %lld 张照片。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅開啟了前 %lld 張照片。"
+          }
+        }
+      }
+    },
+    "Only the first photo was opened. Pro can batch correct up to %lld photos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the first photo was opened. Pro can batch correct up to %lld photos."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最初の写真だけを開きました。Proなら最大%lld枚を一括補正できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "첫 번째 사진만 열었습니다. Pro에서는 최대 %lld장을 일괄 보정할 수 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅打开了第一张照片。Pro 可一次批量校正最多 %lld 张照片。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅開啟了第一張照片。Pro 可一次批次校正最多 %lld 張照片。"
           }
         }
       }
@@ -3727,6 +3832,76 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "顯示未經校正的原始媒體"
+          }
+        }
+      }
+    },
+    "Skipped videos: %lld. Videos open one at a time." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipped videos: %lld. Videos open one at a time."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スキップしたビデオ: %lld本。ビデオは1本ずつ開きます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "건너뛴 동영상: %lld개. 동영상은 한 번에 하나씩 열립니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已跳过的视频：%lld 个。视频需逐个打开。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已略過的影片：%lld 部。影片需逐一開啟。"
+          }
+        }
+      }
+    },
+    "Some items weren’t opened" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some items weren’t opened"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一部の項目を開きませんでした"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일부 항목을 열지 않았습니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分项目未打开"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分項目未開啟"
           }
         }
       }

@@ -6,6 +6,10 @@
 	objectVersion = 71;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A31B16B689E7147A7A516055 /* HydroToneShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 60C8EEF058AB26576B3289F7 /* HydroToneShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		00FA7595418DE673442D4E14 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -13,6 +17,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 4F6027D858B72CC70E5CC8E9;
 			remoteInfo = HydroTone;
+		};
+		928B116133AAED9036C514C7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98F54143AB4E86B28C3AFEE0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4BE864FAE2B9E4DE7821A052;
+			remoteInfo = HydroToneShare;
 		};
 		CEDAC8F28FDB4B718B5D1BEB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -23,14 +34,47 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		BD735BE812B6D674BADC855E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A31B16B689E7147A7A516055 /* HydroToneShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		60C8EEF058AB26576B3289F7 /* HydroToneShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HydroToneShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AD5D520508EF8024D25C00BA /* HydroToneTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = HydroToneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B22D326D03B77788C7376316 /* HydroToneUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = HydroToneUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6FC57C251E9E1BEC1D3C0D2 /* HydroTone.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = HydroTone.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		7364889A612B6B38A2343DB0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Import/SharedInbox.swift,
+			);
+			target = 4BE864FAE2B9E4DE7821A052 /* HydroToneShare */;
+		};
+		C87D41F98C1BF0983C3F3C8A /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4BE864FAE2B9E4DE7821A052 /* HydroToneShare */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		3A2A88DEEFF3D1D23E496597 /* HydroTone */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = HydroTone; sourceTree = "<group>"; };
+		3A2A88DEEFF3D1D23E496597 /* HydroTone */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (7364889A612B6B38A2343DB0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = HydroTone; sourceTree = "<group>"; };
+		54768AA1BA5D709B3AD4DD6D /* HydroToneShare */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (C87D41F98C1BF0983C3F3C8A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = HydroToneShare; sourceTree = "<group>"; };
 		5FA060BA93CA7D761DC0AA1D /* HydroToneUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = HydroToneUITests; sourceTree = "<group>"; };
 		F80B2C2021F097DC9FAA009C /* HydroToneTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = HydroToneTests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -57,6 +101,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		78B2D48B424437FD6CB82EF5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -66,6 +117,7 @@
 				3A2A88DEEFF3D1D23E496597 /* HydroTone */,
 				F80B2C2021F097DC9FAA009C /* HydroToneTests */,
 				5FA060BA93CA7D761DC0AA1D /* HydroToneUITests */,
+				54768AA1BA5D709B3AD4DD6D /* HydroToneShare */,
 				FBDC4F23F93125BBEEAE800C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -76,6 +128,7 @@
 				E6FC57C251E9E1BEC1D3C0D2 /* HydroTone.app */,
 				AD5D520508EF8024D25C00BA /* HydroToneTests.xctest */,
 				B22D326D03B77788C7376316 /* HydroToneUITests.xctest */,
+				60C8EEF058AB26576B3289F7 /* HydroToneShare.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -103,6 +156,26 @@
 			productName = HydroToneTests;
 			productReference = AD5D520508EF8024D25C00BA /* HydroToneTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		4BE864FAE2B9E4DE7821A052 /* HydroToneShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BFF22C3EF9FBA0C7C5AEF748 /* Build configuration list for PBXNativeTarget "HydroToneShare" */;
+			buildPhases = (
+				E8565067C7E9FFB9C0A35143 /* Sources */,
+				78B2D48B424437FD6CB82EF5 /* Frameworks */,
+				7C93D5413C07B225E29BF1A2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				54768AA1BA5D709B3AD4DD6D /* HydroToneShare */,
+			);
+			name = HydroToneShare;
+			productName = HydroToneShare;
+			productReference = 60C8EEF058AB26576B3289F7 /* HydroToneShare.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		4D630F78F997333C57512D1C /* HydroToneUITests */ = {
 			isa = PBXNativeTarget;
@@ -132,10 +205,12 @@
 				971ED9D05B25DB6C4D7680D4 /* Sources */,
 				78AE8C6BEB2A40A6D824CCEE /* Frameworks */,
 				364863F9F2E558B0F50473FC /* Resources */,
+				BD735BE812B6D674BADC855E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				48535669712E096CB36328AD /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				3A2A88DEEFF3D1D23E496597 /* HydroTone */,
@@ -174,6 +249,7 @@
 				4F6027D858B72CC70E5CC8E9 /* HydroTone */,
 				002378A4B0AB8ED6C3038A81 /* HydroToneTests */,
 				4D630F78F997333C57512D1C /* HydroToneUITests */,
+				4BE864FAE2B9E4DE7821A052 /* HydroToneShare */,
 			);
 		};
 /* End PBXProject section */
@@ -194,6 +270,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		6142FDE1B74BF44BB99CE1B1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7C93D5413C07B225E29BF1A2 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -224,9 +307,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E8565067C7E9FFB9C0A35143 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		48535669712E096CB36328AD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4BE864FAE2B9E4DE7821A052 /* HydroToneShare */;
+			targetProxy = 928B116133AAED9036C514C7 /* PBXContainerItemProxy */;
+		};
 		A875EB7D356C9AA9654C80EB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 4F6027D858B72CC70E5CC8E9 /* HydroTone */;
@@ -240,6 +335,38 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		07F40AAD161B1D59E1448C9A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = HydroToneShare/HydroToneShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M3HJ7YK7N7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HydroToneShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HydroTone;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydrotone.app.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		0F3D67935A4F199E058A017A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -317,6 +444,38 @@
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
+		};
+		786CFAEB3CB570C35644C8C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = HydroToneShare/HydroToneShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M3HJ7YK7N7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HydroToneShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HydroTone;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hydrotone.app.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
 		};
 		89E1FD6268CC0F221A2BE178 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -465,6 +624,15 @@
 			buildConfigurations = (
 				89E1FD6268CC0F221A2BE178 /* Debug */,
 				E6DE6C99132752C914FEF632 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BFF22C3EF9FBA0C7C5AEF748 /* Build configuration list for PBXNativeTarget "HydroToneShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				786CFAEB3CB570C35644C8C6 /* Debug */,
+				07F40AAD161B1D59E1448C9A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
