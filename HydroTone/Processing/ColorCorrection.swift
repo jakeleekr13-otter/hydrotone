@@ -44,6 +44,14 @@ struct ColorCorrection: Sendable, Equatable {
     var clarityRadius: Float = 0.011
     var definition: Float = 0
     var definitionRadius: Float = 0.04
+    /// Fine detail: strength of the luminance detail layer on subjects (FinishingMath.detail). Zero means none.
+    var detail: Float = 0
+    /// Noise floor of the detail layer, in gamma luminance (0.004 is about one of 255 codes).
+    /// Differences below it get nothing. Fine texture and water noise have the same size at this
+    /// scale, so the floor only drops the flattest pixels; the subject gate keeps the water clean.
+    var detailFloor: Float = 0.004
+    /// Radius of the blur that defines the detail layer, as a share of the short image side.
+    var detailRadius: Float = 1.2 / 480
     /// Colour temperature shift in kelvin.
     var warmth: Float = 0
     var vibrance: Float = 0
@@ -243,8 +251,8 @@ struct ColorCorrection: Sendable, Equatable {
 
     /// The tone rules: the S-curve, brightness, contrast, shadow lift, highlight compression, clarity,
     /// vibrance, and on the restored path the mid-tone lift. Writes tonePivot, toneCurve, brightness,
-    /// contrast, shadowLift, highlightAmount, clarity, clarityRadius, definition, vibrance,
-    /// physicalWeight, midLift.
+    /// contrast, shadowLift, highlightAmount, clarity, clarityRadius, definition, detail, detailFloor,
+    /// vibrance, physicalWeight, midLift.
     private static func toneRules(_ v: inout Self, analysis: WaterAnalysis, preset: DivePreset, plan: RestorationPlan?,
                                   scene: SceneFactors, user: CustomAdjustments) {
         let haze = scene.haze, bright = scene.bright, highlight = scene.highlight
@@ -271,6 +279,10 @@ struct ColorCorrection: Sendable, Equatable {
         v.definition = preset.clarity * (0.5 + haze * 0.8)
         let sharpen = 1 + user.clarity * (user.clarity < 0 ? Caps.clarityDown : Caps.clarityUp)
         v.clarity *= sharpen; v.definition *= sharpen
+        // Fine detail: the veil hides fine texture, so haze gets a little more. A dark scene is a noisy
+        // scene, so it gets half and a higher noise floor. Custom Clarity scales it with the other two.
+        v.detail = fineDetail * (1 + 0.25 * haze) * (1 - 0.5 * scene.deep) * sharpen
+        v.detailFloor = 0.004 * (1 + scene.deep)
         v.vibrance = preset.vibrance * max(0.3, 1 - analysis.saturation) * (1 - scene.neon)
         if let plan {
             v.physicalWeight = plan.confidence
@@ -368,7 +380,7 @@ struct ColorCorrection: Sendable, Equatable {
         func fix(_ key: WritableKeyPath<Self, Float>) { if !v[keyPath: key].isFinite { v[keyPath: key] = fallback[keyPath: key] } }
         for key in [\Self.redRebuild, \.redGateLow, \.redGateHigh, \.subjectRed, \.waterRedness, \.waterSaturation, \.waterChroma, \.waterType, \.redCeiling, \.violetGuard, \.midLift, \.toneCurve, \.tonePivot,
                     \.brightness, \.contrast, \.saturation, \.shadowLift, \.highlightAmount, \.clarity, \.clarityRadius,
-                    \.definition, \.definitionRadius, \.warmth, \.vibrance, \.physicalWeight] { fix(key) }
+                    \.definition, \.definitionRadius, \.detail, \.detailFloor, \.detailRadius, \.warmth, \.vibrance, \.physicalWeight] { fix(key) }
         if !(v.castGains.x.isFinite && v.castGains.y.isFinite && v.castGains.z.isFinite) { v.castGains = fallback.castGains }
         if !(v.waterTone.x.isFinite && v.waterTone.y.isFinite && v.waterTone.z.isFinite) { v.waterTone = fallback.waterTone }
         if !(v.waterLit.x.isFinite && v.waterLit.y.isFinite && v.waterLit.z.isFinite) { v.waterLit = fallback.waterLit }
@@ -382,7 +394,7 @@ struct ColorCorrection: Sendable, Equatable {
 
     #if DEBUG
     var logDescription: String {
-        "gains=(\(castGains.x),\(castGains.y),\(castGains.z)) water=(\(waterTone.x),\(waterTone.y),\(waterTone.z))x\(waterSaturation)@\(waterRedness)/\(waterChroma) type=\(waterType) ceiling=\(redCeiling) guard=\(violetGuard) gate=\(redGateLow) redRebuild=\(redRebuild) subjectRed=\(subjectRed) midLift=\(midLift) curve=\(toneCurve)@\(tonePivot) brightness=\(brightness) contrast=\(contrast) saturation=\(saturation) shadows=\(shadowLift) clarity=\(clarity) definition=\(definition) warmth=\(warmth) vibrance=\(vibrance) physicalWeight=\(physicalWeight) neutral=(\(neutralGains.x),\(neutralGains.y),\(neutralGains.z)) subject=(\(subjectTone.x),\(subjectTone.y),\(subjectTone.z))"
+        "gains=(\(castGains.x),\(castGains.y),\(castGains.z)) water=(\(waterTone.x),\(waterTone.y),\(waterTone.z))x\(waterSaturation)@\(waterRedness)/\(waterChroma) type=\(waterType) ceiling=\(redCeiling) guard=\(violetGuard) gate=\(redGateLow) redRebuild=\(redRebuild) subjectRed=\(subjectRed) midLift=\(midLift) curve=\(toneCurve)@\(tonePivot) brightness=\(brightness) contrast=\(contrast) saturation=\(saturation) shadows=\(shadowLift) clarity=\(clarity) definition=\(definition) detail=\(detail)@\(detailFloor) warmth=\(warmth) vibrance=\(vibrance) physicalWeight=\(physicalWeight) neutral=(\(neutralGains.x),\(neutralGains.y),\(neutralGains.z)) subject=(\(subjectTone.x),\(subjectTone.y),\(subjectTone.z))"
     }
     #endif
 }

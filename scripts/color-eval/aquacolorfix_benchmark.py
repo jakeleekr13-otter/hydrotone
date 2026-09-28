@@ -40,6 +40,8 @@ class Metrics:
     shadow_clip_pct: float
     highlight_clip_pct: float
     detail_energy: float
+    water_detail_energy: float
+    subject_detail_energy: float
 
 
 def load_rgb(path: Path, size: tuple[int, int]) -> np.ndarray:
@@ -145,6 +147,8 @@ def metrics(srgb: np.ndarray, valid: np.ndarray, water: np.ndarray,
         shadow_clip_pct=float(np.mean(shown[valid] <= 1 / 255) * 100),
         highlight_clip_pct=float(np.mean(shown[valid] >= 254 / 255) * 100),
         detail_energy=float(np.mean(laplacian[valid])),
+        water_detail_energy=float(np.mean(laplacian[water])) if np.any(water) else float("nan"),
+        subject_detail_energy=float(np.mean(laplacian[subject])) if np.any(subject) else float("nan"),
     )
 
 
@@ -290,7 +294,7 @@ def main() -> None:
     with (output / "benchmark.json").open("w", encoding="utf-8") as handle:
         json.dump(records, handle, ensure_ascii=False, indent=2, allow_nan=True)
 
-    metric_names = list(asdict(Metrics(*([0] * 15))).keys())
+    metric_names = list(asdict(Metrics(*([0] * 17))).keys())
     with (output / "benchmark.csv").open("w", encoding="utf-8", newline="") as handle:
         fields = ["pair", "source", "hydro_file", "aqua_file", "mean_delta_e_h_to_a", "p90_delta_e_h_to_a",
                   "mean_delta_e_source_to_h", "mean_delta_e_source_to_a", "global_mapping_rmse_h",
@@ -355,6 +359,9 @@ def main() -> None:
           f"neutral C {mean('hydro', 'neutral_chroma'):.3f} vs A {mean('aqua', 'neutral_chroma'):.3f} | "
           f"L* {mean('hydro', 'mean_l'):.1f} vs A {mean('aqua', 'mean_l'):.1f} | "
           f"water hue " + " ".join(f"{r['hydro']['water_hue']:.0f}/{r['aqua']['water_hue']:.0f}" for r in records))
+    print(f"{args.label}: detail (ours/A) " + " ".join(f"p{r['pair']}={r['hydro']['detail_energy']:.2f}/{r['aqua']['detail_energy']:.2f}" for r in records)
+          + " | water detail (ours/A) " + " ".join(f"{r['hydro']['water_detail_energy']:.2f}/{r['aqua']['water_detail_energy']:.2f}" for r in records)
+          + " | subject detail (ours/A) " + " ".join(f"{r['hydro']['subject_detail_energy']:.2f}/{r['aqua']['subject_detail_energy']:.2f}" for r in records))
     print(output)
 
 

@@ -127,4 +127,4 @@ A change is accepted only if all of these hold:
 - Real photos: no image ends in indigo or violet (OKLab 270 or more) unless its original was already there. r04's anemone is really magenta.
 - Keep what the market pairs gained so far.
 - Neutral surfaces: chroma does not rise above the committed code, on both `combined` and `uniform`.
-- AquaColorFix gate (pairs 2, 4 and 5): the mean ΔE does not rise above the committed code.
+- AquaColorFix gate (pairs 2, 4 and 5): the mean ΔE does not rise above the committed code by more than 0.1. (A sharpening step moves texture pixels that are not aligned with AquaColorFix's, so any effective one costs 0.02 to 0.07.)

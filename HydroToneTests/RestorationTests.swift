@@ -845,6 +845,78 @@ final class RestorationTests: XCTestCase {
         XCTAssertEqual(plain.highShare, 0)
     }
 
+    // MARK: Fine detail layer
+
+    /// Values with an active detail layer over blue water; the reference pixel decides the subject weight.
+    private func detailValues() -> ColorCorrection {
+        colorOnly { $0.castGains = .init(1.2, 0.97, 0.97); $0.waterRedness = 0.03; $0.waterChroma = 0.9
+            $0.waterLit = .init(0.012, 0.19, 0.58); $0.detail = 1.3; $0.detailFloor = 0.004 }
+    }
+
+    func testDetailLayerLandsOnSubjectsInTheBandOnly() {
+        let v = detailValues()
+        let subject = SIMD3<Float>(0.30, 0.25, 0.20)           // redder than the water: subject weight 1
+        // A texture step of 0.02 in gamma luminance (inside the band) gets the full strength.
+        let brighter = subject * 1.16, blurred = subject
+        let out = FinishingMath.detail(brighter, blurred: blurred, reference: subject, correction: v)
+        func gamma(_ c: SIMD3<Float>) -> Float { pow((c * ColorCorrection.luma).sum(), 1 / 2.2) }
+        let d = gamma(brighter) - gamma(blurred)
+        XCTAssertGreaterThan(d, 3 * v.detailFloor); XCTAssertLessThan(d, FinishingMath.detailEdgeLow)
+        XCTAssertEqual(gamma(out), gamma(brighter) + v.detail * d, accuracy: 1e-3)
+        // The scale is one factor per pixel: hue and chroma stay.
+        assertEqual(out / out.y, brighter / brighter.y, accuracy: 1e-4)
+        // Below the floor: unchanged. A strong edge (above detailEdgeHigh): unchanged.
+        let tiny = subject * 1.003
+        assertEqual(FinishingMath.detail(tiny, blurred: subject, reference: subject, correction: v), tiny, accuracy: 1e-6)
+        let edge = subject * 3
+        assertEqual(FinishingMath.detail(edge, blurred: subject, reference: subject, correction: v), edge, accuracy: 1e-6)
+        // Open water (the water colour itself as the reference) gets nothing.
+        let water = SIMD3<Float>(0.012, 0.19, 0.58) / v.castGains
+        assertEqual(FinishingMath.detail(water * 1.16, blurred: water, reference: water, correction: v), water * 1.16, accuracy: 1e-6)
+        // A dark pixel (linear luminance below detailShadowLow) gets nothing; a grey pixel stays grey.
+        let dark = SIMD3<Float>(0.015, 0.012, 0.010)
+        assertEqual(FinishingMath.detail(dark * 1.3, blurred: dark, reference: dark, correction: v), dark * 1.3, accuracy: 1e-6)
+        let grey = SIMD3<Float>(repeating: 0.4)
+        let greyOut = FinishingMath.detail(grey * 1.1, blurred: grey, reference: grey, correction: v)
+        XCTAssertEqual(greyOut.x, greyOut.y, accuracy: 1e-6); XCTAssertEqual(greyOut.y, greyOut.z, accuracy: 1e-6)
+        // detail 0 is a no-op, and an HDR pixel at or above luminance one is unchanged.
+        var off = v; off.detail = 0
+        assertEqual(FinishingMath.detail(brighter, blurred: blurred, reference: subject, correction: off), brighter, accuracy: 1e-6)
+        let peak = SIMD3<Float>(1.2, 1.1, 1.0)
+        assertEqual(FinishingMath.detail(peak, blurred: peak * 0.9, reference: peak, correction: v), peak, accuracy: 1e-6)
+    }
+
+    func testDetailKernelMatchesCPUMirror() {
+        let engine = FilterEngine()
+        let v = detailValues()
+        let subject = SIMD3<Float>(0.30, 0.25, 0.20), water = SIMD3<Float>(0.012, 0.19, 0.58) / v.castGains
+        // (current, blurred, reference): texture on a subject, below the floor, on water, a strong edge, dark.
+        for (c, b, r): (SIMD3<Float>, SIMD3<Float>, SIMD3<Float>) in [
+            (subject * 1.16, subject, subject), (subject * 1.003, subject, subject), (water * 1.16, water, water),
+            (subject * 3, subject, subject), (.init(0.02, 0.016, 0.013), .init(0.015, 0.012, 0.010), .init(0.015, 0.012, 0.010)),
+            (.init(0.5, 0.52, 0.55), .init(0.46, 0.48, 0.5), .init(0.3, 0.48, 0.49))] {
+            func solid(_ c: SIMD3<Float>) -> CIImage {
+                CIImage(color: CIColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), colorSpace: FilterEngine.workingSpace)!)
+                    .cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+            }
+            // The whole finishing chain on a solid image: the blur equals the image, so the layer is a
+            // no-op there. So drive the kernel directly with the three solid inputs instead.
+            guard let kernel = engine.detailKernelForTesting else { XCTFail("no detail kernel"); return }
+            let out = kernel.apply(extent: CGRect(x: 0, y: 0, width: 4, height: 4), arguments: [
+                solid(c), solid(b), solid(r),
+                CIVector(x: CGFloat(v.castGains.x), y: CGFloat(v.castGains.y), z: CGFloat(v.castGains.z), w: 0),
+                CIVector(x: CGFloat(v.waterRedness), y: CGFloat(v.waterChroma), z: 0, w: 0),
+                CIVector(x: CGFloat(v.waterLit.x), y: CGFloat(v.waterLit.y), z: CGFloat(v.waterLit.z), w: 0),
+                CIVector(x: CGFloat(v.detail), y: CGFloat(v.detailFloor), z: CGFloat(FinishingMath.detailEdgeLow), w: CGFloat(FinishingMath.detailEdgeHigh)),
+                CIVector(x: CGFloat(FinishingMath.detailShadowLow), y: CGFloat(FinishingMath.detailShadowHigh), z: 0, w: 0)])!
+            var pixel = [Float](repeating: 0, count: 4)
+            engine.context.render(out, toBitmap: &pixel, rowBytes: 16, bounds: CGRect(x: 1, y: 1, width: 1, height: 1),
+                                  format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            let expected = FinishingMath.detail(c, blurred: b, reference: r, correction: v)
+            assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
+        }
+    }
+
     // MARK: Highlight shoulder
 
     func testHighlightShoulderStopsABrightPixelFromClippingAndKeepsItsHue() {

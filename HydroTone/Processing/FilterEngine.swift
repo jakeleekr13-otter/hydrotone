@@ -8,9 +8,12 @@ final class FilterEngine: Sendable {
     let context: CIContext
     private let colorKernel: CIColorKernel?
     private let shoulderKernel: CIColorKernel?
+    private let detailKernel: CIColorKernel?
     /// False when the finishing kernel failed to compile. Output then uses the weaker colour-matrix
     /// fallback, so owners with a DiagnosticRecorder report it.
     var finishingKernelAvailable: Bool { colorKernel != nil }
+    /// The detail kernel, for the kernel-versus-mirror test (finishing on a solid image cannot exercise it).
+    var detailKernelForTesting: CIColorKernel? { detailKernel }
     static let workingSpace = CGColorSpace(name: CGColorSpace.extendedLinearITUR_2020)!
     static let photoSpace = CGColorSpace(name: CGColorSpace.displayP3)!
     init() {
@@ -20,6 +23,7 @@ final class FilterEngine: Sendable {
         let kernels = try? CIKernel.kernels(withMetalString: Self.colorSource)
         colorKernel = kernels?.first { $0.name == "HydroToneFinishColor" } as? CIColorKernel
         shoulderKernel = kernels?.first { $0.name == "HydroToneHighlightShoulder" } as? CIColorKernel
+        detailKernel = kernels?.first { $0.name == "HydroToneDetail" } as? CIColorKernel
     }
 
     func apply(_ image: CIImage, settings: FilterSettings) -> CIImage {
@@ -65,6 +69,23 @@ final class FilterEngine: Sendable {
             mask.radius = max(1, radius * short)
             mask.intensity = amount
             corrected = mask.outputImage ?? corrected
+        }
+
+        // Fine detail: the pixel against its own small blur, on subjects only (HydroToneDetail). The blur
+        // reads a clamped image, so the border gets no dark rim.
+        if v.detail > 0, let detailKernel {
+            let blur = CIFilter.gaussianBlur()
+            blur.inputImage = corrected.clampedToExtent()
+            blur.radius = max(0.5, v.detailRadius * short)
+            let blurred = (blur.outputImage ?? corrected).cropped(to: image.extent)
+            corrected = detailKernel.apply(extent: image.extent, arguments: [
+                corrected, blurred, image,
+                CIVector(x: CGFloat(v.castGains.x), y: CGFloat(v.castGains.y), z: CGFloat(v.castGains.z), w: 0),
+                CIVector(x: CGFloat(v.waterRedness), y: CGFloat(v.waterChroma), z: 0, w: 0),
+                CIVector(x: CGFloat(v.waterLit.x), y: CGFloat(v.waterLit.y), z: CGFloat(v.waterLit.z), w: 0),
+                CIVector(x: CGFloat(v.detail), y: CGFloat(v.detailFloor), z: CGFloat(FinishingMath.detailEdgeLow), w: CGFloat(FinishingMath.detailEdgeHigh)),
+                CIVector(x: CGFloat(FinishingMath.detailShadowLow), y: CGFloat(FinishingMath.detailShadowHigh), z: 0, w: 0)
+            ]) ?? corrected
         }
 
         if v.warmth != 0 {

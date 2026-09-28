@@ -78,6 +78,46 @@ extension FilterEngine {
         return float4(c, source.a);
     }
 
+    // Fine detail layer, after the unsharp masks. FinishingMath.detail is the CPU mirror.
+    // source = the pixel after the unsharp masks, blurred = its blur at detailRadius, reference = the
+    // finishing input (what the colour kernel judged as water). gains = castGains,
+    // water = (waterRedness, waterChroma), waterLit = the water after the gains, detail = (strength,
+    // floor, edgeLow, edgeHigh), shadow = (shadowLow, shadowHigh). Luminance only, in a band, where the
+    // white reference lands (the colour kernel's neutral weight): subjects and pale surfaces brighter
+    // than the water. Open water gets nothing.
+    [[stitchable]] float4 HydroToneDetail(coreimage::sample_t source, coreimage::sample_t blurred, coreimage::sample_t reference, float4 gains, float4 water, float4 waterLit, float4 detail, float4 shadow) {
+        const float3 c = source.rgb;
+        const float3 luma = float3(0.2126f, 0.7152f, 0.0722f);
+        const float l = dot(max(c, float3(0.0f)), luma), lb = dot(max(blurred.rgb, float3(0.0f)), luma);
+        if (!isfinite(l) || !isfinite(lb) || !(l > 1e-5f) || !(l < 1.0f) || !(detail.x > 0.0f)) { return source; }
+        const float x = pow(l, 1.0f / 2.2f), d = x - pow(lb, 1.0f / 2.2f), a = fabs(d);
+        const float band = smoothstep(detail.y, max(3.0f * detail.y, detail.y + 1e-5f), a) * (1.0f - smoothstep(detail.z, detail.w, a));
+        const float lit = smoothstep(shadow.x, shadow.y, l);
+        // The colour kernel's water-like test, on the finishing input after the cast gains.
+        const float3 r = max(reference.rgb, float3(0.0f)) * max(gains.rgb, float3(0.0f));
+        const float redness = r.r / max(r.g + r.b, 1e-4f);
+        const float top = max(r.r, max(r.g, r.b));
+        const float pixelChroma = top > 1e-4f ? (top - min(r.r, min(r.g, r.b))) / top : 0.0f;
+        const float chromaConfidence = smoothstep(0.55f, 0.8f, water.y);
+        const float chromaMatch = smoothstep(water.y * 0.5f, max(water.y * 0.85f, water.y * 0.5f + 1e-5f), pixelChroma);
+        const float waterLike = (1.0f - smoothstep(water.x, water.x + max(0.3f, water.x * 0.6f), redness))
+            * (1.0f - (1.0f - chromaMatch) * chromaConfidence);
+        const float3 lw = max(waterLit.rgb, float3(0.0f));
+        const float waterLum = dot(lw, luma);
+        const float total = r.r + r.g + r.b;
+        float bright = 0.0f;
+        if (waterLum > 1e-4f && total > 1e-5f) {
+            const float3 diff = abs(r / total - lw / (lw.r + lw.g + lw.b));
+            bright = smoothstep(1.3f, 1.8f, dot(r, luma) / waterLum) * smoothstep(0.08f, 0.2f, diff.r + diff.g + diff.b);
+        }
+        const float subject = 1.0f - waterLike * (1.0f - bright);
+        const float weight = max(detail.x, 0.0f) * band * subject * lit;
+        const float y = max(0.0f, x + weight * d);
+        const float peak = max(c.r, max(c.g, c.b));
+        const float3 out = c * min(pow(y, 2.2f) / l, max(1.0f, peak) / max(peak, 1e-5f));
+        return all(isfinite(out)) ? float4(out, source.a) : source;
+    }
+
     // Highlight shoulder, the last finishing step. FinishingMath.shoulder is the CPU mirror.
     // The peak is read in BT.709 primaries; the ceiling is white or the reference's own (HDR) peak.
     // shape: x = shoulder width, y and z = the overshoot range, w = the start of the pale range.

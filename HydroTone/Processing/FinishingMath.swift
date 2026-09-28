@@ -41,6 +41,41 @@ enum FinishingMath {
         }
         return c.x.isFinite && c.y.isFinite && c.z.isFinite ? c : input
     }
+    /// Fine detail layer, applied after the unsharp masks. The HydroToneDetail kernel mirrors it.
+    /// `c` is the pixel after the unsharp masks, `blurred` the same pixel blurred by detailRadius, and
+    /// `reference` the finishing input (the source, or the restored image), which the water-like test reads.
+    /// - The layer is the gamma-luminance difference between the pixel and its blur.
+    /// - Differences below detailFloor are noise and get nothing; the strength is full from three times
+    ///   the floor. Differences above detailEdgeLow fade out by detailEdgeHigh: a strong edge gets
+    ///   nothing, so no halo is added.
+    /// - The layer lands where the white reference lands (neutralWeight): subjects, and pale surfaces
+    ///   clearly brighter than the water. Open water gets nothing. Dark pixels (linear luminance
+    ///   detailShadowLow to detailShadowHigh) fade in: they carry the most noise and show the least detail.
+    /// - The pixel is scaled by one factor, so its hue and chroma stay. No channel crosses one, and a
+    ///   pixel at or above luminance one (an HDR peak) is unchanged.
+    static func detail(_ c: SIMD3<Float>, blurred: SIMD3<Float>, reference: SIMD3<Float>, correction v: ColorCorrection) -> SIMD3<Float> {
+        func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {
+            let t = min(1, max(0, (x - low) / max(1e-5, high - low)))
+            return t * t * (3 - 2 * t)
+        }
+        let l = (pointwiseMax(c, .zero) * ColorCorrection.luma).sum(), lb = (pointwiseMax(blurred, .zero) * ColorCorrection.luma).sum()
+        guard l.isFinite, lb.isFinite, l > 1e-5, l < 1, v.detail > 0 else { return c }
+        let x = pow(l, 1 / 2.2), d = x - pow(lb, 1 / 2.2), a = abs(d)
+        let band = smoothstep(v.detailFloor, max(3 * v.detailFloor, v.detailFloor + 1e-5), a) * (1 - smoothstep(detailEdgeLow, detailEdgeHigh, a))
+        let lit = smoothstep(detailShadowLow, detailShadowHigh, l)
+        let subject = neutralWeight(pointwiseMax(reference, .zero) * pointwiseMax(v.castGains, .zero), correction: v)
+        let weight = max(0, v.detail) * band * subject * lit
+        let y = max(0, x + weight * d)
+        let peak = c.max()
+        let out = c * min(pow(y, 2.2) / l, max(1, peak) / max(peak, 1e-5))
+        return out.x.isFinite && out.y.isFinite && out.z.isFinite ? out : c
+    }
+    /// The detail band's upper edge (gamma luminance): from detailEdgeLow the layer fades, at
+    /// detailEdgeHigh it is off. Fine texture sits below 0.15 (the mola's 90th percentile is 0.03 to
+    /// 0.08); an outline is above 0.3. The shadow fade is in linear luminance.
+    static let detailEdgeLow: Float = 0.15, detailEdgeHigh: Float = 0.30
+    static let detailShadowLow: Float = 0.02, detailShadowHigh: Float = 0.06
+
     /// Highlight shoulder, the last finishing step. The HydroToneHighlightShoulder kernel mirrors it.
     /// The largest channel is read as a BT.709 / sRGB display shows it (`display`), because the
     /// smallest output gamut clips first. The ceiling is white (1), or the reference pixel's own

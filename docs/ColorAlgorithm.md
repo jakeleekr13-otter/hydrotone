@@ -144,8 +144,20 @@ The kernel applies the gains by `FinishingMath.neutralWeight`. Water-like pixels
 |---|---|
 | `clarity`, `clarityRadius` | Fine unsharp mask. Stronger in haze. |
 | `definition`, `definitionRadius` | Broad unsharp mask for the veil over far water and reef. |
+| `detail`, `detailFloor`, `detailRadius` | Fine detail layer (kernel `HydroToneDetail`, mirror `FinishingMath.detail`): the pixel's gamma luminance minus its own small blur, added back on subjects. See below. |
 
 Radii are shares of the short image side, so every size looks the same.
+
+**Fine detail layer.** AquaColorFix's images carry about 40% more fine-detail energy than ours did. The difference sits at the pixel scale, not in the broad unsharp masks: its block-local contrast is lower than ours. So a last sharpening step runs after the two unsharp masks:
+
+- The layer is the difference between the pixel's gamma luminance and a Gaussian blur of it. The blur radius is `detailRadius`, 1.2/480 of the short side: 2 px on a 1200 px photo, 7.6 px on a 4032 px export.
+- Differences below `detailFloor` (0.004, doubled in dark scenes) get nothing. From `FinishingMath.detailEdgeLow` (0.15) the layer fades and at `detailEdgeHigh` (0.30) it is off, so an outline gets no halo. In between, texture is amplified by `detail`.
+- The layer lands where the white reference lands (`FinishingMath.neutralWeight`): subjects, and pale surfaces clearly brighter than the water. Open water gets nothing. The colour kernel's plain water-like weight was tried first and cut the mola and the manta out, because a pale body lit by blue water is water-like.
+- Dark pixels fade in from linear luminance 0.02 to 0.06: they carry the most noise.
+- The pixel is scaled by one factor, so hue and chroma stay, and a pixel at or above luminance one is unchanged.
+- `detail` = `ColorCorrection.fineDetail` (1.3) x (1 + 0.25 x haze) x (1 - 0.5 x deep) x the Custom Clarity factor. Video gets one value per clip like every other value.
+
+Fine texture and water noise have the same size at this scale. On the mola, both have a median difference of 0.006 and a 75th percentile of 0.012. So no noise floor can tell them apart. The subject gate does that. The floor only drops the flattest pixels.
 
 ### Highlight shoulder
 
@@ -224,6 +236,7 @@ The kernels run in Metal. The finishing kernels are Metal source in `FinishingKe
 |---|---|---|
 | `HydroToneFinishColor` | `FinishingMath.color`, `waterLike`, `neutralWeight` | `testFinishingKernelMatchesCPUMirror`, `testFinishingKernelMatchesCPUMirrorWithWhiteReference` |
 | `HydroToneRestoration` | `RestorationMath.inverse` | `testRestorationKernelMatchesCPUMirror` |
+| `HydroToneDetail` | `FinishingMath.detail` | `testDetailKernelMatchesCPUMirror` |
 | `HydroToneHighlightShoulder` | `FinishingMath.shoulder` | `testHighlightShoulderKernelMatchesCPUMirror` |
 
 `ColorCorrection.restoredMean` (in `ColorMath.swift`) also mirrors the restoration kernel on one colour, at the plan's mean depth or at a given depth. It skips highlight protection and the output clamp. It predicts the restored water and scene mean. Change it with the kernel.
@@ -238,6 +251,7 @@ Other guards in `HydroToneTests/RestorationTests.swift`:
 - `testCyanCastSurfaceBecomesNearlyNeutral`, `testWhiteReferenceDoesNotNeutraliseTheWater`, `testSceneWithoutNeutralSurfacesIsUnchangedByTheWhiteReference`, `testNeutralRampStaysNeutralWithWhiteReferenceOnBothPaths`
 - `testLargeBrightSubjectGetsLessLift`, `testBrightSubjectDarkensAHighlightScene`
 - `testSubjectsLoseTheWaterLightButWaterAndGreyScenesDoNot`
+- `testDetailLayerLandsOnSubjectsInTheBandOnly`
 - `testSceneInliersKeepFramesWithAndWithoutANeutralSurface`, `testSceneMeanAveragesTheNeutralColourOnlyWhereItWasFound`
 - `testHighlightShoulderStopsABrightPixelFromClippingAndKeepsItsHue`, `testHighlightShoulderLeavesPixelsBelowTheShoulderUnchanged`, `testHighlightShoulderTurnsATintedBlownHighlightWhite`, `testHighlightShoulderKeepsHDRHighlightsAboveWhite`, `testNeutralRampStaysNeutralThroughTheShoulderOnBothPaths`
 
@@ -337,6 +351,7 @@ No separate figure is recorded here for these four. The scorecard shows the comb
 | Water hue goal 240 in full, bounds 0.35 to 2.2, solver polish | Water hue on pairs 1 and 5: 246 and 257 to 238 and 247 (target 240). The polish took pair 5 from 16.2 to 13.9. |
 | Murky chroma floor 0.14 to 0.22 | Pair 2 water chroma 0.17 to 0.20 (AquaColorFix 0.23). |
 | Tone: shadow lift 0.28 + 0.22 haze to 0.2 + 0.15 haze; highlights 0.92 - 0.2 haze; highlight rule down to -0.12 | Gate 13.60 to 12.50; median L* on pairs 1 to 3 within 2 of AquaColorFix (before +3 to +7). Shadows kept the black level: brightness stayed at exposure x 0.45. |
+| Fine detail layer, strength 1.3, floor 0.004, band to 0.15 to 0.30, gated by the neutral weight | Pair 3 detail energy 5.07 to 6.79 (AquaColorFix 8.10); subject detail up on every pair; water detail on pair 3 stays under AquaColorFix's (5.59 against 6.52). Gate 12.50 to 12.54. No visible halo on the mola or the manta edge at 100%. |
 
 ### Rejected
 
@@ -355,6 +370,8 @@ No separate figure is recorded here for these four. The scorecard shows the comb
 | Brightness (the black level) 0.45 to 0.3, or 0 | Shadows 8 to 10 L* below AquaColorFix on pairs 3 and 5; at 0 the shadows collapsed to L* 3. |
 | Murky lift goal 1.2 + 0.9 murky^2 to 1.1 + 0.4 murky^2 | No change on pair 2 (its lift is capped either way); market m2 lost 8 deltaE. |
 | Old shadow lift kept with the rest of the tone change | m2 23.7 to 23.1 only; gate 12.50 to 13.02. |
+| Detail layer gated by the plain water-like weight, floor 0.012 | Pair 3 detail 5.07 to 5.19: the mola is water-like, so it got nothing. |
+| Detail strength 1.6, or radius 2.0/480 | Pair 3 reached 7.19, but the gate rose to 12.57 to 12.65 and pair 4 went past AquaColorFix (9.1 against 7.7). |
 
 ## Comparison with AquaColorFix
 
@@ -406,6 +423,7 @@ Limits:
 - Mood grades like m3 are out of scope for automatic correction.
 - m5 stays much brighter than Sea-thru (mean L* 58.3 against 36.4). Its original is already bright (60.1).
 - On m6 the reef under the manta is olive-green (photo path) or yellow-green (video path). On Sea-thru it is brown.
+- The detail layer has one strength for every scene. Pairs 1 and 4 now carry more fine-detail energy than AquaColorFix (9.4 and 8.6 against 6.7 and 7.7): their sources are busier. A source-detail measurement in the analysis could set the strength per scene; it is not built.
 - Against AquaColorFix: pair 2's fish keeps a faint green-yellow tint (chroma about 0.02) and is about 10 L* brighter. The darker half of pair 4's manta keeps some mint. Pair 5's fish school is pale cyan where AquaColorFix has it warm. Pairs 4 and 5 stay 4 to 6 L* brighter in the mid-tones.
 - The neutral-surface residual is now green-yellow instead of cyan, and the chart grey row's chroma rose to 0.063 (see the scorecard).
 - Market m2 is darker than its target since the 28 Sep 2026 tuning.

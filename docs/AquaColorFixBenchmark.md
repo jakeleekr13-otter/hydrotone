@@ -143,7 +143,19 @@ What changed, in the order of the priorities above (details in [Colour algorithm
    highlight rule. The median lift is now close to AquaColorFix's on pairs 1, 2 and 3. Pairs 4 and 5
    stay 4 to 6 L* brighter in the mid-tones and 5 to 7 L* brighter in the highlights.
 
-Not done from this benchmark: detail enhancement (priority 5) and any depth change (priority 6).
+Priority 5 (restrained detail enhancement) was added later the same day. It is a fine detail layer on subjects, gated by the white-reference weight, with a noise floor and an edge band. Harness numbers, fine-detail energy (mean absolute Laplacian of L*):
+
+| Pair | Before | After | AquaColorFix | Water region before / after / AquaColorFix |
+|---:|---:|---:|---:|---|
+| 1 | 7.37 | 9.40 | 6.66 | 6.49 / 8.46 / 5.44 |
+| 2 | 1.12 | 1.51 | 2.07 | 0.21 / 0.22 / 0.17 |
+| 3 | 5.07 | 6.79 | 8.10 | 4.26 / 5.59 / 6.52 |
+| 4 | 6.40 | 8.63 | 7.73 | 2.75 / 2.79 / 3.50 |
+| 5 | 6.15 | 7.53 | 7.59 | 4.44 / 5.49 / 5.17 |
+
+The gate moved from 12.50 to 12.54 (photo path) and 12.96 to 13.02 (video path). The "water region" is the least red third of the source. On pairs 1, 3 and 5 it holds particles and small fish, which the layer sharpens as subjects. At 100% the open water looks the same as before. Pairs 1 and 4 now carry more energy than AquaColorFix; one strength serves every scene.
+
+Not done from this benchmark: any depth change (priority 6).
 
 Still open on these five pairs: pair 2's fish keeps a faint green-yellow tint on its face and fins
 (OKLab chroma about 0.02) and is about 10 L* brighter than AquaColorFix's; the darker half of pair 4's

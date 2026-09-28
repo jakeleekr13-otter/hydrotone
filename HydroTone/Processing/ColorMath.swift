@@ -96,6 +96,10 @@ extension ColorCorrection {
     /// Share of the water's colour taken from subjects (see subjectTone), as an exponent on the
     /// water's green/red and blue/red ratios.
     static let subjectLightRemoval: Float = 0.4
+    /// Strength of the fine detail layer (see FinishingMath.detail) before the scene scaling. Measured
+    /// on 28 Sep 2026: 1.3 takes the AquaColorFix pair 3 (a mola) from detail energy 5.07 to 6.79
+    /// (AquaColorFix 8.10) with no visible halo; 1.6 reached 7.19 but cost the colour gate 0.07.
+    static let fineDetail: Float = 1.3
 
     /// Per-channel gains plus a chroma scale (around luminance) that move `from` to the OKLab
     /// target at the same luminance. Gains stay inside 0.35...2.2 and the chroma scale inside

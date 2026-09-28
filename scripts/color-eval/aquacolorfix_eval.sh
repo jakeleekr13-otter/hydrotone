@@ -11,7 +11,8 @@ O=$HT_EVAL_OUT/$1
 export HT_EVAL_SOURCES=${2:-$HT_EVAL_SOURCES}
 build_eval $O
 DATA=$HT_EVAL_DATA/aquacolorfix
-RAW=$HT_EVAL_OUT/cache/aquacolorfix/raw; REF=$HT_EVAL_OUT/cache/aquacolorfix/ref
+# Per-run link folders, so two runs can go in parallel.
+RAW=$O/raw; REF=$O/ref
 rm -rf $RAW $REF; mkdir -p $RAW $REF $O/sheet
 for n in 1 2 3 4 5; do
     ln -s $DATA/O$n.* $RAW/p$n.jpg
