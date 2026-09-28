@@ -19,7 +19,7 @@ for scope in ['project', 'app', 'tests', 'uitests', 'share']:
         else:
             settings.update({'PRODUCT_NAME':'$(TARGET_NAME)','PRODUCT_BUNDLE_IDENTIFIER':{'app':'com.hydrotone.app','tests':'com.hydrotone.tests','uitests':'com.hydrotone.uitests','share':'com.hydrotone.app.share'}[scope], 'GENERATE_INFOPLIST_FILE':'YES','CODE_SIGN_STYLE':'Automatic','DEVELOPMENT_TEAM':'M3HJ7YK7N7'})
         if scope == 'app':
-            settings.update({'INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription':'Save your finished photos and videos to your library.','INFOPLIST_KEY_ITSAppUsesNonExemptEncryption':'NO','INFOPLIST_KEY_LSApplicationCategoryType':'public.app-category.photography','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone':'UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight','CODE_SIGN_ENTITLEMENTS':'HydroTone/Resources/HydroTone.entitlements','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','MARKETING_VERSION':'1.0','CURRENT_PROJECT_VERSION':'1','INFOPLIST_KEY_CFBundleDisplayName':'HydroTone'})
+            settings.update({'INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription':'Save your finished photos and videos to your library.','INFOPLIST_KEY_ITSAppUsesNonExemptEncryption':'NO','INFOPLIST_KEY_LSApplicationCategoryType':'public.app-category.photography','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone':'UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight','CODE_SIGN_ENTITLEMENTS':'HydroTone/Resources/HydroTone.entitlements','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','MARKETING_VERSION':'1.0','CURRENT_PROJECT_VERSION':'1','INFOPLIST_KEY_CFBundleDisplayName':'HydroTone','INFOPLIST_FILE':'HydroTone/Resources/Info.plist'})
         if scope == 'tests': settings.update({'TEST_HOST':'$(BUILT_PRODUCTS_DIR)/HydroTone.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HydroTone','BUNDLE_LOADER':'$(TEST_HOST)'})
         if scope == 'uitests': settings['TEST_TARGET_NAME']='HydroTone'
         # The share extension's versions must match the app's, or App Store validation rejects the build.
@@ -33,11 +33,12 @@ for scope,name,kind in [('app','HydroTone','application'),('tests','HydroToneTes
     # Developer media (UIEB, dive clips, market pairs) lives in DeveloperMedia/ at the repo root, outside every
     # synchronized group. Anything under HydroToneTests/ ships in the test bundle, git-ignored or not.
     exceptions=''
-    # The share extension also compiles SharedInbox.swift from the app folder. Its Info.plist is not a resource.
-    exception_files={'app':'Import/SharedInbox.swift','share':'Info.plist'}.get(scope)
-    if exception_files:
-        exception_set=add(scope+'exceptions',f'isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = ({exception_files},); target = {share_target};')
-        exceptions=f'exceptions = ({exception_set},); '
+    # The share extension also compiles SharedInbox.swift from the app folder. An Info.plist is not a resource.
+    exception_sets={'app':[('exceptions','Import/SharedInbox.swift',share_target),('plistexceptions','Resources/Info.plist',ident('apptarget'))],
+                    'share':[('exceptions','Info.plist',share_target)]}.get(scope,[])
+    if exception_sets:
+        sets=[add(scope+key,f'isa = PBXFileSystemSynchronizedBuildFileExceptionSet; membershipExceptions = ({files},); target = {target};') for key,files,target in exception_sets]
+        exceptions=f'exceptions = ({",".join(sets)},); '
     group=add(scope+'group',f'isa = PBXFileSystemSynchronizedRootGroup; {exceptions}path = {name}; sourceTree = "<group>";')
     groups.append(group)
     ext={'app':'app','share':'appex'}.get(scope,'xctest')

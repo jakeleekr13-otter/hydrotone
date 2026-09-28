@@ -4,11 +4,13 @@ import UniformTypeIdentifiers
 /// The hand-off folder between the share extension and the app, in the shared App Group container.
 /// This file is compiled into both targets.
 ///
-/// A share extension can't open its app. So the extension copies each share into its own folder, and the
-/// app opens the newest complete share the next time HydroTone is on screen. A newer share replaces an
-/// older one that was never opened.
+/// The extension copies each share into its own folder, then opens HydroTone with `openURL`. The app opens
+/// the newest complete share the next time HydroTone is on screen, so a share still opens if iOS refused the
+/// URL. A newer share replaces an older one that was never opened.
 enum SharedInbox {
     static let appGroup = "group.com.hydrotone.app"
+    /// The app registers the `hydrotone` scheme. Opening it only brings HydroTone to the screen.
+    static let openURL = URL(string: "hydrotone://share")!
     private static let partialSuffix = ".partial"
 
     struct Item: Sendable {

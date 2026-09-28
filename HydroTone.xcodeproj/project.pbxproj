@@ -70,10 +70,17 @@
 			);
 			target = 4BE864FAE2B9E4DE7821A052 /* HydroToneShare */;
 		};
+		A5D875C65189FDCE63406F9E /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Resources/Info.plist,
+			);
+			target = 4F6027D858B72CC70E5CC8E9 /* HydroTone */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		3A2A88DEEFF3D1D23E496597 /* HydroTone */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (7364889A612B6B38A2343DB0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = HydroTone; sourceTree = "<group>"; };
+		3A2A88DEEFF3D1D23E496597 /* HydroTone */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (7364889A612B6B38A2343DB0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, A5D875C65189FDCE63406F9E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = HydroTone; sourceTree = "<group>"; };
 		54768AA1BA5D709B3AD4DD6D /* HydroToneShare */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (C87D41F98C1BF0983C3F3C8A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = HydroToneShare; sourceTree = "<group>"; };
 		5FA060BA93CA7D761DC0AA1D /* HydroToneUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = HydroToneUITests; sourceTree = "<group>"; };
 		F80B2C2021F097DC9FAA009C /* HydroToneTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = HydroToneTests; sourceTree = "<group>"; };
@@ -424,6 +431,7 @@
 				DEVELOPMENT_TEAM = M3HJ7YK7N7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HydroTone;
+				INFOPLIST_FILE = HydroTone/Resources/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save your finished photos and videos to your library.";
@@ -533,6 +541,7 @@
 				DEVELOPMENT_TEAM = M3HJ7YK7N7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HydroTone;
+				INFOPLIST_FILE = HydroTone/Resources/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save your finished photos and videos to your library.";

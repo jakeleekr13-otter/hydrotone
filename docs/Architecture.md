@@ -49,7 +49,8 @@ Device and source profiles select the initial analysis compute policy and retain
 
 - The Photos picker gives access to the picked items only.
 - Files offers the types this device decodes, read at run time: `CGImageSourceCopyTypeIdentifiers()` for images (RAW included) and `AVURLAsset.audiovisualContentTypes` for movies. A coordinated read downloads an iCloud Drive file before the copy.
-- Share sheet: a share extension can't open its app. So `HydroToneShare` copies each share into its own folder in the App Group container (`SharedInbox`). The folder stays hidden from the app until the copy is complete.
+- Share sheet: `HydroToneShare` copies each share into its own folder in the App Group container (`SharedInbox`). The folder stays hidden from the app until the copy is complete.
+- Then the extension opens `hydrotone://share` (`SharedInbox.openURL`). iOS has no public call for a share extension to open its app. So the extension asks the `UIApplication` object on its responder chain. A full share opens HydroTone at once. A partial share waits for the Open button, so the person sees what was left out. If iOS refuses, the sheet asks the person to open HydroTone.
 - The app opens the newest complete share when its home screen is visible. A newer share replaces an unopened one. An open editor is never replaced. A partial share older than one hour is deleted.
 - Every source ends as a temporary copy that the app owns (`TemporaryFiles`). Then one rule set applies: one item opens the editor, and several photos open the batch screen (Pro). Videos open one at a time.
 

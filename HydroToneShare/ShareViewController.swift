@@ -2,13 +2,14 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// HydroTone in the share sheet. It copies the shared photos or video into the App Group inbox
-/// (SharedInbox). HydroTone opens them the next time it is on screen: a share extension can't open its app.
+/// (SharedInbox), then opens HydroTone, which opens the share in the editor or the batch screen.
 final class ShareViewController: UIViewController {
     private let model = ShareModel()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        let root = ShareView(model: model, done: { [weak self] in self?.done() }, cancel: { [weak self] in self?.cancel() })
+        let root = ShareView(model: model, open: { [weak self] in self?.openApp() },
+                             done: { [weak self] in self?.done() }, cancel: { [weak self] in self?.cancel() })
         let host = UIHostingController(rootView: root.preferredColorScheme(.dark).tint(.mint))
         addChild(host)
         host.view.frame = view.bounds
@@ -17,6 +18,17 @@ final class ShareViewController: UIViewController {
         host.didMove(toParent: self)
         let providers = (extensionContext?.inputItems as? [NSExtensionItem] ?? []).flatMap { $0.attachments ?? [] }
         model.start(providers)
+    }
+
+    /// iOS has no public call for a share extension to open its app. The extension's UIApplication object is on
+    /// the responder chain, so the extension asks it to open HydroTone. If iOS refuses, the sheet stays open.
+    private func openApp() {
+        var responder: UIResponder? = self
+        while let current = responder, !(current is UIApplication) { responder = current.next }
+        guard let application = responder as? UIApplication else { model.openFailed = true; return }
+        application.open(SharedInbox.openURL, options: [:]) { [weak self] opened in
+            if opened { self?.done() } else { self?.model.openFailed = true }
+        }
     }
 
     private func done() { extensionContext?.completeRequest(returningItems: nil) }
@@ -30,6 +42,8 @@ final class ShareViewController: UIViewController {
 final class ShareModel {
     enum State: Equatable { case copying, done(saved: Int, total: Int), failed }
     var state = State.copying
+    /// iOS refused to open HydroTone. The share still waits in the inbox for the next time HydroTone opens.
+    var openFailed = false
     private var task: Task<Void, Never>?
 
     func start(_ providers: [NSItemProvider]) {
@@ -84,6 +98,7 @@ final class ShareModel {
 
 struct ShareView: View {
     let model: ShareModel
+    let open: () -> Void
     let done: () -> Void
     let cancel: () -> Void
 
@@ -96,8 +111,9 @@ struct ShareView: View {
                 case .done(let saved, let total):
                     Image(systemName: "checkmark.circle").font(.system(size: 54)).foregroundStyle(.mint).accessibilityHidden(true)
                     Text("Added to HydroTone").font(.title2.bold())
-                    Text("Open HydroTone to edit.").foregroundStyle(.secondary)
                     if saved < total { Text("Couldn’t add \(total - saved) of \(total).").font(.footnote).foregroundStyle(.secondary) }
+                    if model.openFailed { Text("Open HydroTone to edit.").foregroundStyle(.secondary) }
+                    else { Button("Open HydroTone", action: open).buttonStyle(.borderedProminent) }
                 case .failed:
                     Image(systemName: "exclamationmark.triangle").font(.system(size: 54)).foregroundStyle(.orange).accessibilityHidden(true)
                     Text("Couldn’t add to HydroTone").font(.title2.bold())
@@ -105,6 +121,11 @@ struct ShareView: View {
                 }
             }.multilineTextAlignment(.center).padding(30).frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationTitle("HydroTone").navigationBarTitleDisplayMode(.inline)
+                // When every item was added there is nothing to read here, so HydroTone opens at once.
+                // A partial share waits for the Open button, so the person sees what was left out.
+                .onChange(of: model.state) { _, state in
+                    if case .done(let saved, let total) = state, saved == total { open() }
+                }
                 .toolbar {
                     if model.state == .copying {
                         ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: cancel) }

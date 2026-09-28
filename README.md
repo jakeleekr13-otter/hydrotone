@@ -8,7 +8,7 @@ Open **HydroTone.xcodeproj**, select the **HydroTone** scheme and an iPhone simu
 
 - Import photos/videos with the system Photos picker; broad library access is not requested.
 - **Import from Files** offers every image type ImageIO decodes on the device, camera RAW included. It also offers every movie type AVFoundation opens. Pro can pick several files.
-- **Share sheet:** the `HydroToneShare` extension appears for up to 10 photos or 1 video. A share extension can't open its app. So it copies the items to the App Group inbox (`group.com.hydrotone.app`) and asks the person to open HydroTone.
+- **Share sheet:** the `HydroToneShare` extension appears for up to 10 photos or 1 video. It copies the items to the App Group inbox (`group.com.hydrotone.app`), then opens HydroTone with `hydrotone://share`. The app opens the share in the editor or the batch screen. If iOS refuses to open the app, the share waits for the next time HydroTone opens.
 - HydroTone opens the newest share on its home screen. A newer share replaces an unopened one. A share never replaces an open editor.
 - Live Photos import and export as their still photo. The motion is not kept (a product decision; underwater Live Photos are rare).
 - Several items at once: photos open the batch screen (Pro, up to 10). Without Pro, only the first photo opens. Videos open one at a time, so the other videos are skipped with a notice.

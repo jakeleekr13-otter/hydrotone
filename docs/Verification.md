@@ -15,6 +15,25 @@ This page lists the checks that are still open. The product owner decided to fin
 | `e02c19e` | Tropical and Deep Dive tuned to match their names |
 | `7651372` | Custom Saturation and Temperature made visible (wider ranges) |
 
+## Share sheet opens HydroTone (28 Sep 2026)
+
+The extension opens `hydrotone://share` after the copy, through the `UIApplication` object on its responder chain.
+
+Checked on the iPhone 17 (iOS 27.0) with a temporary UI test: Photos → Share → HydroTone.
+
+| Shared item | HydroTone came to the front | Editor |
+|---|---|---|
+| 1 video (14 s) | Yes | Opened, showed "Analyzing…" |
+| 1 photo | Yes | Opened with the preview and Natural Dive selected |
+
+Still open:
+- Several photos: HydroTone opens on the batch screen.
+- A partial share: the sheet stays with the note and the Open HydroTone button, and the button opens HydroTone.
+- Share while the editor is open: HydroTone comes to the front on that editor, and the share opens after going back.
+- App Review: Apple's extension guide lets only a Today widget open its app. If review objects, remove the open call. The share then waits for the next launch, as before.
+
+Device check note: `xcodebuild test` on the iPhone left the old share extension installed. Install with `xcrun devicectl device install app` before a share-sheet check.
+
 ## Import, share sheet and file names (28 Sep 2026, `4aaa7cc`)
 
 Built for the simulator. These unit tests pass: ExportNamingTests, FileImportTests, PhotoTests, LocalizationTests and BatchTests. FileImportTests uses a RAW sample from DeveloperMedia.
@@ -22,7 +41,7 @@ Built for the simulator. These unit tests pass: ExportNamingTests, FileImportTes
 On the simulator, a share placed in the App Group inbox opened in the editor at launch. The extension UI itself was not run. Nothing below was checked on an iPhone yet.
 
 - **Signing: done on 28 Sep 2026.** Automatic signing registered `com.hydrotone.app.share` and the App Group `group.com.hydrotone.app`. The device build embeds a development profile with the App Group in the app and in the extension. The App Store profile is created again at the next archive.
-- **Share sheet in Photos.** HydroTone appears in the app row for 1 photo, 10 photos and 1 video. It does not appear for 11 photos or 2 videos. After "Added to HydroTone", open HydroTone: the share opens in the editor or the batch screen.
+- **Share sheet in Photos.** HydroTone appears in the app row for 1 photo, 10 photos and 1 video. It does not appear for 11 photos or 2 videos. After "Added to HydroTone", HydroTone opens by itself, and the share opens in the editor or the batch screen.
 - **Share edge cases.**
   - A Live Photo opens as the still photo.
   - Share while the editor is open: nothing replaces it; the share opens after going back.
