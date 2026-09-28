@@ -23,6 +23,7 @@ Checked on the iPhone 17 simulator (iOS 27.0), in Korean, with a 50 s clip: the 
 
 Still open:
 - A video shorter than 45 s shows no notice.
+- The export progress box shows the same notice for a video of 45 s or more (added after the first check; build only).
 - The same check on the iPhone, and in landscape.
 
 ## Share sheet opens UnderBlue (28 Sep 2026)

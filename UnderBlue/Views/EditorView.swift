@@ -132,6 +132,10 @@ struct EditorView: View {
                 Text(model.progress >= 0.99
                      ? String(localized: "Checking your video…")
                      : String(localized: "Exporting \(Int(model.progress * 100))%"))
+                if model.isLongVideo {
+                    Text("Analysis and correction can take longer for longer videos.")
+                        .font(.footnote).multilineTextAlignment(.center).frame(maxWidth: 240)
+                }
             } else { ProgressView("Exporting…") }
             Text("Keep UnderBlue open until export finishes.").font(.footnote)
             Button("Cancel") { model.exportTask?.cancel() }.frame(minHeight: 44)
