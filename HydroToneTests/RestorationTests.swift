@@ -492,6 +492,56 @@ final class RestorationTests: XCTestCase {
         XCTAssertEqual(anemone.x, neon.x, accuracy: 1e-5)
     }
 
+    /// IMG_7287's values (28 Sep 2026): bright water near the sun that the white reference makes
+    /// nearly grey. The water tone lifts red and blue; on that grey it drew a violet band.
+    private var sunlitWaterValues: ColorCorrection {
+        colorOnly { $0.castGains = .init(1.2019, 0.9542, 1.1174); $0.waterTone = .init(1.1933, 0.9335, 1.3176)
+            $0.waterSaturation = 0.9467; $0.waterRedness = 0.2351; $0.waterChroma = 0.5582; $0.violetGuard = 1
+            $0.neutralGains = .init(1.0364, 1.0153, 0.7769); $0.subjectTone = .init(1, 0.7593, 0.7212)
+            $0.waterLit = .init(0.088, 0.1751, 0.1992) }
+    }
+    /// 8682's values (28 Sep 2026): sand lit through cyan water. The light removal takes blue
+    /// (0.54) far more than green (0.82).
+    private var cyanSandValues: ColorCorrection {
+        colorOnly { $0.castGains = .init(1.2177, 0.9732, 0.9732); $0.waterTone = .init(1.0559, 1.0668, 0.683)
+            $0.waterSaturation = 0.793; $0.waterRedness = 0.1583; $0.waterChroma = 0.7861; $0.violetGuard = 1
+            $0.neutralGains = .init(1.0483, 0.9912, 1.0013); $0.subjectTone = .init(1, 0.8198, 0.5396)
+            $0.waterLit = .init(0.1305, 0.2144, 0.61) }
+    }
+
+    func testPaleSurfaceMadeGreyTakesNoWaterTone() {
+        let out = FinishingMath.color(.init(0.508, 0.729, 0.715), correction: sunlitWaterValues)
+        let lch = oklch(out)
+        XCTAssertTrue(lch.z < 282 || lch.y < 0.012, "violet: hue \(lch.z) chroma \(lch.y)")
+        // Deep water keeps its tone.
+        let water = SIMD3<Float>(0.073, 0.184, 0.178)
+        XCTAssertGreaterThan(FinishingMath.color(water, correction: sunlitWaterValues).z,
+                             FinishingMath.color(water, correction: { var v = sunlitWaterValues; v.waterTone = .one; return v }()).z)
+    }
+
+    func testLightRemovalDoesNotTurnCyanSurfaceGreen() {
+        let sand = SIMD3<Float>(0.272, 0.559, 0.617)
+        let out = FinishingMath.color(sand, correction: cyanSandValues)
+        // The water tone may still take a little blue; the light removal takes none past green.
+        XCTAssertGreaterThanOrEqual(out.z, out.y * 0.95, "blue fell below green: \(out)")
+        let hue = oklch(out).z
+        XCTAssertFalse(hue > 120 && hue < 170, "green hue \(hue)")
+    }
+
+    func testPaleSurfaceRulesMatchKernel() {
+        let engine = FilterEngine()
+        for (values, color) in [(sunlitWaterValues, SIMD3<Float>(0.508, 0.729, 0.715)), (sunlitWaterValues, .init(0.073, 0.184, 0.178)),
+                                (cyanSandValues, .init(0.272, 0.559, 0.617)), (cyanSandValues, .init(0.107, 0.22, 0.627))] {
+            let image = CIImage(color: CIColor(red: CGFloat(color.x), green: CGFloat(color.y), blue: CGFloat(color.z),
+                                               colorSpace: FilterEngine.workingSpace)!).cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+            var pixel = [Float](repeating: 0, count: 4)
+            engine.context.render(engine.finishing(image, correction: values), toBitmap: &pixel, rowBytes: 16,
+                                  bounds: CGRect(x: 1, y: 1, width: 1, height: 1), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            let expected = FinishingMath.shoulder(FinishingMath.color(color, correction: values), reference: color)
+            assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
+        }
+    }
+
     func testBlueTintedSubjectGetsRedButDeepBlueWaterDoesNot() {
         let water = SIMD3<Float>(0.02, 0.07, 0.25)
         let values = ColorCorrection.make(analysis: scene(water: water), preset: .natural)

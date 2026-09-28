@@ -14,18 +14,28 @@ enum FinishingMath {
         let waterLike = waterLike(c, correction: v)
         // White reference: pixels that are not water-like, or clearly brighter than the water,
         // move with the scene's neutral surfaces.
-        c *= SIMD3(repeating: 1) + (pointwiseMax(v.neutralGains, .zero) - 1) * neutralWeight(c, correction: v)
+        let neutral = neutralWeight(c, correction: v)
+        c *= SIMD3(repeating: 1) + (pointwiseMax(v.neutralGains, .zero) - 1) * neutral
+        // A bright pixel that the white reference made nearly grey is a pale surface, not water.
+        // The water saturation and the water tone skip it; as a cast on grey they read violet or green.
+        // Bright water that is still coloured keeps them. `neutral - (1 - waterLike)` is the bright share.
+        let top = c.max(), paleChroma = top > 1e-4 ? (top - c.min()) / top : 0
+        let pale = 1 - smoothstep(0.15, 0.35, paleChroma)
+        let water = waterLike - max(0, neutral - (1 - waterLike)) * pale
         // Light removal on subjects: pixels that are not water-like lose part of the water's colour,
         // at their own luminance. Green and blue never fall below the pixel's red: a grey subject
         // carries no cast to remove, so it is not made warm.
         var removed = c * (SIMD3(repeating: 1) + (pointwiseMax(v.subjectTone, .zero) - 1) * (1 - waterLike))
         removed.y = max(removed.y, min(c.y, c.x)); removed.z = max(removed.z, min(c.z, c.x))
+        // The removal never makes a pixel greener: blue keeps at least its share of green. It takes
+        // more blue than green, so a cyan-lit pale surface would otherwise end green.
+        removed.z = max(removed.z, removed.y * min(1, c.z / max(c.y, 1e-4)))
         let kept = (c * ColorCorrection.luma).sum(), left = (removed * ColorCorrection.luma).sum()
         if left > 1e-6 { c = removed * (kept / left) }
         c = ColorCorrection.violetGuard(c, input: input, waterLike: waterLike, strength: v.violetGuard)
-        let lum = (c * ColorCorrection.luma).sum(), scale = 1 + (max(0, v.waterSaturation) - 1) * waterLike
+        let lum = (c * ColorCorrection.luma).sum(), scale = 1 + (max(0, v.waterSaturation) - 1) * water
         c = pointwiseMax(SIMD3(repeating: lum) + (c - SIMD3(repeating: lum)) * scale, .zero)
-        c *= SIMD3(repeating: 1) + (SIMD3(max(0, v.waterTone.x), max(0, v.waterTone.y), max(0, v.waterTone.z)) - 1) * waterLike
+        c *= SIMD3(repeating: 1) + (SIMD3(max(0, v.waterTone.x), max(0, v.waterTone.y), max(0, v.waterTone.z)) - 1) * water
         let greenBlue = c.y / max(c.z, 1e-4)
         let hue = smoothstep(v.redGateLow, v.redGateHigh, greenBlue) * (1 - smoothstep(1.35, 2.2, greenBlue))
         let subject = smoothstep(v.subjectRed, v.subjectRed + 0.3, c.x / max(c.y, 1e-4))

@@ -35,12 +35,19 @@ extension FilterEngine {
                 * smoothstep(0.08f, 0.2f, d.r + d.g + d.b);
         }
         c *= mix(float3(1.0f), max(neutral.rgb, float3(0.0f)), 1.0f - waterLike * (1.0f - bright));
+        // A bright pixel that the white reference made nearly grey is a pale surface, not water:
+        // the water saturation and the water tone below skip it. FinishingMath.color mirrors it.
+        const float paleTop = max(c.r, max(c.g, c.b));
+        const float paleChroma = paleTop > 1e-4f ? (paleTop - min(c.r, min(c.g, c.b))) / paleTop : 0.0f;
+        const float waterShare = waterLike * (1.0f - bright * (1.0f - smoothstep(0.15f, 0.35f, paleChroma)));
         // Light removal on subjects (subjectTone.rgb): pixels that are not water-like lose part of the
         // water's colour, at their own luminance. Green and blue never fall below the pixel's red, so
         // a grey subject is not made warm. FinishingMath.color mirrors it.
         {
             float3 removed = c * mix(float3(1.0f), max(subjectTone.rgb, float3(0.0f)), 1.0f - waterLike);
             removed.gb = max(removed.gb, min(c.gb, float2(c.r)));
+            // The removal never makes a pixel greener: blue keeps at least its share of green.
+            removed.b = max(removed.b, removed.g * min(1.0f, c.b / max(c.g, 1e-4f)));
             const float kept = dot(c, float3(0.2126f, 0.7152f, 0.0722f));
             const float left = dot(removed, float3(0.2126f, 0.7152f, 0.0722f));
             if (left > 1e-6f) { c = removed * (kept / left); }
@@ -52,8 +59,8 @@ extension FilterEngine {
         c.r = mix(c.r, min(c.r, limit), blue);
         // Water chroma scale (shape.x) around luminance calms neon water; then the water gains.
         const float y0 = dot(c, float3(0.2126f, 0.7152f, 0.0722f));
-        c = max(float3(y0) + (c - float3(y0)) * mix(1.0f, max(shape.x, 0.0f), waterLike), float3(0.0f));
-        c *= mix(float3(1.0f), max(water.rgb, float3(0.0f)), waterLike);
+        c = max(float3(y0) + (c - float3(y0)) * mix(1.0f, max(shape.x, 0.0f), waterShare), float3(0.0f));
+        c *= mix(float3(1.0f), max(water.rgb, float3(0.0f)), waterShare);
         // Rebuild red from green only where green is near blue. Blue water gets almost none,
         // so it cannot drift to violet. Strongly green pixels also get little, so green
         // water and weed do not turn yellow. Pixels redder than the water get a little more.
