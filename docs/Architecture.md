@@ -5,9 +5,10 @@ The initial directory was empty. Development proceeded through building the foun
 | Directory | Responsibility |
 |---|---|
 | App | Main-actor editor lifecycle and observable state |
-| Models / Import | File transfer, temporary ownership, actual AVAsset inspection |
-| Processing | Shared color engine, fixed clip analysis, player filtering, HDR policy |
-| Export | Sequential reader/writer, original audio packets, options, validation, Photos save |
+| Models / Import | Photos picker, Files and share-inbox import, temporary ownership, actual AVAsset inspection |
+| Processing | Shared color engine, fixed clip analysis, player filtering, HDR policy, HDR photo gain map |
+| Export | Sequential reader/writer, original audio packets, options, validation, saved file names, Photos save |
+| HydroToneShare (extension target) | Share sheet entry: copies shared items into the App Group inbox |
 | Commerce | Verified StoreKit ownership and durable Keychain trial reservation |
 | Views | Native home, editor, export and purchase screens |
 
@@ -20,6 +21,25 @@ Analysis measures a small thumbnail: scene and water colour, bright near-neutral
 Video analyzes ten evenly spaced samples from 10% to 90% of the clip, rejects scene outliers, and averages the retained samples into one constant scene plan. Preview and sequential export share this plan, including a uniform 2x2 depth map. This deliberately prioritizes short processing times and consistent colour for recreational dive clips over adaptation to changing scenes. If no retained sample has a usable depth fit, both paths use the legacy colour correction; rejected samples must never supply a replacement physical plan.
 
 Device and source profiles select the initial analysis compute policy and retained depth-map size. The policy cadence fields and environment-change detector are not used for per-frame analysis in the current export path. No per-frame depth inference or optical flow is performed, and analysis policy never changes output resolution, frame rate or SDR/HDR selection. Restoration confidence and per-channel recoverability bound the physical contribution independently of device performance.
+
+## Photo input and output
+
+- JPEG, HEIC and the other ImageIO formats open with `CIImage(contentsOf:)`, expanded to HDR. All colour work then runs on the SDR tone-mapped image.
+- Camera RAW opens with `CIRAWFilter`, at Apple's standard SDR rendering. On iOS, `CIImage(contentsOf:)` returned only the embedded preview (1616 px for a 5472 px ARW). The HDR-expanded path was also about 30% darker than the standard rendering.
+- HDR photos can export as a JPEG with an ISO gain map. The SDR image in the file is the normal export.
+- The HDR version (`PhotoHDR`) is that result times the source's ratio of HDR to tone-mapped SDR, in Rec.2020 luminance. The ratio never darkens and never exceeds the source headroom. So the colour engine never sees HDR values. The video HDR path is different: it filters the HDR frames directly.
+- The HDR output check adds two tests: an ISO gain map is present, and the file reopens with headroom above 1.
+- The simulator opens every gain-map photo with headroom 1. So HDR photo export can only be verified on an iPhone.
+- Saved names come from `ExportNaming`: `<source>_HydroTone_<look>.<ext>`. Photos keeps the name through `PHAssetResourceCreationOptions.originalFilename`.
+- Live Photos are treated as still photos. This is a product decision (28 Sep 2026).
+
+## Import sources
+
+- The Photos picker gives access to the picked items only.
+- Files offers the types this device decodes, read at run time: `CGImageSourceCopyTypeIdentifiers()` for images (RAW included) and `AVURLAsset.audiovisualContentTypes` for movies. A coordinated read downloads an iCloud Drive file before the copy.
+- Share sheet: a share extension can't open its app. So `HydroToneShare` copies each share into its own folder in the App Group container (`SharedInbox`). The folder stays hidden from the app until the copy is complete.
+- The app opens the newest complete share when its home screen is visible. A newer share replaces an unopened one. An open editor is never replaced. A partial share older than one hour is deleted.
+- Every source ends as a temporary copy that the app owns (`TemporaryFiles`). Then one rule set applies: one item opens the editor, and several photos open the batch screen (Pro). Videos open one at a time.
 
 ## Video
 

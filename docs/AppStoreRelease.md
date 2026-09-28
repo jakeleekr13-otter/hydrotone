@@ -28,7 +28,7 @@ All four targets—`HydroTone`, `HydroToneShare`, `HydroToneTests` and `HydroTon
 
 The latest device build was verified with `UIDeviceFamily = [1]`, `CFBundleSupportedPlatforms = ["iPhoneOS"]` and `LSRequiresIPhoneOS = true`. Xcode may still list iPad simulators as run destinations because iPhone-only apps can run in iPadOS compatibility mode. This does not enable native iPad support and does not require iPad screenshots.
 
-The add-only Photos usage description is localised through `InfoPlist.xcstrings`. The privacy manifest declares no tracking and lists required-reason API usage for disk space, file timestamps and app-only UserDefaults. HydroTone has no automatic analytics or diagnostic upload.
+The add-only Photos usage description is localised through `InfoPlist.xcstrings`. The privacy manifest declares no tracking and lists required-reason API usage for disk space, file timestamps and app-only UserDefaults. The share extension calls none of the required-reason APIs; its code was checked on 28 Sep 2026. So it has no privacy manifest of its own. HydroTone has no automatic analytics or diagnostic upload.
 
 ## Prepared App Store Connect values
 
@@ -132,6 +132,7 @@ The production price is still a business decision. The local StoreKit configurat
 3. Run the physical-device matrices in `QA.md` and `VideoV2QA.md`.
 4. Select **Any iOS Device (arm64)**, then Product → Archive.
 5. In Organizer, run **Validate App** before **Distribute App**.
+   Confirm the archive contains `PlugIns/HydroToneShare.appex`, and that both profiles include the App Group.
 6. Retain the archive and dSYM for crash symbolication.
 7. Confirm the uploaded build reports iPhone-only device family and no Mac, Catalyst or Vision availability.
 

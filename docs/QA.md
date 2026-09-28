@@ -4,7 +4,10 @@ Status reflects automated tests in this repository. “Device QA” is deliberat
 
 | Area | Coverage | Status |
 |---|---|---|
-| Photo formats | JPEG portrait orientation; generated HEIC; Display P3 output; preview/export pixel comparison | Automated pass |
+| Photo formats | JPEG portrait orientation; generated HEIC; Display P3 output; preview/export pixel comparison; portrait Sony RAW at full size | Automated pass (RAW needs the DeveloperMedia sample) |
+| HDR photos | Gain-map JPEG output; headroom kept; SDR image equals the SDR export; SDR sources stay SDR | Automated pass on iPhone 17; the end-to-end test skips on the simulator |
+| Import and names | Files type list; share inbox order and cleanup; saved file names | Automated pass |
+| Share sheet | Extension UI, activation limits (10 photos or 1 video), Live Photo as a still | Device QA required |
 | Filter behavior | Original/0%, 50%, 100%; neutral black/white; red restoration | Automated pass |
 | SDR codecs | H.264 and HEVC | Automated pass |
 | Resolution | 1080p; generated 4K; no upscaling; portrait dimensions | Automated pass |
@@ -26,7 +29,9 @@ Status reflects automated tests in this repository. “Device QA” is deliberat
 
 Run these before an App Store release:
 
-- JPEG, HEIC and Adaptive HDR photos from current iPhones; verify actual Photos metadata and wide-color rendering.
+- JPEG, HEIC and Adaptive HDR photos from current iPhones; verify actual Photos metadata and wide-color rendering. Save one HDR photo as HDR and as SDR, and compare both in Photos.
+- Camera RAW: iPhone ProRAW DNG and one other camera (ARW, CR3 or NEF). Check full resolution, preview speed and memory.
+- Share sheet from Photos and from Files, and Import from Files with an iCloud Drive file that is not downloaded yet. Check the saved file names in Photos.
 - GoPro, DJI Osmo Action and Insta360 samples: H.264/HEVC, 8/10-bit, 1080p/4K, 30/60 fps, portrait/landscape, variable timing, with/without audio.
 - iPhone HLG/Dolby Vision, external-camera HLG/HDR10 and unusual compatible Dolby Vision clips. Inspect every result in Photos, QuickTime/AVAsset and a metadata tool. Confirm HydroTone never labels output Dolby Vision.
 - Multi-minute and long 4K exports on the oldest supported iPhone. Measure peak memory, thermal behavior, sustained frame rate and free-space estimates with Instruments.
