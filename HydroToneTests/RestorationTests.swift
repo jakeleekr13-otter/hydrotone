@@ -509,6 +509,16 @@ final class RestorationTests: XCTestCase {
             $0.waterLit = .init(0.1305, 0.2144, 0.61) }
     }
 
+    func testBrightBlueSceneLosesItsVeilButGreenWaterDoesNot() {
+        func brightness(_ water: SIMD3<Float>, mid: Float) -> Float {
+            ColorCorrection.make(analysis: scene(water: water, mid: mid, contrast: 0.35), preset: .natural).brightness
+        }
+        // 8682 / m5: bright scene, blue water. Below median 0.2 the rule is off.
+        let blue = SIMD3<Float>(0.107, 0.22, 0.62), green = SIMD3<Float>(0.12, 0.3, 0.155)
+        XCTAssertLessThan(brightness(blue, mid: 0.3), brightness(blue, mid: 0.19) - 0.06)
+        XCTAssertEqual(brightness(green, mid: 0.3), brightness(green, mid: 0.19), accuracy: 0.01)
+    }
+
     func testPaleSurfaceMadeGreyTakesNoWaterTone() {
         let out = FinishingMath.color(.init(0.508, 0.729, 0.715), correction: sunlitWaterValues)
         let lch = oklch(out)

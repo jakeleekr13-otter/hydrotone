@@ -253,6 +253,9 @@ struct ColorCorrection: Sendable, Equatable {
     /// vibrance, and on the restored path the mid-tone lift. Writes tonePivot, toneCurve, brightness,
     /// contrast, shadowLift, highlightAmount, clarity, clarityRadius, definition, detail, detailFloor,
     /// vibrance, physicalWeight, midLift.
+    /// The largest veil offset (colorControls brightness), for a bright blue-water scene.
+    static let veilOffset: Float = 0.08
+
     private static func toneRules(_ v: inout Self, analysis: WaterAnalysis, preset: DivePreset, plan: RestorationPlan?,
                                   scene: SceneFactors, user: CustomAdjustments) {
         let haze = scene.haze, bright = scene.bright, highlight = scene.highlight
@@ -290,6 +293,12 @@ struct ColorCorrection: Sendable, Equatable {
         v.detail = fineDetail * (1 + 0.25 * haze) * (1 - 0.5 * scene.deep) * sharpen
         v.detailFloor = 0.004 * (1 + scene.deep)
         v.vibrance = preset.vibrance * max(0.3, 1 - analysis.saturation) * (1 - scene.neon)
+        // A bright scene in blue water (median luminance 0.2 to 0.3) keeps a light veil over
+        // everything: its shadows stay near L 0.34 where the market look (m5, Sea-thru) has them near
+        // 0.1. A small offset takes the veil out, so the water gets deeper and the reef gets its
+        // shadows back (28 Sep 2026: m5 dE 27.4 -> 18.6). Green and teal water keep their light.
+        let veiled = (1 - scene.waterType) * min(1, max(0, (analysis.midLuminance - 0.2) / 0.1))
+        v.brightness -= veilOffset * veiled
         if let plan {
             v.physicalWeight = plan.confidence
             // Give back the light the restored image lost with the veil: move its estimated
