@@ -196,9 +196,16 @@ final class RestorationEngine: Sendable {
 
     func combined(_ image: CIImage, plan: RestorationPlan, settings: FilterSettings,
                   filter: FilterEngine) throws -> CIImage {
+        try combined(image, plan: plan, values: corrections(settings: settings, plan: plan),
+                     settings: settings, filter: filter)
+    }
+
+    /// combined() with correction values the caller already made. Video mixes two scenes' values here.
+    func combined(_ image: CIImage, plan: RestorationPlan,
+                  values: (current: ColorCorrection, restored: ColorCorrection),
+                  settings: FilterSettings, filter: FilterEngine) throws -> CIImage {
         let amount = min(1, max(0, settings.appliedIntensity))
         guard settings.preset != .original, amount > 0 else { return image }
-        let values = corrections(settings: settings, plan: plan)
         let current = filter.apply(image, correction: values.current, intensity: amount)
         let physicallyRestored = try restore(image, plan: plan)
         let finished = filter.finishing(physicallyRestored, correction: values.restored, reference: image)

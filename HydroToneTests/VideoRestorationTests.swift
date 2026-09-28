@@ -61,21 +61,90 @@ final class VideoRestorationTests: XCTestCase {
         for _ in 0..<4 { XCTAssertFalse(detector.observe(motionOnly)) }
     }
 
-    func testPreviewInterpolatesParametersButNeverUnrelatedDepthMaps() throws {
-        let first = try makePlan(depth: 0, confidence: 0.7, direct: .init(repeating: 0.2))
-        let second = try makePlan(depth: 1, confidence: 0.7, direct: .init(repeating: 1.0))
-        let cg = try XCTUnwrap(CIContext().createCGImage(
-            CIImage(color: .black).cropped(to: CGRect(x: 0, y: 0, width: 2, height: 2)),
-            from: CGRect(x: 0, y: 0, width: 2, height: 2)))
+    func testSceneValuesHoldInsideAScene() throws {
+        let analysis = try twoScenes(firstEnd: 10, secondStart: 11)
+        for time in [-1.0, 0, 5, 10] {
+            let moment = try XCTUnwrap(analysis.moment(at: time))
+            XCTAssertEqual(moment.amount, 0, "t=\(time)")
+            XCTAssertEqual(moment.from.start, 0, "t=\(time)")
+        }
+        for time in [11.0, 15, 20, 99] {
+            let moment = try XCTUnwrap(analysis.moment(at: time))
+            XCTAssertEqual(moment.amount, 0, "t=\(time)")
+            XCTAssertEqual(moment.from.start, 11, "t=\(time)")
+        }
+    }
+
+    func testScenesCrossFadeAroundTheMiddleOfTheGap() throws {
+        let analysis = try twoScenes(firstEnd: 10, secondStart: 11)
+        let middle = try XCTUnwrap(analysis.moment(at: 10.5))
+        XCTAssertEqual(middle.amount, 0.5, accuracy: 1e-6)
+        let plan = try middle.plan()
+        XCTAssertEqual(plan.betaDirect.x, 0.6, accuracy: 1e-5)
+        XCTAssertTrue(plan.depth.values.allSatisfy { abs($0 - 0.5) < 1e-5 }, "Constant scene depths mix")
+        XCTAssertEqual(plan.temporalConfidence, 0.6, accuracy: 1e-5, "No confidence dip in the middle of a fade")
+        XCTAssertEqual(plan.confidence, 0.6, accuracy: 1e-5)
+        // Smoothstep: slow at both ends, always rising. At 11.0 the fade has ended and the next scene holds.
+        var previous: Float = 0
+        for step in 1...19 {
+            let amount = try XCTUnwrap(analysis.moment(at: 10 + Double(step) / 20)).amount
+            XCTAssertGreaterThanOrEqual(amount, previous)
+            previous = amount
+        }
+        XCTAssertLessThan(try XCTUnwrap(analysis.moment(at: 10.05)).amount, 0.05)
+    }
+
+    func testLongGapFadesForOneSecondAtItsMiddle() throws {
+        let analysis = try twoScenes(firstEnd: 30, secondStart: 60)
+        XCTAssertEqual(try XCTUnwrap(analysis.moment(at: 44.4)).amount, 0)
+        XCTAssertEqual(try XCTUnwrap(analysis.moment(at: 44.4)).from.start, 0)
+        XCTAssertEqual(try XCTUnwrap(analysis.moment(at: 45)).amount, 0.5, accuracy: 1e-6)
+        XCTAssertEqual(try XCTUnwrap(analysis.moment(at: 45.6)).amount, 0)
+        XCTAssertEqual(try XCTUnwrap(analysis.moment(at: 45.6)).from.start, 60)
+    }
+
+    func testNoScenesMeansNoMoment() throws {
+        let cg = try blackImage()
         let analysis = VideoRestorationAnalysis(
-            legacyAnalysis: .neutral, representativeFrame: cg, representativeTime: 5,
-            samplePlans: [.init(time: 0, plan: first), .init(time: 10, plan: second)],
-            initialEnvironment: nil, deviceProfile: device(.balanced, milliseconds: 50),
-            sourceProfile: source(.medium),
+            legacyAnalysis: .neutral, representativeFrame: cg, representativeTime: 0, scenes: [],
+            initialEnvironment: nil, deviceProfile: device(.balanced, milliseconds: 50), sourceProfile: source(.medium),
             previewPolicy: policy(.preview), exportPolicy: policy(.export))
-        let midpoint = try XCTUnwrap(analysis.previewPlan(at: 5))
-        XCTAssertTrue(midpoint.depth.values.allSatisfy { $0 == 1 }, "Depth maps must not be averaged across frames")
-        XCTAssertEqual(midpoint.betaDirect.x, 0.6, accuracy: 0.0001)
+        XCTAssertNil(analysis.moment(at: 3))
+    }
+
+    func testFadeMixesEachScenesCorrectionValues() throws {
+        let analysis = try twoScenes(firstEnd: 10, secondStart: 11)
+        let moment = try XCTUnwrap(analysis.moment(at: 10.5))
+        let engine = RestorationEngine()
+        let settings = FilterSettings(preset: .natural, intensity: 1)
+        var first = settings; first.analysis = moment.from.analysis
+        var second = settings; second.analysis = moment.to.analysis
+        let a = engine.corrections(settings: first, plan: moment.from.plan)
+        let b = engine.corrections(settings: second, plan: moment.to.plan)
+        XCTAssertNotEqual(a.restored.midLift, b.restored.midLift, "The two scenes must differ for this test")
+        let mixed = moment.corrections(settings: settings, engine: engine)
+        XCTAssertEqual(mixed.restored.midLift, (a.restored.midLift + b.restored.midLift) / 2, accuracy: 1e-5)
+        XCTAssertEqual(mixed.current.castGains.x, (a.current.castGains.x + b.current.castGains.x) / 2, accuracy: 1e-5)
+        XCTAssertEqual(mixed.restored.physicalWeight, (a.restored.physicalWeight + b.restored.physicalWeight) / 2, accuracy: 1e-5)
+    }
+
+    func testOneSceneRendersExactlyLikeThePhotoPath() throws {
+        let analysis = try twoScenes(firstEnd: 10, secondStart: 11)
+        let moment = try XCTUnwrap(analysis.moment(at: 5))
+        let engine = FilterEngine(), restoration = RestorationEngine()
+        // An 8x8 blue-green ramp, so the tone rules see more than one level.
+        var ramp: [UInt8] = []
+        for i in 0..<64 {
+            let red = UInt8(i / 4), green = UInt8(30 + i * 2), blue = UInt8(60 + i * 2)
+            ramp += [red, green, blue, 255]
+        }
+        let image = CIImage(bitmapData: Data(ramp), bytesPerRow: 32, size: CGSize(width: 8, height: 8),
+                            format: .RGBA8, colorSpace: CGColorSpace(name: CGColorSpace.sRGB))
+        var photoSettings = FilterSettings(preset: .natural, intensity: 0.8)
+        photoSettings.analysis = moment.from.analysis
+        let video = try restoration.combined(image, moment: moment, settings: FilterSettings(preset: .natural, intensity: 0.8), filter: engine)
+        let photo = try restoration.combined(image, plan: moment.from.plan, settings: photoSettings, filter: engine)
+        XCTAssertEqual(try pixels(video, engine), try pixels(photo, engine))
     }
 
     func testPreviewGenerationRejectsStaleResults() {
@@ -136,7 +205,7 @@ final class VideoRestorationTests: XCTestCase {
         let sourceProfile = VideoSourceProfile.make(url: url, metadata: metadata)
         let fallbackAnalysis = VideoRestorationAnalysis(
             legacyAnalysis: .init(redLoss: 0.6), representativeFrame: representative,
-            representativeTime: 0, samplePlans: [], initialEnvironment: nil,
+            representativeTime: 0, scenes: [], initialEnvironment: nil,
             deviceProfile: device(.conservative, milliseconds: 120), sourceProfile: sourceProfile,
             previewPolicy: policy(.preview), exportPolicy: policy(.export))
         let started = Date()
@@ -164,7 +233,7 @@ final class VideoRestorationTests: XCTestCase {
         let analyzer = VideoRestorationAnalyzer(profiler: profiler)
         let started = Date()
         let analysis = try await analyzer.analyze(url: url, metadata: metadata)
-        XCTAssertEqual(analysis.samplePlans.count, 1, "Video applies one averaged scene plan to every frame")
+        XCTAssertFalse(analysis.scenes.isEmpty, "Video gets at least one scene with a physical plan")
         XCTAssertNotNil(analysis.initialEnvironment)
         XCTAssertFalse(analysis.exportPolicy.useOpticalFlow)
         XCTAssertTrue((2...5).contains(analysis.exportPolicy.depthInferencesPerSecond))
@@ -172,8 +241,61 @@ final class VideoRestorationTests: XCTestCase {
         await profiler.completeBenchmarkIfNeeded(representativeImage: representative)
         let completedProfile = await profiler.profile(representativeImage: representative)
         XCTAssertNotNil(completedProfile.neuralEngineMilliseconds)
-        print("Video V2 five-frame analysis: \(Date().timeIntervalSince(started))s; all=\(completedProfile.allComputeMilliseconds ?? -1)ms neural=\(completedProfile.neuralEngineMilliseconds ?? -1)ms selected=\(completedProfile.preferredComputePolicy.rawValue)")
+        print("Video V2 keyframe analysis: \(Date().timeIntervalSince(started))s; scenes=\(analysis.scenes.count) all=\(completedProfile.allComputeMilliseconds ?? -1)ms neural=\(completedProfile.neuralEngineMilliseconds ?? -1)ms selected=\(completedProfile.preferredComputePolicy.rawValue)")
         #endif
+    }
+
+    func testVideoExportRendersASceneTimeline() async throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
+        let metadata = try await MediaInspector().inspect(url)
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        let representative = try await generator.image(at: .zero).image
+        let split = metadata.duration / 2
+        let scenes = [
+            VideoScene(start: 0, end: split - 0.5, analysis: .init(redLoss: 0.6),
+                       plan: try makePlan(depth: 0.3, confidence: 0.7, direct: .init(repeating: 0.2)).sceneLevel()),
+            VideoScene(start: split + 0.5, end: metadata.duration, analysis: .init(redLoss: 0.3),
+                       plan: try makePlan(depth: 0.7, confidence: 0.7, direct: .init(repeating: 0.8)).sceneLevel())]
+        let analysis = VideoRestorationAnalysis(
+            legacyAnalysis: .init(redLoss: 0.45), representativeFrame: representative, representativeTime: 0,
+            scenes: scenes, initialEnvironment: nil, deviceProfile: device(.conservative, milliseconds: 120),
+            sourceProfile: VideoSourceProfile.make(url: url, metadata: metadata),
+            previewPolicy: policy(.preview), exportPolicy: policy(.export))
+        let result = try await VideoExporter().export(url: url, metadata: metadata,
+            settings: .init(preset: .natural, intensity: 0.8, analysis: analysis.legacyAnalysis),
+            options: .init(), restorationAnalysis: analysis) { _ in }
+        defer { TemporaryFiles.remove(result.url) }
+        XCTAssertGreaterThan(result.frames, 0)
+        XCTAssertEqual(result.metadata.displaySize, metadata.displaySize)
+    }
+
+    private func twoScenes(firstEnd: Double, secondStart: Double) throws -> VideoRestorationAnalysis {
+        let first = try makePlan(depth: 0.2, confidence: 0.7, direct: .init(repeating: 0.2)).sceneLevel()
+        let second = try makePlan(depth: 0.8, confidence: 0.5, direct: .init(repeating: 1.0)).sceneLevel()
+        let blue = WaterAnalysis(redLoss: 0.7, saturation: 0.75, meanRed: 0.08, meanGreen: 0.19, meanBlue: 0.36,
+                                 midLuminance: 0.16, waterRed: 0.05, waterGreen: 0.12, waterBlue: 0.25)
+        let dark = WaterAnalysis(redLoss: 0.75, saturation: 0.8, meanRed: 0.04, meanGreen: 0.09, meanBlue: 0.19,
+                                 midLuminance: 0.08, waterRed: 0.03, waterGreen: 0.07, waterBlue: 0.16)
+        return VideoRestorationAnalysis(
+            legacyAnalysis: .neutral, representativeFrame: try blackImage(), representativeTime: 5,
+            scenes: [VideoScene(start: 0, end: firstEnd, analysis: blue, plan: first),
+                     VideoScene(start: secondStart, end: secondStart + 9, analysis: dark, plan: second)],
+            initialEnvironment: nil, deviceProfile: device(.balanced, milliseconds: 50),
+            sourceProfile: source(.medium), previewPolicy: policy(.preview), exportPolicy: policy(.export))
+    }
+
+    private func blackImage() throws -> CGImage {
+        try XCTUnwrap(CIContext().createCGImage(
+            CIImage(color: .black).cropped(to: CGRect(x: 0, y: 0, width: 2, height: 2)),
+            from: CGRect(x: 0, y: 0, width: 2, height: 2)))
+    }
+
+    private func pixels(_ image: CIImage, _ engine: FilterEngine) throws -> [UInt8] {
+        var bytes = [UInt8](repeating: 0, count: 8 * 8 * 4)
+        engine.context.render(image, toBitmap: &bytes, rowBytes: 32, bounds: CGRect(x: 0, y: 0, width: 8, height: 8),
+                              format: .RGBA8, colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!)
+        return bytes
     }
 
     private func makePlan(depth: Float, confidence: Float,

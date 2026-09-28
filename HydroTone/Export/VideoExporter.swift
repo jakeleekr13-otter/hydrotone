@@ -139,10 +139,10 @@ actor VideoExporter {
                     VideoColorPipeline.tag(destination, hdr: hdr, pq: metadata.dynamicRange == .pq)
                     let fallback = engine.apply(frame.0, settings: settings)
                     let corrected: CIImage
-                    if let plan = restoration?.exportPlan(at: frame.1.seconds, preservesHDR: hdr) {
+                    if let moment = restoration?.moment(at: frame.1.seconds) {
                         do {
-                            corrected = try restorationEngine.combined(frame.0, plan: plan,
-                                                                        settings: settings, filter: engine)
+                            corrected = try restorationEngine.combined(frame.0, moment: moment, settings: settings,
+                                                                        filter: engine, preservesHDR: hdr)
                         } catch {
                             corrected = fallback
                             if !recordedRenderFallback, let diagnostics {

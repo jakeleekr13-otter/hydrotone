@@ -73,12 +73,12 @@ struct VideoPreview {
             let (current, original) = settings.snapshot()
             guard !original else { return AVCIImageFilteringResult(resultImage: request.sourceImage, ciContext: engine.context) }
             let fallback = engine.apply(request.sourceImage, settings: current)
-            guard let plan = analysis?.previewPlan(at: request.compositionTime.seconds) else {
+            guard let moment = analysis?.moment(at: request.compositionTime.seconds) else {
                 return AVCIImageFilteringResult(resultImage: fallback, ciContext: engine.context)
             }
             let output: CIImage
             do {
-                output = try restorationEngine.combined(request.sourceImage, plan: plan,
+                output = try restorationEngine.combined(request.sourceImage, moment: moment,
                                                          settings: current, filter: engine)
             } catch {
                 diagnosticGate.recordRenderFallback(using: diagnostics)
@@ -102,10 +102,10 @@ struct VideoPreview {
         let small = source.transformed(by: CGAffineTransform(scaleX: ratio, y: ratio))
         let current = engine.apply(small, settings: settings)
         var images: [VideoDebugVariant: CIImage] = [.original: small, .current: current]
-        if let plan = analysis.previewPlan(at: analysis.representativeTime),
+        if let moment = analysis.moment(at: analysis.representativeTime), let plan = try? moment.plan(),
            let restored = try? restorationEngine.restore(small, plan: plan) {
             images[.restoration] = engine.blend(small, restored, amount: plan.confidence)
-            images[.combined] = (try? restorationEngine.combined(small, plan: plan,
+            images[.combined] = (try? restorationEngine.combined(small, moment: moment,
                                                                  settings: settings, filter: engine)) ?? current
             images[.depth] = depthVisualization(plan.depth, extent: small.extent)
             let weights = plan.effectiveChannelWeights
