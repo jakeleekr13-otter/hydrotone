@@ -61,7 +61,7 @@ final class PurchaseStore {
                 }
                 accept(transaction)
                 await transaction.finish()
-                message = isPro ? String(localized: "HydroTone Pro is unlocked.") : String(localized: "Your purchase is being verified. Try Restore Purchase shortly.")
+                message = isPro ? String(localized: "MarineLens Pro is unlocked.") : String(localized: "Your purchase is being verified. Try Restore Purchase shortly.")
             case .userCancelled: break
             case .pending: message = String(localized: "Your purchase is pending approval. Pro will unlock when it’s approved.")
             @unknown default: message = String(localized: "The purchase couldn’t finish. Please try again.")
@@ -76,7 +76,7 @@ final class PurchaseStore {
         do {
             try await AppStore.sync()
             await refreshEntitlement()
-            message = isPro ? String(localized: "Purchase restored.") : String(localized: "No HydroTone Pro purchase was found for this Apple Account.")
+            message = isPro ? String(localized: "Purchase restored.") : String(localized: "No MarineLens Pro purchase was found for this Apple Account.")
         } catch { report(error, operation: .restore) }
     }
     private func report(_ error: Error, operation: Operation) {

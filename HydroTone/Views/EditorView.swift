@@ -39,7 +39,7 @@ struct EditorView: View {
             }
             .overlay { if model.exporting { exportProgress } }
             .alert("Couldn’t finish", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
-            .alert("HydroTone", isPresented: Binding(get: { model.notice != nil }, set: { if !$0 { model.notice = nil } })) { Button("OK") { model.notice = nil } } message: { Text(model.notice ?? "") }
+            .alert("MarineLens", isPresented: Binding(get: { model.notice != nil }, set: { if !$0 { model.notice = nil } })) { Button("OK") { model.notice = nil } } message: { Text(model.notice ?? "") }
     }
     private var previewPanel: some View {
         ZStack {
@@ -133,7 +133,7 @@ struct EditorView: View {
                      ? String(localized: "Checking your video…")
                      : String(localized: "Exporting \(Int(model.progress * 100))%"))
             } else { ProgressView("Exporting…") }
-            Text("Keep HydroTone open until export finishes.").font(.footnote)
+            Text("Keep MarineLens open until export finishes.").font(.footnote)
             Button("Cancel") { model.exportTask?.cancel() }.frame(minHeight: 44)
         }.padding(30).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
     }

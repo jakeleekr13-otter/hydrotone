@@ -62,7 +62,7 @@ enum HydroError: LocalizedError {
         case .unreadable: String(localized: "This media couldn’t be opened. Try another photo or video.")
         case .unsupported: String(localized: "This media format isn’t supported on this device.")
         case .exportFailed: String(localized: "The export couldn’t finish. Please try again.")
-        case .permission: String(localized: "Allow HydroTone to add to Photos in Settings, then try saving again.")
+        case .permission: String(localized: "Allow MarineLens to add to Photos in Settings, then try saving again.")
         case .storage: String(localized: "There isn’t enough free storage. Free up some space and try again.")
         case .invalidOutput: String(localized: "The exported file didn’t pass our quality checks. Nothing was saved.")
         case .trialUnavailable: String(localized: "Trial access couldn’t be checked securely. Please try again.")

@@ -32,7 +32,7 @@ The add-only Photos usage description is localised through `InfoPlist.xcstrings`
 
 ## Prepared App Store Connect values
 
-- App name: `HydroTone` (availability must be confirmed in App Store Connect)
+- App name: `MarineLens` (availability must be confirmed in App Store Connect)
 - Platform: iOS
 - Primary language: English (U.S.)
 - Suggested SKU: `HYDROTONE-IOS-001`
@@ -96,9 +96,9 @@ The optional 1024×1024 promoted-IAP image is `AppStoreAssets/IAP/HydroTonePro-1
 ## HydroTone Pro In-App Purchase
 
 - Type: Non-Consumable
-- Reference name: `HydroTone Pro`
+- Reference name: `MarineLens Pro`
 - Product ID: `com.hydrotone.pro`
-- English display name: `HydroTone Pro`
+- English display name: `MarineLens Pro`
 - English description: `Unlimited photos, full video, 4K and HDR`
 - Availability: match the app's selected territories
 - App Store Server Notifications URL: leave blank; HydroTone has no server
@@ -108,7 +108,7 @@ The production price is still a business decision. The local StoreKit configurat
 
 ## Remaining App Store Connect work
 
-- [ ] Confirm that the `HydroTone` name is available and create/verify the app record.
+- [ ] Confirm that the `MarineLens` name is available and create/verify the app record.
 - [ ] Confirm the final SKU before creating the record; it cannot be changed afterward.
 - [ ] Accept the Paid Apps Agreement and complete banking and tax information.
 - [ ] Complete EU Digital Services Act trader status and any territory-specific compliance questions.

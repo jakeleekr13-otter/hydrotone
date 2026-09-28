@@ -285,37 +285,37 @@
         }
       }
     },
-    "Allow HydroTone to add to Photos in Settings, then try saving again." : {
+    "Allow MarineLens to add to Photos in Settings, then try saving again." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow HydroTone to add to Photos in Settings, then try saving again."
+            "value" : "Allow MarineLens to add to Photos in Settings, then try saving again."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "設定でHydroToneによる写真への追加を許可してから、もう一度保存してください。"
+            "value" : "設定でMarineLensによる写真への追加を許可してから、もう一度保存してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정에서 HydroTone이 사진에 추가하도록 허용한 후 다시 저장하세요."
+            "value" : "설정에서 MarineLens가 사진에 추가하도록 허용한 후 다시 저장하세요."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请在“设置”中允许 HydroTone 添加到照片，然后再次保存。"
+            "value" : "请在“设置”中允许 MarineLens 添加到照片，然后再次保存。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請在「設定」中允許 HydroTone 加入照片，然後再次儲存。"
+            "value" : "請在「設定」中允許 MarineLens 加入照片，然後再次儲存。"
           }
         }
       }
@@ -1545,37 +1545,37 @@
         }
       }
     },
-    "Export cancelled because HydroTone went into the background. Keep the app open and try again. Your trial hasn’t been used." : {
+    "Export cancelled because MarineLens went into the background. Keep the app open and try again. Your trial hasn’t been used." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Export cancelled because HydroTone went into the background. Keep the app open and try again. Your trial hasn’t been used."
+            "value" : "Export cancelled because MarineLens went into the background. Keep the app open and try again. Your trial hasn’t been used."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroToneがバックグラウンドに移ったため、書き出しをキャンセルしました。アプリを開いたまま、もう一度お試しください。無料枠は使用されていません。"
+            "value" : "MarineLensがバックグラウンドに移ったため、書き出しをキャンセルしました。アプリを開いたまま、もう一度お試しください。無料枠は使用されていません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone이 백그라운드로 전환되어 내보내기가 취소되었습니다. 앱을 열어 둔 채 다시 시도하세요. 무료 이용권은 차감되지 않았습니다."
+            "value" : "MarineLens가 백그라운드로 전환되어 내보내기가 취소되었습니다. 앱을 열어 둔 채 다시 시도하세요. 무료 이용권은 차감되지 않았습니다."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone 进入后台，因此导出已取消。请保持应用打开后重试。免费额度未被使用。"
+            "value" : "MarineLens 进入后台，因此导出已取消。请保持应用打开后重试。免费额度未被使用。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone 進入背景，因此匯出已取消。請保持 App 開啟後再試一次。免費額度未被使用。"
+            "value" : "MarineLens 進入背景，因此匯出已取消。請保持 App 開啟後再試一次。免費額度未被使用。"
           }
         }
       }
@@ -2210,72 +2210,72 @@
         }
       }
     },
-    "HydroTone Pro" : {
+    "MarineLens Pro" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone Pro"
+            "value" : "MarineLens Pro"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone Pro"
+            "value" : "MarineLens Pro"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone Pro"
+            "value" : "MarineLens Pro"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone Pro"
+            "value" : "MarineLens Pro"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone Pro"
+            "value" : "MarineLens Pro"
           }
         }
       }
     },
-    "HydroTone Pro is unlocked." : {
+    "MarineLens Pro is unlocked." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone Pro is unlocked."
+            "value" : "MarineLens Pro is unlocked."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone Proが利用可能になりました。"
+            "value" : "MarineLens Proが利用可能になりました。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone Pro가 잠금 해제되었습니다."
+            "value" : "MarineLens Pro가 잠금 해제되었습니다."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone Pro 已解锁。"
+            "value" : "MarineLens Pro 已解锁。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HydroTone Pro 已解鎖。"
+            "value" : "MarineLens Pro 已解鎖。"
           }
         }
       }
@@ -2420,72 +2420,72 @@
         }
       }
     },
-    "Keep HydroTone open until export finishes." : {
+    "Keep MarineLens open until export finishes." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep HydroTone open until export finishes."
+            "value" : "Keep MarineLens open until export finishes."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "書き出しが完了するまでHydroToneを開いたままにしてください。"
+            "value" : "書き出しが完了するまでMarineLensを開いたままにしてください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "내보내기가 끝날 때까지 HydroTone을 열어 두세요."
+            "value" : "내보내기가 끝날 때까지 MarineLens를 열어 두세요."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "导出完成前请保持 HydroTone 打开。"
+            "value" : "导出完成前请保持 MarineLens 打开。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "匯出完成前請保持 HydroTone 開啟。"
+            "value" : "匯出完成前請保持 MarineLens 開啟。"
           }
         }
       }
     },
-    "Keep HydroTone open until saving finishes." : {
+    "Keep MarineLens open until saving finishes." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep HydroTone open until saving finishes."
+            "value" : "Keep MarineLens open until saving finishes."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保存が終わるまでHydroToneを開いたままにしてください。"
+            "value" : "保存が終わるまでMarineLensを開いたままにしてください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "저장이 끝날 때까지 HydroTone을 열어 두세요."
+            "value" : "저장이 끝날 때까지 MarineLens를 열어 두세요."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保存完成前请保持 HydroTone 打开。"
+            "value" : "保存完成前请保持 MarineLens 打开。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "儲存完成前請保持 HydroTone 開啟。"
+            "value" : "儲存完成前請保持 MarineLens 開啟。"
           }
         }
       }
@@ -2595,37 +2595,37 @@
         }
       }
     },
-    "No HydroTone Pro purchase was found for this Apple Account." : {
+    "No MarineLens Pro purchase was found for this Apple Account." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No HydroTone Pro purchase was found for this Apple Account."
+            "value" : "No MarineLens Pro purchase was found for this Apple Account."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このApple AccountにはHydroTone Proの購入履歴がありません。"
+            "value" : "このApple AccountにはMarineLens Proの購入履歴がありません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "이 Apple 계정에서 HydroTone Pro 구매 내역을 찾지 못했습니다."
+            "value" : "이 Apple 계정에서 MarineLens Pro 구매 내역을 찾지 못했습니다."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未找到此 Apple 账户购买 HydroTone Pro 的记录。"
+            "value" : "未找到此 Apple 账户购买 MarineLens Pro 的记录。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "找不到此 Apple 帳號購買 HydroTone Pro 的記錄。"
+            "value" : "找不到此 Apple 帳號購買 MarineLens Pro 的記錄。"
           }
         }
       }

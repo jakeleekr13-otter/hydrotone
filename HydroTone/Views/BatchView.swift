@@ -27,7 +27,7 @@ struct BatchView: View {
         .fullScreenCover(item: Binding(get: { detail.map(DetailID.init) }, set: { detail = $0?.id })) { start in
             BatchDetailView(model: model, selection: start.id)
         }
-        .alert("HydroTone", isPresented: Binding(get: { model.summary != nil }, set: { if !$0 { model.summary = nil } })) {
+        .alert("MarineLens", isPresented: Binding(get: { model.summary != nil }, set: { if !$0 { model.summary = nil } })) {
             Button("OK") { model.summary = nil }
         } message: { Text(model.summary ?? "") }
         .alert("Couldn’t save", isPresented: Binding(get: { model.error != nil && !model.saving }, set: { if !$0 { model.error = nil } })) {
@@ -106,7 +106,7 @@ struct BatchView: View {
         VStack(spacing: 20) {
             ProgressView(value: Double(model.savedCount), total: Double(max(1, model.saveTotal))).frame(width: 220)
             Text("Saving \(min(model.savedCount + 1, model.saveTotal)) of \(model.saveTotal)…")
-            Text("Keep HydroTone open until saving finishes.").font(.footnote)
+            Text("Keep MarineLens open until saving finishes.").font(.footnote)
             Button("Cancel") { model.saveTask?.cancel() }.frame(minHeight: 44)
         }.padding(30).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
     }

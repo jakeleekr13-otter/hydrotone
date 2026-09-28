@@ -107,20 +107,20 @@ struct ShareView: View {
             VStack(spacing: 16) {
                 switch model.state {
                 case .copying:
-                    ProgressView("Adding to HydroTone…")
+                    ProgressView("Adding to MarineLens…")
                 case .done(let saved, let total):
                     Image(systemName: "checkmark.circle").font(.system(size: 54)).foregroundStyle(.mint).accessibilityHidden(true)
-                    Text("Added to HydroTone").font(.title2.bold())
+                    Text("Added to MarineLens").font(.title2.bold())
                     if saved < total { Text("Couldn’t add \(total - saved) of \(total).").font(.footnote).foregroundStyle(.secondary) }
-                    if model.openFailed { Text("Open HydroTone to edit.").foregroundStyle(.secondary) }
-                    else { Button("Open HydroTone", action: open).buttonStyle(.borderedProminent) }
+                    if model.openFailed { Text("Open MarineLens to edit.").foregroundStyle(.secondary) }
+                    else { Button("Open MarineLens", action: open).buttonStyle(.borderedProminent) }
                 case .failed:
                     Image(systemName: "exclamationmark.triangle").font(.system(size: 54)).foregroundStyle(.orange).accessibilityHidden(true)
-                    Text("Couldn’t add to HydroTone").font(.title2.bold())
-                    Text("Open HydroTone and import from Photos or Files instead.").foregroundStyle(.secondary)
+                    Text("Couldn’t add to MarineLens").font(.title2.bold())
+                    Text("Open MarineLens and import from Photos or Files instead.").foregroundStyle(.secondary)
                 }
             }.multilineTextAlignment(.center).padding(30).frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationTitle("HydroTone").navigationBarTitleDisplayMode(.inline)
+                .navigationTitle("MarineLens").navigationBarTitleDisplayMode(.inline)
                 // When every item was added there is nothing to read here, so HydroTone opens at once.
                 // A partial share waits for the Open button, so the person sees what was left out.
                 .onChange(of: model.state) { _, state in

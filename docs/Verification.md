@@ -111,6 +111,20 @@ Still open, on the iPhone:
 - An iPhone without an HDR display: it is unknown whether photos read with headroom above 1 there.
 - Live Photos: by decision (28 Sep 2026), a Live Photo imports and exports as its still photo. The motion is not kept, because underwater Live Photos are rare. Check that a Live Photo imports as its still photo from the picker, the share sheet and Files.
 
+## User-facing name is MarineLens (28 Sep 2026)
+
+The app, share sheet, UI text in all 5 languages, export file names, and App Store text now say MarineLens. Bundle IDs, `com.hydrotone.pro`, the App Group, the keychain service, the `hydrotone://` scheme, and target names stay HydroTone.
+
+Checked: the built app and share extension both have `CFBundleDisplayName = MarineLens`. ExportNamingTests, DiagnosticsTests and PhotoFormatTests passed on the simulator.
+
+Still open:
+- The home screen and share sheet on the iPhone show MarineLens.
+- Run `scripts/make_app_store_screenshots.swift` again. The PNGs in `AppStoreAssets/Screenshots/` still say HYDROTONE.
+- `AppStoreAssets/IAP/HydroTonePro-1024.png` may show the old name. Check it and redraw it if needed.
+- The support and privacy pages (`hydrotone-support` repo) still use the old name.
+- Trademark check for MarineLens: USPTO class 9, KIPRIS. Then check that the name is free in App Store Connect.
+- `scripts/generate_localizations.py` is stale. Its output differs from the catalog by about 6,000 lines. Do not run it.
+
 ## Final round checklist
 
 1. **Colour scorecard.** Run `scripts/color-eval/tune_eval.sh <name>`. Check every guard in [the harness README](../scripts/color-eval/README.md#guards-used-for-tuning).

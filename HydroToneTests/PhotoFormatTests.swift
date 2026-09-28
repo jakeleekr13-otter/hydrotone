@@ -136,6 +136,6 @@ final class PhotoFormatTests: XCTestCase {
             }
         }
         XCTAssertEqual(summaries.count, 4)
-        XCTAssertEqual(ExportNaming.fileName(source: "DSC03545.ARW", preset: .natural, extension: "heic"), "DSC03545_HydroTone_NaturalDive.heic")
+        XCTAssertEqual(ExportNaming.fileName(source: "DSC03545.ARW", preset: .natural, extension: "heic"), "DSC03545_MarineLens_NaturalDive.heic")
     }
 }

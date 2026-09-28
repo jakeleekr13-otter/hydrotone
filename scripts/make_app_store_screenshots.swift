@@ -60,7 +60,7 @@ func drawHeader(_ headline: String, _ detail: String, number: Int) {
     let pill = topRect(72, 76, 235, 54)
     mint.withAlphaComponent(0.14).setFill()
     NSBezierPath(roundedRect: pill, xRadius: 27, yRadius: 27).fill()
-    drawText("HYDROTONE", x: 102, y: 88, width: 210,
+    drawText("MARINELENS", x: 102, y: 88, width: 210,
              font: .systemFont(ofSize: 25, weight: .semibold), color: mint)
     drawText(headline, x: 72, y: 166, width: 1176,
              font: .systemFont(ofSize: 78, weight: .bold), color: white, lineHeight: 86)
@@ -119,7 +119,7 @@ func drawScreenshotCard(_ name: String) throws {
 
 try render("01-before-after.jpg") {
     drawHeader("See the difference.\nInstantly.",
-               "A real HydroTone correction from the same frame.", number: 1)
+               "A real MarineLens correction from the same frame.", number: 1)
     let before = try image("01-photo-before.png")
     let after = try image("01-photo-after.png")
     let card = topRect(70, 600, 1180, 1096)
@@ -183,13 +183,13 @@ try render("03-video.jpg") {
 
 try render("04-export.jpg") {
     drawHeader("Keep the quality\nyou captured.",
-               "Preserve frame rate, 4K and supported HDR with HydroTone Pro.", number: 4)
+               "Preserve frame rate, 4K and supported HDR with MarineLens Pro.", number: 4)
     try drawScreenshotCard("04-export-options.png")
 }
 
 try render("05-video-before-after.jpg") {
     drawHeader("Video, before\nand after.",
-               "The same paused frame, corrected by HydroTone.", number: 5)
+               "The same paused frame, corrected by MarineLens.", number: 5)
     let before = try image("06-video-before.jpg")
     let after = try image("06-video-after.jpg")
     let card = topRect(70, 600, 1180, 1096)
@@ -234,7 +234,7 @@ try render("05-video-before-after.jpg") {
     }
     drawText("Colour that holds together while the scene moves.", x: 74, y: 2190, width: 1160,
              font: .systemFont(ofSize: 46, weight: .semibold), color: white, lineHeight: 58)
-    drawText("HydroTone analyses the clip and applies a temporally stable correction frame after frame.",
+    drawText("MarineLens analyses the clip and applies a temporally stable correction frame after frame.",
              x: 74, y: 2320, width: 1120, font: .systemFont(ofSize: 34, weight: .regular),
              color: secondary, lineHeight: 48)
 }

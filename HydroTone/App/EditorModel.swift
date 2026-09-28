@@ -294,7 +294,7 @@ final class EditorModel {
     func discardCompleted() { TemporaryFiles.remove(completedURL); completedURL = nil; completedName = nil }
     func cancelForBackground() {
         guard exporting else { return }
-        cancellationNotice = String(localized: "Export cancelled because HydroTone went into the background. Keep the app open and try again. Your trial hasn’t been used.")
+        cancellationNotice = String(localized: "Export cancelled because MarineLens went into the background. Keep the app open and try again. Your trial hasn’t been used.")
         exportTask?.cancel()
     }
     private func updateProgress(_ value: Double) { progress = value }

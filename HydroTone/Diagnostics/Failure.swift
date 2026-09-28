@@ -23,7 +23,7 @@ struct Failure: Error, Codable, Sendable, Equatable {
         switch kind {
         case .cancelled: String(localized: "Cancelled")
         case .storage: String(localized: "There isn’t enough free storage. Free up some space and try again.")
-        case .permission: String(localized: "Allow HydroTone to add to Photos in Settings, then try saving again.")
+        case .permission: String(localized: "Allow MarineLens to add to Photos in Settings, then try saving again.")
         case .network: String(localized: "This item may need to download from iCloud. Check your connection and try again.")
         case .unreadable: String(localized: "This media couldn’t be opened. Try another photo or video.")
         case .unsupported: String(localized: "This media format isn’t supported on this device.")
@@ -34,7 +34,7 @@ struct Failure: Error, Codable, Sendable, Equatable {
         case .storeUnavailable: String(localized: "The App Store couldn’t complete this request. Check your connection and try again.")
         case .memoryPressure: String(localized: "Memory is low. Try a smaller photo or a lower video resolution.")
         case .thermal: String(localized: "Your iPhone needs to cool down before exporting. Wait a moment and try again.")
-        case .restorationFallback: String(localized: "Depth-aware restoration was unavailable, so HydroTone used its standard correction.")
+        case .restorationFallback: String(localized: "Depth-aware restoration was unavailable, so MarineLens used its standard correction.")
         }
     }
 

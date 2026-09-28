@@ -14,29 +14,29 @@
 
 ## English description
 
-HydroTone brings believable colour and clarity back to underwater photos and videos.
+MarineLens brings believable colour and clarity back to underwater photos and videos.
 
-Choose a photo or video, select a simple look, adjust the intensity, and compare it with the original. Behind the scenes, HydroTone uses depth-aware underwater restoration to reduce colour loss and backscatter while keeping the result natural and temporally stable.
+Choose a photo or video, select a simple look, adjust the intensity, and compare it with the original. Behind the scenes, MarineLens uses depth-aware underwater restoration to reduce colour loss and backscatter while keeping the result natural and temporally stable.
 
 Features:
 
 • Natural Dive, Tropical and Deep Dive looks
 • Depth-aware photo and video restoration
 • Temporally stabilized video correction
-• Original-resolution and 4K video export with HydroTone Pro
+• Original-resolution and 4K video export with MarineLens Pro
 • SDR and supported HLG/PQ HDR video output
-• HDR photo export with a gain map, with HydroTone Pro
+• HDR photo export with a gain map, with MarineLens Pro
 • Import from Photos, from Files (camera RAW included) or from the share sheet
 • Original frame rate, timing, orientation and audio preservation
 • Fully on-device processing with no account or cloud upload
 
-Try one photo export and the first 10 seconds of one video for free. HydroTone Pro is a one-time purchase that unlocks unlimited photos, full-length video, 4K and supported HDR export.
+Try one photo export and the first 10 seconds of one video for free. MarineLens Pro is a one-time purchase that unlocks unlimited photos, full-length video, 4K and supported HDR export.
 
-HydroTone is designed for recreational diving memories. It is not a scientific colour-measurement or professional grading tool.
+MarineLens is designed for recreational diving memories. It is not a scientific colour-measurement or professional grading tool.
 
 ## Korean description
 
-HydroTone은 수중 사진과 영상에서 사라진 색과 선명함을 자연스럽게 되살립니다.
+MarineLens는 수중 사진과 영상에서 사라진 색과 선명함을 자연스럽게 되살립니다.
 
 사진이나 영상을 선택하고, 원하는 룩과 강도만 고른 뒤 원본과 비교하세요. 내부적으로는 깊이 인식 수중 복원 기술을 사용해 색 손실과 후방 산란을 줄이면서도 결과가 과장되거나 영상의 색이 흔들리지 않도록 처리합니다.
 
@@ -45,16 +45,16 @@ HydroTone은 수중 사진과 영상에서 사라진 색과 선명함을 자연�
 • Natural Dive, Tropical, Deep Dive 룩
 • 깊이 인식 사진·영상 복원
 • 프레임마다 색이 깜빡이지 않는 안정적인 영상 보정
-• HydroTone Pro에서 원본 해상도 및 4K 영상 내보내기
+• MarineLens Pro에서 원본 해상도 및 4K 영상 내보내기
 • SDR 및 지원되는 HLG/PQ HDR 영상 출력
-• HydroTone Pro에서 게인 맵을 포함한 HDR 사진 내보내기
+• MarineLens Pro에서 게인 맵을 포함한 HDR 사진 내보내기
 • 사진 앱, 파일 앱(카메라 RAW 포함), 공유 시트에서 가져오기
 • 원본 프레임률, 타이밍, 방향 및 오디오 유지
 • 계정이나 클라우드 업로드 없는 완전한 온디바이스 처리
 
-사진 1장과 영상 1개의 첫 10초를 무료로 내보낼 수 있습니다. 일회성 구매인 HydroTone Pro는 사진 무제한, 전체 길이 영상, 4K 및 지원되는 HDR 내보내기를 잠금 해제합니다.
+사진 1장과 영상 1개의 첫 10초를 무료로 내보낼 수 있습니다. 일회성 구매인 MarineLens Pro는 사진 무제한, 전체 길이 영상, 4K 및 지원되는 HDR 내보내기를 잠금 해제합니다.
 
-HydroTone은 레저 다이빙의 추억을 위한 앱이며 과학적 색 측정이나 전문가용 컬러 그레이딩 도구가 아닙니다.
+MarineLens는 레저 다이빙의 추억을 위한 앱이며 과학적 색 측정이나 전문가용 컬러 그레이딩 도구가 아닙니다.
 
 ## Keywords
 
@@ -72,21 +72,21 @@ Five upload-ready English portrait screenshots are in `AppStoreAssets/Screenshot
 4. **Export options** — `Keep the quality you captured.`
 5. **Authentic video before/after** — `Video, before and after.`
 
-The set uses the local developer-owned reef/diver media and actual HydroTone output. Original and corrected states come from the same frame; no generated or benchmark reference image is presented as app output. UIEB remains internal academic benchmark material only and must not be redistributed or used in App Store marketing.
+The set uses the local developer-owned reef/diver media and actual MarineLens output. Original and corrected states come from the same frame; no generated or benchmark reference image is presented as app output. UIEB remains internal academic benchmark material only and must not be redistributed or used in App Store marketing.
 
 ## Optional app preview
 
 An App Preview video isn't required for the first release. If produced later, show this exact sequence: import → automatic analysis → preset selection → Compare → 4K/HDR export options. Avoid claims of real-time 4K processing or professional/scientific colour accuracy.
 
-## HydroTone Pro IAP submission
+## MarineLens Pro IAP submission
 
-**Display name:** HydroTone Pro
+**Display name:** MarineLens Pro
 
 **Description:** Unlimited photos, full video, 4K and HDR
 
 **Korean:** 사진·전체 영상·4K·HDR 무제한 내보내기
 
-The IAP review screenshot should show the HydroTone Pro screen with the one-time purchase wording, feature list, localised App Store price and Restore Purchase button. If a promoted-IAP image is used, prepare a flattened 1024 × 1024 RGB JPG/PNG without rounded corners.
+The IAP review screenshot should show the MarineLens Pro screen with the one-time purchase wording, feature list, localised App Store price and Restore Purchase button. If a promoted-IAP image is used, prepare a flattened 1024 × 1024 RGB JPG/PNG without rounded corners.
 
 The optional promoted-IAP image is ready at `AppStoreAssets/IAP/HydroTonePro-1024.png`. A separate real in-app purchase-screen review screenshot is still required.
 
@@ -102,4 +102,4 @@ The optional promoted-IAP image is ready at `AppStoreAssets/IAP/HydroTonePro-102
 
 ## App Review notes
 
-HydroTone processes imported photos and videos entirely on device. No account or cloud service is used. The free trial allows one photo export and one video export limited to the first 10 seconds at up to 1080p SDR. HydroTone Pro is the non-consumable product `com.hydrotone.pro`. Completed exports are offered to the user before add-only Photos permission is requested. The share extension copies shared photos or videos into the app's App Group container on the device, then opens HydroTone to edit them. Diagnostics remain local and are shared only when the user explicitly uses the system share sheet.
+MarineLens processes imported photos and videos entirely on device. No account or cloud service is used. The free trial allows one photo export and one video export limited to the first 10 seconds at up to 1080p SDR. MarineLens Pro is the non-consumable product `com.hydrotone.pro`. Completed exports are offered to the user before add-only Photos permission is requested. The share extension copies shared photos or videos into the app's App Group container on the device, then opens MarineLens to edit them. Diagnostics remain local and are shared only when the user explicitly uses the system share sheet.

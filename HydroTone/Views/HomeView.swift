@@ -46,7 +46,7 @@ struct HomeView: View {
                     }.frame(maxWidth: .infinity)
                 }
                 Text("Your media stays on your iPhone.").font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity)
-            }.padding(28).navigationTitle("HydroTone")
+            }.padding(28).navigationTitle("MarineLens")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button { showDiagnostics = true } label: { Image(systemName: "info.circle").accessibilityLabel("Diagnostics") } }
                     ToolbarItem(placement: .topBarTrailing) { Button(purchases.isPro ? "Pro" : "Get Pro") { showPro = true } }

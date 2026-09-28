@@ -8,7 +8,7 @@ struct ProView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     Image(systemName: "water.waves").font(.system(size: 44)).foregroundStyle(.mint).accessibilityHidden(true)
-                    Text("HydroTone Pro").font(.largeTitle.bold())
+                    Text("MarineLens Pro").font(.largeTitle.bold())
                     Text("One-time purchase. Every dive.").font(.title3).foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 16) {
                         Label("Unlimited photo exports", systemImage: "photo")
