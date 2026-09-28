@@ -15,6 +15,7 @@ for scope in ['project', 'app', 'tests', 'uitests', 'share']:
         settings = {'SWIFT_VERSION':'6.0','IPHONEOS_DEPLOYMENT_TARGET':'26.0','SDKROOT':'iphoneos','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','TARGETED_DEVICE_FAMILY':'1','SUPPORTS_MACCATALYST':'NO','SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD':'NO','SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD':'NO','CLANG_ENABLE_MODULES':'YES','SWIFT_APPROACHABLE_CONCURRENCY':'YES'}
         if scope == 'project':
             settings.update({'SWIFT_OPTIMIZATION_LEVEL':'-Onone' if config=='Debug' else '-O','DEBUG_INFORMATION_FORMAT':'dwarf' if config=='Debug' else 'dwarf-with-dsym','ENABLE_TESTABILITY':'YES' if config=='Debug' else 'NO','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG' if config=='Debug' else ''})
+            if config == 'Debug': settings['COPY_PHASE_STRIP'] = 'NO'  # the embedded extension is signed; stripping it only warns
             if config == 'Release': settings.update({'SWIFT_COMPILATION_MODE':'wholemodule','VALIDATE_PRODUCT':'YES','DEAD_CODE_STRIPPING':'YES','COPY_PHASE_STRIP':'YES','ENABLE_NS_ASSERTIONS':'NO'})
         else:
             settings.update({'PRODUCT_NAME':'$(TARGET_NAME)','PRODUCT_BUNDLE_IDENTIFIER':{'app':'com.underblue.app','tests':'com.underblue.tests','uitests':'com.underblue.uitests','share':'com.underblue.app.share'}[scope], 'GENERATE_INFOPLIST_FILE':'YES','CODE_SIGN_STYLE':'Automatic','DEVELOPMENT_TEAM':'M3HJ7YK7N7'})
