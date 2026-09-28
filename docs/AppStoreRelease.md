@@ -11,7 +11,7 @@ Last reviewed: 2026-09-25
 - Minimum OS: iOS 26.0
 - Signing: Automatic, team `M3HJ7YK7N7`
 - Share extension: `HydroToneShare`, bundle ID `com.hydrotone.app.share`, embedded in the app
-- App Group: `group.com.hydrotone.app`, in both the app and the extension entitlements. Register it and the extension bundle ID in the developer account before the first device build or archive. Xcode automatic signing can do this.
+- App Group: `group.com.hydrotone.app`, in both the app and the extension entitlements. Automatic signing registered both on 28 Sep 2026. The old App Store profile has no App Group, so the next archive creates a new one.
 - App icon: 1024×1024 PNG without alpha
 - Release debug information: DWARF with dSYM
 - Release validation, whole-module optimization and dead-code stripping: enabled

@@ -15,13 +15,13 @@ This page lists the checks that are still open. The product owner decided to fin
 | `e02c19e` | Tropical and Deep Dive tuned to match their names |
 | `7651372` | Custom Saturation and Temperature made visible (wider ranges) |
 
-## Import, share sheet and file names (28 Sep 2026, not committed yet)
+## Import, share sheet and file names (28 Sep 2026, `4aaa7cc`)
 
 Built for the simulator. These unit tests pass: ExportNamingTests, FileImportTests, PhotoTests, LocalizationTests and BatchTests. FileImportTests uses a RAW sample from DeveloperMedia.
 
 On the simulator, a share placed in the App Group inbox opened in the editor at launch. The extension UI itself was not run. Nothing below was checked on an iPhone yet.
 
-- **Signing.** Register the App Group `group.com.hydrotone.app` and the bundle ID `com.hydrotone.app.share` (Xcode automatic signing on the first device build). Then build to the iPhone.
+- **Signing: done on 28 Sep 2026.** Automatic signing registered `com.hydrotone.app.share` and the App Group `group.com.hydrotone.app`. The device build embeds a development profile with the App Group in the app and in the extension. The App Store profile is created again at the next archive.
 - **Share sheet in Photos.** HydroTone appears in the app row for 1 photo, 10 photos and 1 video. It does not appear for 11 photos or 2 videos. After "Added to HydroTone", open HydroTone: the share opens in the editor or the batch screen.
 - **Share edge cases.**
   - A Live Photo opens as the still photo.
