@@ -1,19 +1,26 @@
 # App Store screenshots
 
-`en-US/final-v2` contains the current five upload-ready 6.9-inch iPhone marketing screenshots at 1320 × 2868 pixels. They are flattened RGB JPEG files without alpha.
+`en-US/final` contains the current five upload-ready 6.9-inch iPhone screenshots at 1320 × 2868 pixels. They are RGB JPEG files without alpha.
 
-Suggested upload order and captions:
+Upload order and captions:
 
-1. `01-before-after.jpg` — See the difference. Instantly.
-2. `02-deep-dive.jpg` — Blue water. Clearer depth.
-3. `03-video.jpg` — Stable colour. Frame after frame.
-4. `04-export.jpg` — Keep the quality you captured.
-5. `05-video-before-after.jpg` — Video, before and after.
+1. `01-before-after.jpg` — Bring back the real colour.
+2. `02-photo.jpg` — Reef colour, restored.
+3. `03-video.jpg` — Video, fixed too.
+4. `04-looks.jpg` — Pick a look. Set the strength.
+5. `05-private.jpg` — Stays on your iPhone.
 
-`en-US/source-v2` contains the authentic Simulator captures used by the layout generator. Regenerate the final set with `swift scripts/make_app_store_screenshots.swift`.
+`en-US/source` contains the real device captures and the video frame pair used by the generator. Regenerate the final set from the repo root:
 
-The older `en-US/raw` and `en-US/final` sets are retained for comparison only. Upload the JPEG files from `final-v2`.
+```sh
+npm i --no-save playwright
+node scripts/app_store_screenshots/render.js
+```
 
-The UIEB files under the local developer fixtures are academic/non-commercial benchmark data and must not appear in App Store assets or be redistributed. The v2 set uses only the developer-owned photo/video fixtures and actual UnderBlue output.
+The layout is `scripts/app_store_screenshots/screens.html`.
+
+`en-US-outdated` keeps the older sets for comparison only.
+
+The UIEB files under the local developer fixtures are academic/non-commercial benchmark data and must not appear in App Store assets or be redistributed. Use only developer-owned photo/video fixtures and actual UnderBlue output.
 
 Korean caption copy and full App Store metadata are in `docs/AppStoreMetadata.md`.

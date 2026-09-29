@@ -5,7 +5,7 @@ Last reviewed: 2026-09-29
 ## Current release decision
 
 The current source colour pipeline changed after the last App Store Connect archive and screenshot capture.
-Do not submit the existing archive or the current `final-v2` screenshots as the final 1.0 assets.
+Do not submit the existing archive or the old `final-v2` screenshots as the final 1.0 assets.
 The change improves the m5 photo and its colour panel, but it does not yet pass every colour-quality
 criterion: several individual panel patches and evaluation images regress, Sea-thru subjects remain
 too cyan/bright, and the constant-depth video proxy still has sand/noise and shadow regressions.
@@ -97,15 +97,16 @@ If a diagnostic attachment is retained together with the sender's email address,
 
 ## Screenshots and promotional assets
 
-Five technically uploadable English iPhone screenshots are in `AppStoreAssets/Screenshots/en-US/final-v2`.
-Each is a flattened 1320×2868 RGB JPEG without alpha. Their corrected-image content predates the
-29 Sep colour-pipeline change, so recapture them after the final colour decision before submission.
+Five uploadable English iPhone screenshots are in `AppStoreAssets/Screenshots/en-US/final`.
+Each is a 1320×2868 RGB JPEG without alpha. They were rendered on 29 Sep 2026 from the device
+captures in `en-US/source` by `scripts/app_store_screenshots/render.js`. The old `final-v2` set is in
+`en-US-outdated`.
 
 1. `01-before-after.jpg`
-2. `02-deep-dive.jpg`
+2. `02-photo.jpg`
 3. `03-video.jpg`
-4. `04-export.jpg`
-5. `05-video-before-after.jpg`
+4. `04-looks.jpg`
+5. `05-private.jpg`
 
 The first image is an authentic same-frame before/after comparison. The source capture and the corrected capture were produced by the app from developer-owned media. UIEB benchmark images are excluded because the dataset is academic/non-commercial and forbids redistribution.
 

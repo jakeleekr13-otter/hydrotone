@@ -66,13 +66,13 @@ UnderBlue는 레저 다이빙의 추억을 위한 앱이며 과학적 색 측정
 
 ## Screenshot set
 
-Five upload-ready English portrait screenshots are in `AppStoreAssets/Screenshots/en-US/final-v2`. They use the accepted 6.9-inch **1320 × 2868 px** size and are flattened RGB JPEGs without alpha.
+Five upload-ready English portrait screenshots are in `AppStoreAssets/Screenshots/en-US/final`. They use the accepted 6.9-inch **1320 × 2868 px** size and are RGB JPEGs without alpha.
 
-1. **Authentic before/after split** — `See the difference. Instantly.`
-2. **Deep Dive editor** — `Blue water. Clearer depth.`
-3. **Video editor** — `Stable colour. Frame after frame.`
-4. **Export options** — `Keep the quality you captured.`
-5. **Authentic video before/after** — `Video, before and after.`
+1. **Video frame before/after** — `Bring back the real colour.`
+2. **Photo editor, before/after split** — `Reef colour, restored.`
+3. **Video editor, before/after split** — `Video, fixed too.`
+4. **Looks and intensity** — `Pick a look. Set the strength.`
+5. **Home screen, on-device** — `Stays on your iPhone.`
 
 The set uses the local developer-owned reef/diver media and actual UnderBlue output. Original and corrected states come from the same frame; no generated or benchmark reference image is presented as app output. UIEB remains internal academic benchmark material only and must not be redistributed or used in App Store marketing.
 

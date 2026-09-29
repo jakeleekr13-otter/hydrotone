@@ -1,0 +1,302 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>UnderBlue Screenshots</title>
+<style>
+  :root {
+    --mint: #03d6c2;
+    --cyan: #5ee7ff;
+    --ink: #f4fbfb;
+    --muted: rgba(226, 244, 244, 0.68);
+    --glass: rgba(255, 255, 255, 0.08);
+    --glass-line: rgba(255, 255, 255, 0.16);
+    /* Screenshot geometry, in source pixels (1206 x 2622). */
+    --src-w: 1206;
+    --src-h: 2622;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #000; font-family: -apple-system, "SF Pro Display", system-ui, sans-serif; color: var(--ink); }
+
+  section {
+    position: relative;
+    width: 1320px;
+    height: 2868px;
+    overflow: hidden;
+    background:
+      radial-gradient(1200px 900px at 85% -5%, rgba(3, 214, 194, 0.30), transparent 60%),
+      radial-gradient(900px 900px at -10% 45%, rgba(40, 120, 255, 0.18), transparent 60%),
+      radial-gradient(1400px 1000px at 50% 115%, rgba(3, 214, 194, 0.22), transparent 60%),
+      linear-gradient(180deg, #03141c 0%, #020b10 45%, #01080c 100%);
+  }
+  /* Soft light rays from the surface. */
+  section::before {
+    content: "";
+    position: absolute; inset: -200px -200px auto -200px; height: 1800px;
+    background: repeating-conic-gradient(from 200deg at 70% -10%,
+      rgba(140, 255, 240, 0.055) 0deg 4deg, transparent 4deg 11deg);
+    mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+    pointer-events: none;
+  }
+  /* Fine grain. */
+  section::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    pointer-events: none;
+    z-index: 50;
+  }
+
+  .copy { position: absolute; left: 96px; right: 96px; top: 150px; z-index: 10; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 16px;
+    padding: 16px 30px 16px 22px; border-radius: 999px;
+    background: rgba(3, 214, 194, 0.12); border: 1.5px solid rgba(3, 214, 194, 0.35);
+    color: var(--mint); font-size: 30px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .eyebrow svg { width: 40px; height: 40px; }
+  h1 {
+    margin-top: 54px;
+    font-size: 132px; line-height: 0.98; font-weight: 800; letter-spacing: -0.035em;
+  }
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(95deg, var(--mint) 0%, var(--cyan) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { margin-top: 44px; font-size: 46px; line-height: 1.3; font-weight: 500; color: var(--muted); max-width: 1080px; }
+
+  .glass {
+    background: rgba(8, 26, 32, 0.55);
+    border: 1.5px solid var(--glass-line);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+  }
+  .tag {
+    position: absolute; z-index: 5;
+    padding: 16px 30px; border-radius: 999px;
+    font-size: 30px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .tag.after { color: #031a18; background: var(--mint); border: none; }
+
+  /* ---------- Phone mockup ---------- */
+  .phone {
+    position: absolute; z-index: 4;
+    --w: 860px;                       /* screen width */
+    width: calc(var(--w) + 52px);
+    padding: 26px;
+    border-radius: 150px;
+    background: linear-gradient(145deg, #3a4448 0%, #15191b 30%, #0b0d0e 60%, #2d3437 100%);
+    box-shadow:
+      0 0 0 3px #050606 inset,
+      0 0 0 2px rgba(255, 255, 255, 0.10),
+      0 80px 160px rgba(0, 0, 0, 0.65),
+      0 0 180px rgba(3, 214, 194, 0.12);
+  }
+  .screen {
+    position: relative;
+    width: var(--w);
+    aspect-ratio: 1206 / 2622;
+    border-radius: 124px;
+    overflow: hidden;
+    background: #000;
+  }
+  .screen img.layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .island {
+    position: absolute; z-index: 3; top: 2.2%; left: 50%; transform: translateX(-50%);
+    width: 30%; height: 3.9%; border-radius: 999px; background: #000;
+  }
+
+  /* Split slider drawn over the media region of an edit screen. */
+  .split-line {
+    position: absolute; z-index: 2; width: 6px; margin-left: -3px;
+    background: #fff; box-shadow: 0 0 24px rgba(0, 0, 0, 0.5);
+  }
+  .knob {
+    position: absolute; z-index: 3; width: 92px; height: 92px; margin: -46px 0 0 -46px;
+    border-radius: 50%; background: #fff; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .knob svg { width: 54px; height: 54px; }
+
+  /* ---------- 01 hero ---------- */
+  .hero-card {
+    position: absolute; left: 60px; right: 60px; top: 800px; height: 1640px;
+    border-radius: 80px; overflow: hidden;
+    box-shadow: 0 60px 140px rgba(0, 0, 0, 0.6), 0 0 0 1.5px rgba(255, 255, 255, 0.12);
+  }
+  .hero-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 70% 50%; }
+  .hero-card .before { clip-path: polygon(0 0, 60% 0, 40% 100%, 0 100%); }
+  .hero-card svg.diag { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; }
+
+  .chips { position: absolute; left: 60px; right: 60px; bottom: 150px; display: flex; gap: 22px; justify-content: center; z-index: 6; }
+  .chip {
+    display: flex; align-items: center; gap: 16px;
+    padding: 26px 36px; border-radius: 999px;
+    font-size: 34px; font-weight: 600; color: var(--ink);
+  }
+  .chip svg { width: 38px; height: 38px; color: var(--mint); }
+
+  /* ---------- 04 looks ---------- */
+  .ui-crop {
+    position: absolute; z-index: 6; left: 50px; width: 1220px;
+    border-radius: 64px; overflow: hidden;
+    background-color: #000;
+    background-repeat: no-repeat;
+    box-shadow: 0 60px 140px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(3, 214, 194, 0.45), 0 0 120px rgba(3, 214, 194, 0.25);
+  }
+
+  .float-badge {
+    position: absolute; z-index: 7;
+    display: flex; align-items: center; gap: 22px;
+    padding: 30px 40px; border-radius: 44px;
+    font-size: 38px; font-weight: 700;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  }
+  .float-badge small { display: block; font-size: 28px; font-weight: 500; color: var(--muted); margin-top: 6px; }
+  .float-badge .ic {
+    width: 84px; height: 84px; border-radius: 26px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(3, 214, 194, 0.16); color: var(--mint);
+  }
+  .float-badge .ic svg { width: 48px; height: 48px; }
+</style>
+</head>
+<body>
+
+<!-- Shared icons -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="waves" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 7c2.5-2 5-2 7.5 0s5 2 7.5 0 3.5-1.5 5 0"/><path d="M2 12c2.5-2 5-2 7.5 0s5 2 7.5 0 3.5-1.5 5 0"/><path d="M2 17c2.5-2 5-2 7.5 0s5 2 7.5 0 3.5-1.5 5 0"/></g></symbol>
+    <symbol id="arrows" viewBox="0 0 24 24"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6" fill="none" stroke="#06201d" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></g></symbol>
+    <symbol id="chip" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2.5"/><path d="M9 2.5v3M15 2.5v3M9 18.5v3M15 18.5v3M2.5 9h3M2.5 15h3M18.5 9h3M18.5 15h3"/></g></symbol>
+    <symbol id="user-off" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.2-3.5 4.3-5.5 8-5.5s6.8 2 8 5.5"/><path d="M3 3l18 18"/></g></symbol>
+    <symbol id="photo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-8 8.5"/></g></symbol>
+    <symbol id="video" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="13" height="12" rx="3"/><path d="M15.5 10.5l6-3.5v10l-6-3.5z"/></g></symbol>
+    <!-- Stronger underwater cast for the 02 "before" half: less red, a little more blue. -->
+    <filter id="bluecast" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.80 0 0 0 0   0 0.97 0 0 0.01   0 0 1.06 0 0.05   0 0 0 1 0"/>
+    </filter>
+    <symbol id="spark" viewBox="0 0 24 24"><path d="M12 2.5l2.2 6.3 6.3 2.2-6.3 2.2L12 19.5l-2.2-6.3L3.5 11l6.3-2.2z" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<!-- 01: hero, video frame before/after -->
+<section id="s1">
+  <div class="copy">
+    <span class="eyebrow"><svg><use href="#waves"/></svg>UnderBlue</span>
+    <h1>Bring back<br>the <em>real colour.</em></h1>
+    <p class="sub">Natural colour for underwater photos and videos.</p>
+  </div>
+  <div class="hero-card">
+    <img class="after" src="assets/video_frame_after.jpg">
+    <img class="before" src="assets/video_frame_before.jpg">
+    <svg class="diag" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <line x1="60" y1="0" x2="40" y2="100" stroke="#fff" stroke-width="6" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <div class="knob" style="left:50%;top:50%;z-index:3"><svg><use href="#arrows"/></svg></div>
+    <span class="tag glass" style="left:48px;top:48px">Before</span>
+    <span class="tag after" style="right:48px;bottom:48px">After</span>
+  </div>
+  <div class="chips">
+    <span class="chip glass"><svg><use href="#photo"/></svg>Photos</span>
+    <span class="chip glass"><svg><use href="#video"/></svg>Videos</span>
+    <span class="chip glass"><svg><use href="#lock"/></svg>On-device</span>
+  </div>
+</section>
+
+<!-- 02: photo edit screen with split -->
+<section id="s2">
+  <div class="copy">
+    <span class="eyebrow"><svg><use href="#photo"/></svg>Photos</span>
+    <h1>Reef colour,<br><em>restored.</em></h1>
+    <p class="sub">Depth-aware restoration brings back lost colour.</p>
+  </div>
+  <div class="phone" style="left:204px;top:830px">
+    <div class="screen">
+      <img class="layer" src="assets/photo_after.png">
+      <img class="layer" src="assets/photo_before.png" style="clip-path: inset(18.3% 50% 51.0% 0); filter: url(#bluecast)">
+      <div class="split-line" style="left:50%;top:18.3%;height:30.7%"></div>
+      <div class="knob" style="left:50%;top:33.65%"><svg><use href="#arrows"/></svg></div>
+      <div class="island"></div>
+    </div>
+  </div>
+  <span class="tag glass" style="left:110px;top:1300px">Before</span>
+  <span class="tag after" style="right:110px;top:1300px">After</span>
+</section>
+
+<!-- 03: video edit screen with split -->
+<section id="s3">
+  <div class="copy">
+    <span class="eyebrow"><svg><use href="#video"/></svg>Videos</span>
+    <h1>Video,<br><em>fixed too.</em></h1>
+    <p class="sub">Stable colour across the whole clip.</p>
+  </div>
+  <div class="phone" style="left:204px;top:830px">
+    <div class="screen">
+      <img class="layer" src="assets/video_after.png">
+      <!-- Slightly brighter "after" half of the video frame only; the UI below stays untouched. -->
+      <img class="layer" src="assets/video_after.png" style="clip-path: inset(25.13% 0 49.0% 50%); filter: brightness(1.12)">
+      <img class="layer" src="assets/video_before.png" style="clip-path: inset(25.13% 50% 49.0% 0)">
+      <div class="split-line" style="left:50%;top:25.13%;height:25.87%"></div>
+      <div class="knob" style="left:50%;top:38.07%"><svg><use href="#arrows"/></svg></div>
+      <div class="island"></div>
+    </div>
+  </div>
+  <span class="tag glass" style="left:110px;top:1400px">Before</span>
+  <span class="tag after" style="right:110px;top:1400px">After</span>
+</section>
+
+<!-- 04: looks and intensity, real UI crop enlarged -->
+<section id="s4">
+  <div class="copy">
+    <span class="eyebrow"><svg><use href="#spark"/></svg>Looks</span>
+    <h1>Pick a look.<br><em>Set the strength.</em></h1>
+    <p class="sub">Natural Dive, Tropical or Deep Dive. Compare with the original at any time.</p>
+  </div>
+  <div class="phone" style="left:254px;top:870px;--w:760px">
+    <div class="screen">
+      <img class="layer" src="assets/photo_after.png">
+      <div class="island"></div>
+    </div>
+  </div>
+  <div class="ui-crop" id="uicrop"></div>
+</section>
+
+<!-- 05: private, home screen -->
+<section id="s5">
+  <div class="copy">
+    <span class="eyebrow"><svg><use href="#lock"/></svg>Private</span>
+    <h1>Stays on<br><em>your iPhone.</em></h1>
+    <p class="sub">All processing runs on the device. No account. No cloud upload.</p>
+  </div>
+  <div class="phone" style="left:204px;top:830px">
+    <div class="screen">
+      <img class="layer" src="assets/home.png">
+      <div class="island"></div>
+    </div>
+  </div>
+  <div class="float-badge glass" style="left:40px;top:1380px">
+    <span class="ic"><svg><use href="#chip"/></svg></span>
+    <span>On-device<small>Private processing</small></span>
+  </div>
+  <div class="float-badge glass" style="right:40px;top:1840px">
+    <span class="ic"><svg><use href="#user-off"/></svg></span>
+    <span>No account<small>Open and edit</small></span>
+  </div>
+</section>
+
+<script>
+  // Enlarged crop of the real preset row and intensity slider (source rows CROP_TOP..CROP_BOTTOM).
+  const CROP_TOP = 1600, CROP_BOTTOM = 2130, CROP_LEFT = 0, CROP_RIGHT = 1206;
+  const el = document.getElementById('uicrop');
+  const k = 1220 / (CROP_RIGHT - CROP_LEFT);
+  el.style.height = Math.round((CROP_BOTTOM - CROP_TOP) * k) + 'px';
+  el.style.top = '1815px';
+  el.style.backgroundImage = 'url(assets/photo_after.png)';
+  el.style.backgroundSize = Math.round(1206 * k) + 'px auto';
+  el.style.backgroundPosition = `${-CROP_LEFT * k}px ${-CROP_TOP * k}px`;
+</script>
+</body>
+</html>
