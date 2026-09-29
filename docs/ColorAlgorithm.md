@@ -237,8 +237,8 @@ The UI gives each built-in preset only an intensity slider. Their values are in 
 | Preset | For | What it adds to the automatic result |
 |---|---|---|
 | Natural Dive | any water | Nothing. It is the automatic result and the base for Custom. |
-| Tropical | shallow, bright water | `warmth` 600 K; more saturation (1.16) and vibrance (0.22) on subjects; a little more red (`restoration` 0.50) and clarity (0.19) |
-| Deep Dive | deep, dark-blue water | More red (`restoration` 0.56); `shadowBoost` 0.10; `waterChroma` 0.85 calms neon water; more clarity (0.25) and cast removal (0.18) |
+| Tropical | shallow, bright water | `warmth` 600 K; more saturation (1.16) and vibrance (0.22) on subjects; more red (`restoration` 0.55) and clarity (0.19); `shadowBoost` 0.08; clear water moves to turquoise (`waterHue` 232), scaled down by deep, neon and hazy water |
+| Deep Dive | deep, dark-blue water | More red (`restoration` 0.62); `shadowBoost` 0.20; `waterChroma` 0.78 calms neon water; more clarity (0.25) and cast removal (0.22) |
 
 Natural values: `restoration` 0.45, `saturation` 1.08, `vibrance` 0.18, `clarity` 0.16, `castRemoval` 0.16, `contrast` 1.04. All presets share `contrast` 1.04.
 
@@ -467,7 +467,9 @@ No separate figure is recorded here for these four. The scorecard shows the comb
 | A fixed recipe, for example a +36 magenta tint | It pushes blue water violet. The rules adapt to the measured cast instead. |
 | The highlight rule without its dark-scene and contrast fades | UIEB 12324 mean L* fell from 32.2 to 16.3 |
 | Warmth from 6500 K to 6500 K + warmth (used until `13ffbee`) | It cooled the image: at +300 K, grey 0.40 became (0.391, 0.401, 0.417). Tropical was cooler than Natural, and its grey ramp chroma was 4.00 (photo) and 4.87 (video), over the limit of 3. |
-| Deep Dive calming by scaling `waterSaturation` | It turned 42% of r02's pixels indigo or violet (Natural: 7%) |
+| Deep Dive calming by scaling `waterSaturation` | It turned 42% of r02's pixels indigo or violet (Natural: 7%). Tried again on 29 Sep 2026, scaled by neon only: still r02 +36 and r11 +27 points of violet pixels. |
+| Tropical brightness offset +0.012 (colorControls, 29 Sep 2026) | It turned dark blue water indigo: r05 violet pixels 9.9% (Natural) to 15.6%, m2 +3.7 and r12 +2.9 points. Tropical gets `shadowBoost` 0.08 instead. |
+| Deep Dive water hue goal 252 (bluer) and `restoration` 0.70 (29 Sep 2026) | Each added violet pixels (OKLab hue 270 to 330, chroma 0.03 or more) on r02 and r11; together with the saturation scaling r02 reached 39% (Natural 3%). |
 | Per-pixel OKLab hue pull of water-like pixels toward 240 (28 Sep 2026) | Gate 15.40 to 20.66. It fights the white reference, whose candidates are water-like, and keeps chroma the gains had removed. |
 | Restored-path lift cap 0.5 for the pair 2 fish | Pair 2 17.2 to 19.1: the water went too dark. |
 | Brightness (the black level) 0.45 to 0.3, or 0 | Shadows 8 to 10 L* below AquaColorFix on pairs 3 and 5; at 0 the shadows collapsed to L* 3. |
@@ -534,7 +536,7 @@ Limits:
 - The highlight shoulder on HDR export is unmeasured. It reads its peak in BT.709, so saturated Display P3 colours are held a little lower than P3 needs.
 - On the video path r14's sand stays mint-green. The restoration kernel's own limit flattens that colour before finishing.
 - The white reference trusts a strongly blue candidate. Pale water near the surface can be that candidate. The open water is protected by `neutralWeight`. A bright patch of water of another colour would be neutralised with the subjects.
-- The presets differ only a little. Deep Dive's neon water is only 1 to 1.5% calmer than Natural's.
+- Preset distance from Natural (29 Sep 2026, 26 images: r01-r15, O1-O5, m1-m6, median CIE76 over the image): Tropical 4.0 to 5.4, Deep Dive 3.2 to 5.2. The largest gain in violet pixels over Natural is 0.1 points (Tropical) and 0.8 points (Deep Dive). Deep Dive still barely calms neon water: every way to calm it that was tried made violet.
 - Deep Dive turns some of r11's sea fans lavender: 12.1% of pixels have OKLab hue 270 to 330 and chroma 0.03 or more (Natural: 2.7%). The far-water check does not see it.
 - Tropical moves some cyan or green water a little greener (m1 water hue 216 to 212, m2 240 to 225). In r10 it gives the sun core a light peach tint.
 - The particle filter and temporal denoiser are prototypes in `Prototypes/VideoCleanup`. They are not wired in.

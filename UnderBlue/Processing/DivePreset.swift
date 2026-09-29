@@ -9,13 +9,13 @@ enum DivePreset: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
     var localizedName: String { String(localized: String.LocalizationValue(rawValue)) }
     var restoration: Float {
-        switch self { case .original: 0; case .natural, .custom: 0.45; case .tropical: 0.50; case .deep: 0.56 }
+        switch self { case .original: 0; case .natural, .custom: 0.45; case .tropical: 0.55; case .deep: 0.62 }
     }
     var vibrance: Float {
         switch self { case .original: 0; case .natural, .custom: 0.18; case .tropical: 0.22; case .deep: 0.18 }
     }
     var castRemoval: Float {
-        switch self { case .original: 0; case .natural, .custom: 0.16; case .tropical: 0.16; case .deep: 0.18 }
+        switch self { case .original: 0; case .natural, .custom: 0.16; case .tropical: 0.16; case .deep: 0.22 }
     }
     var contrast: Float {
         switch self { case .original: 1; case .natural, .custom: 1.04; case .tropical: 1.04; case .deep: 1.04 }
@@ -35,11 +35,19 @@ enum DivePreset: String, CaseIterable, Identifiable, Sendable {
     /// water's hue, so calmer water does not drift toward violet. (Scaling waterSaturation instead
     /// turned pale blue water lavender.)
     var waterChroma: Float {
-        switch self { case .original, .natural, .tropical, .custom: 1; case .deep: 0.85 }
+        switch self { case .original, .natural, .tropical, .custom: 1; case .deep: 0.78 }
     }
-    /// Extra shadow lift, added after the global contrast. Deep Dive lifts dark subjects further.
+    /// Extra shadow lift, added after the global contrast. Deep Dive lifts dark subjects further; Tropical
+    /// a little, for a brighter sunlit look. A colorControls brightness offset for Tropical was tried and turned
+    /// dark blue water indigo (29 Sep 2026: r05 violet pixels 10% to 16%).
     var shadowBoost: Float {
-        switch self { case .original, .natural, .tropical, .custom: 0; case .deep: 0.10 }
+        switch self { case .original, .natural, .custom: 0; case .tropical: 0.08; case .deep: 0.20 }
+    }
+    /// OKLab hue the clear water is moved to. Natural Dive uses azure (ColorCorrection.waterHueGoal).
+    /// Tropical leans to shallow turquoise. A bluer Deep Dive goal (252) was tried and turned reef and
+    /// sea fans violet (29 Sep 2026: r02 39% of pixels, Natural 3%).
+    var waterHue: Float {
+        switch self { case .original, .natural, .deep, .custom: 240; case .tropical: 232 }
     }
     var symbolName: String {
         switch self {

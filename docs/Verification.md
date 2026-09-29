@@ -5,6 +5,9 @@ This page lists the checks that are still open. The product owner decided to fin
 ## Open work (do first)
 
 - **The three built-in presets look almost the same.** The product owner found this on the iPhone on 25 Sep 2026. The preset tuning (`e02c19e`) made each preset match its name, but it kept the changes small to stay inside the guards. Next: make Natural, Tropical and Deep Dive clearly different at the default intensity, then check them with the other presets items below.
+  - 29 Sep 2026, tuned: Tropical moves 5.4 from Natural (was 4.0), Deep Dive 5.2 (was 3.2), median CIE76 on 26 images. Natural Dive is unchanged (pin test). Check on the iPhone. Values and rejected tries: [ColorAlgorithm](ColorAlgorithm.md).
+  - 29 Sep 2026, before tuning: Jake sees a slight difference on the iPhone. The code reads every preset value in `ColorCorrection.make`. Tropical adds 600 K warmth, which is scaled down when the colour cast is weak, and more saturation, which is scaled down in neon water. Deep Dive adds +0.10 shadow lift, 0.85× water chroma and more clarity. The vibrance difference is almost zero on the test scenes: Natural's final vibrance is 0.005. The Tropical and Deep Dive tests in `PresetTests` pass.
+- **Natural pin regenerated (29 Sep 2026).** `edcc663` added `referenceGains` and `referenceStrength` (bright-scene white reference) without updating the pin. No existing value moved; the step is active on 3 of the 18 fixtures. Jake chose to keep `edcc663`, so the pin now includes it.
 
 ## Changes waiting for the final round
 
@@ -27,6 +30,8 @@ Still open:
 - The same check on the iPhone, and in landscape.
 
 ## Share sheet opens UnderBlue (28 Sep 2026)
+
+29 Sep 2026: Jake checked the share sheet on the iPhone.
 
 The extension opens `underblue://share` after the copy, through the `UIApplication` object on its responder chain.
 
@@ -100,6 +105,8 @@ The colour rules changed to move toward the AquaColorFix look ([benchmark](AquaC
 - **Video: values that follow the light.** Today a clip gets one set of values from 10 samples. So a clip whose light changes is right in some parts and wrong in others (the product owner, 28 Sep 2026). The analysis is a 48x48 statistic and needs no model. It can run on every frame or every few frames and be smoothed over time before `make()`. Only the depth model is costly, and the record says per-pixel depth did not help video. Design this as its own step. It changes `VideoRestorationAnalysis`, not the colour rules.
 
 ## HDR photo export (28 Sep 2026)
+
+29 Sep 2026: the real HDR photo and video checks are not done. There is no HDR source yet.
 
 Checked:
 - iPhone 17, PhotoHDRTests (3 of 3 pass). A synthetic HDR photo (headroom 4) exported as a JPEG with an ISO gain map. The output headroom was 4.0 and the highlights reached 4.5. The SDR image in the file matched the normal SDR export (average and maximum).

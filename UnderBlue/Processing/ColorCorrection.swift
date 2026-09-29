@@ -208,6 +208,14 @@ struct ColorCorrection: Sendable, Equatable {
         1 + (preset.saturation + scene.haze * 0.10 - 1) * (1 - scene.neon) - 0.12 * scene.neon
     }
 
+    /// The water hue a preset moves the clear water to (DivePreset.waterHue). A move toward cyan is for
+    /// clear, shallow water only: deep, dark, neon or hazy water keeps the azure goal. Pulling it toward
+    /// cyan turned dark neon water grey and pale hazy water olive (29 Sep 2026, a diver scene and O3).
+    private static func waterHue(for preset: DivePreset, scene: SceneFactors) -> Float {
+        let shift = preset.waterHue - waterHueGoal
+        return waterHueGoal + (shift < 0 ? shift * (1 - scene.deep) * (1 - scene.neon) * (1 - scene.haze) : shift)
+    }
+
     /// The water rules: the water tone toward clear azure, the subject light removal, the water-like
     /// test values and the red rebuild gate. Writes violetGuard, waterTone, waterSaturation,
     /// subjectTone, waterRedness, waterChroma, subjectRed, redGateLow, redGateHigh, redRebuild, waterLit.
@@ -234,7 +242,7 @@ struct ColorCorrection: Sendable, Equatable {
         // Natural Dive keeps the plain ceiling; a preset may calm neon water further (DivePreset.waterChroma).
         let ceiling = preset == .natural ? 0.1 / later : 0.1 / later * preset.waterChroma
         let target = waterTarget(seenLCh, waterType: type, murky: scene.deep * scene.haze, keep: keep, source: oklch(water),
-                                 ceiling: ceiling, murkyFloor: 0.22 / later)
+                                 ceiling: ceiling, murkyFloor: 0.22 / later, goal: waterHue(for: preset, scene: scene))
         // More chroma than the water has is only for murky water; elsewhere it would push
         // water-coloured subjects (silver fish, blue reef) away from grey and take their red.
         let tone = waterCorrection(from: seen, to: target, maximumSaturation: target.y > seenLCh.y + 0.005 ? 1.6 : 1)

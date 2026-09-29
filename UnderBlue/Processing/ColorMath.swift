@@ -79,8 +79,8 @@ extension ColorCorrection {
     /// `source` is the OKLCh of the untouched water colour; plausibility is judged on it, because
     /// the red boost can move restored water toward violet.
     static func waterTarget(_ water: SIMD3<Float>, waterType: Float, murky: Float, keep: Float = 0,
-                            source: SIMD3<Float>? = nil, ceiling: Float = 0.07, murkyFloor: Float = 0.085) -> SIMD3<Float> {
-        let goal = waterHueGoal
+                            source: SIMD3<Float>? = nil, ceiling: Float = 0.07, murkyFloor: Float = 0.085,
+                            goal: Float = waterHueGoal) -> SIMD3<Float> {
         let plausible = waterPlausibility(source ?? water)
         let hueWeight = min(1, max(0, (water.y - 0.015) / 0.025)) * plausible
         let hue = water.z + (goal - water.z) * hueWeight
