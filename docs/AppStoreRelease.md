@@ -68,9 +68,10 @@ App Store Connect is intentionally configured conservatively as collecting diagn
 - Performance Data: collected only when the user explicitly shares a report
 - Other Diagnostic Data: collected only when the user explicitly shares a report
 - Purpose: App Functionality (customer support and reliability)
+- Linked to the user: No. Set in App Store Connect on 29 Sep 2026 (all four types: App Functionality only). This needs the support process below that keeps a report apart from the sender's email.
 - Tracking: No
 - Advertising or marketing use: No
-- Photos or Videos: Not collected
+- Photos or Videos: collected only when the user explicitly emails a photo or video to support (added 29 Sep 2026)
 - Location: Not collected
 - Device ID: Not collected
 - Automatic upload: No
@@ -104,25 +105,27 @@ The optional 1024×1024 promoted-IAP image is `AppStoreAssets/IAP/UnderBluePro-1
 - App Store Server Notifications URL: leave blank; UnderBlue has no server
 - Family Sharing: leave off for the first release unless it is explicitly tested and accepted as an irreversible setting
 
-The production price is still a business decision. The local StoreKit configuration's USD 4.99 value is test data and must not be treated as a configured production price. The first IAP must be included in the same App Review submission as app version 1.0.
+The production price is USD 14.99 (Jake, 29 Sep 2026). The local StoreKit configuration's USD 4.99 value is test data only. The first IAP must be included in the same App Review submission as app version 1.0.
 
 ## Remaining App Store Connect work
 
-- [ ] Confirm that the `UnderBlue` name is available and create/verify the app record.
-- [ ] Confirm the final SKU before creating the record; it cannot be changed afterward.
-- [ ] Accept the Paid Apps Agreement and complete banking and tax information.
-- [ ] Complete EU Digital Services Act trader status and any territory-specific compliance questions.
-- [ ] Choose the app territories; exclude a territory temporarily if App Store Connect requests documentation that is not ready.
-- [ ] Complete the age-rating questionnaire with no mature, social, advertising, gambling or unrestricted-web content; expected result is 4+.
-- [ ] Enter the copyright owner using the Apple Developer account's legal name.
-- [ ] Enter a reachable App Review contact name, email and international-format phone number.
-- [ ] Create `com.underblue.pro`, choose its production price and tax category, and add its localisation.
-- [ ] Capture and upload the real UnderBlue Pro purchase-screen review screenshot.
-- [ ] Upload the six iPhone screenshots.
-- [ ] Paste the prepared description, promotional text, keywords and App Review notes.
-- [ ] Publish the App Privacy answers and verify the Product Page Preview.
-- [ ] Upload and select a fresh archive built from the final source.
-- [ ] Add both iOS app version 1.0 and UnderBlue Pro to the same draft submission.
+Jake reported on 29 Sep 2026 that every item except the screenshots is done in App Store Connect.
+
+- [x] Confirm that the `UnderBlue` name is available and create/verify the app record.
+- [x] Confirm the final SKU before creating the record; it cannot be changed afterward.
+- [x] Accept the Paid Apps Agreement and complete banking and tax information.
+- [x] Complete EU Digital Services Act trader status and any territory-specific compliance questions.
+- [x] Choose the app territories; exclude a territory temporarily if App Store Connect requests documentation that is not ready.
+- [x] Complete the age-rating questionnaire with no mature, social, advertising, gambling or unrestricted-web content; expected result is 4+.
+- [x] Enter the copyright owner using the Apple Developer account's legal name.
+- [x] Enter a reachable App Review contact name, email and international-format phone number.
+- [x] Create `com.underblue.pro`, choose its production price and tax category, and add its localisation.
+- [x] Capture and upload the real UnderBlue Pro purchase-screen review screenshot.
+- [ ] Upload the five iPhone screenshots.
+- [x] Paste the prepared description, promotional text, keywords and App Review notes.
+- [x] Publish the App Privacy answers and verify the Product Page Preview.
+- [x] Upload and select a fresh archive built from the final source.
+- [x] Add both iOS app version 1.0 and UnderBlue Pro to the same draft submission.
 
 ## Before each upload
 
