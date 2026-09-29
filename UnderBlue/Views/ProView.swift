@@ -1,8 +1,10 @@
 import SwiftUI
+import StoreKit
 
 struct ProView: View {
     @Environment(PurchaseStore.self) private var purchases
     @Environment(\.dismiss) private var dismiss
+    @State private var redeeming = false
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -27,6 +29,11 @@ struct ProView: View {
                         Button("Retry") { Task { await purchases.load() } }
                     }
                     Button("Restore Purchase") { Task { await purchases.restore() } }.frame(minHeight: 44)
+                    if !purchases.isPro {
+                        // Apple's own sheet; offer codes must not use a custom UI.
+                        Button("Redeem Code") { redeeming = true }.frame(minHeight: 44)
+                            .offerCodeRedemption(isPresented: $redeeming) { result in Task { await purchases.redeemFinished(result) } }
+                    }
                     if purchases.busy { ProgressView() }
                     if let message = purchases.message { Text(message).font(.callout).accessibilityAddTraits(.updatesFrequently) }
                     Text("All processing stays on your iPhone. No account or subscription.").font(.footnote).foregroundStyle(.secondary)

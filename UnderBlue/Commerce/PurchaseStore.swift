@@ -79,6 +79,16 @@ final class PurchaseStore {
             message = isPro ? String(localized: "Purchase restored.") : String(localized: "No UnderBlue Pro purchase was found for this Apple Account.")
         } catch { report(error, operation: .restore) }
     }
+    /// Called when Apple's offer code sheet closes. A redeemed code arrives as a transaction in
+    /// Transaction.updates, which the listener above accepts; this only refreshes and reports.
+    func redeemFinished(_ result: Result<Void, Error>) async {
+        switch result {
+        case .success:
+            await refreshEntitlement()
+            message = isPro ? String(localized: "UnderBlue Pro is unlocked.") : nil
+        case .failure(let error): report(error, operation: .purchase)
+        }
+    }
     private func report(_ error: Error, operation: Operation) {
         let failure = Failure.classify(error, operation: operation)
         Task { await diagnostics?.record(failure, operation: operation) }

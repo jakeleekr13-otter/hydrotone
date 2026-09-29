@@ -10,6 +10,15 @@ This page lists the checks that are still open. The product owner decided to fin
   - 29 Sep 2026, before tuning: Jake sees a slight difference on the iPhone. The code reads every preset value in `ColorCorrection.make`. Tropical adds 600 K warmth, which is scaled down when the colour cast is weak, and more saturation, which is scaled down in neon water. Deep Dive adds +0.10 shadow lift, 0.85× water chroma and more clarity. The vibrance difference is almost zero on the test scenes: Natural's final vibrance is 0.005. The Tropical and Deep Dive tests in `PresetTests` pass.
 - **Natural pin regenerated (29 Sep 2026).** `edcc663` added `referenceGains` and `referenceStrength` (bright-scene white reference) without updating the pin. No existing value moved; the step is active on 3 of the 18 fixtures. Jake chose to keep `edcc663`, so the pin now includes it.
 
+## Offer code redemption (29 Sep 2026)
+
+Get Pro → Redeem Code opens Apple's sheet. Checked on the simulator: the button shows in Korean for a non-Pro user. The sheet itself was not opened.
+
+Still open, by hand with a sandbox offer code (PurchaseTests are not run):
+- Redeem in the app: Pro unlocks and "UnderBlue Pro is unlocked." shows.
+- Redeem with the redemption URL while UnderBlue is closed: Pro is on at the next launch.
+- An invalid or used code: Apple's sheet shows the error and Pro stays locked.
+
 ## Changes waiting for the final round
 
 | Commit | Change |

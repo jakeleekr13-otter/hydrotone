@@ -203,4 +203,6 @@ Do not upload the existing local archive blindly: create a fresh archive after t
 4. For a few friends, create a custom code with a small redemption limit and share its redemption URL. One-time-use batches currently start at 500 codes.
 5. Codes can be valid for at most six months. The unlocked non-consumable itself does not expire after redemption.
 
+Customers can redeem a code in the App Store, with its redemption URL, or in UnderBlue: Get Pro → Redeem Code opens Apple's redemption sheet (`offerCodeRedemption`, added 29 Sep 2026). A redeemed code arrives in `Transaction.updates` like a purchase.
+
 Before release, use Sandbox offer codes or TestFlight. Production custom and one-time-use codes are not generated until both the app and IAP are approved.
