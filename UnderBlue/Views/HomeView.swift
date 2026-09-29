@@ -48,7 +48,7 @@ struct HomeView: View {
                 Text("Your media stays on your iPhone.").font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity)
             }.padding(28).navigationTitle("UnderBlue")
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { Button { showDiagnostics = true } label: { Image(systemName: "info.circle").accessibilityLabel("Diagnostics") } }
+                    ToolbarItem(placement: .topBarLeading) { Button { showDiagnostics = true } label: { Image(systemName: "questionmark.circle").accessibilityLabel("Help") } }
                     ToolbarItem(placement: .topBarTrailing) { Button(purchases.isPro ? "Pro" : "Get Pro") { showPro = true } }
                 }
                 .sheet(isPresented: $showDiagnostics) { DiagnosticsView() }

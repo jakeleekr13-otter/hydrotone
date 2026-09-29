@@ -670,6 +670,41 @@
         }
       }
     },
+    "Choose a photo or video, or import from Files. You can also share to UnderBlue from the Photos app." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a photo or video, or import from Files. You can also share to UnderBlue from the Photos app."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真またはビデオを選択するか、ファイルから読み込みます。写真アプリからUnderBlueに共有することもできます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진이나 동영상을 선택하거나 파일에서 가져오세요. 사진 앱에서 UnderBlue로 공유할 수도 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择照片或视频，或从文件导入。也可以在“照片”App 中共享到 UnderBlue。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇照片或影片，或從檔案匯入。也可以在「照片」App 中分享到 UnderBlue。"
+          }
+        }
+      }
+    },
     "Clarity" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1156,6 +1191,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自訂"
+          }
+        }
+      }
+    },
+    "Custom starts from the Natural Dive result. Adjust it with five sliders." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom starts from the Natural Dive result. Adjust it with five sliders."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カスタムはナチュラルダイブの結果から始まります。5つのスライダーで調整できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용자는 내추럴 다이브 결과에서 시작합니다. 슬라이더 5개로 조절하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义以自然潜水的效果为起点，可用五个滑块调整。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自訂以自然潛水的效果為起點，可用五個滑桿調整。"
           }
         }
       }
@@ -1790,6 +1860,41 @@
         }
       }
     },
+    "For a video, Play 3s plays three seconds from the current position, then returns." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For a video, Play 3s plays three seconds from the current position, then returns."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオでは、3秒再生で現在の位置から3秒再生し、元の位置に戻ります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "동영상에서는 3초 재생이 현재 위치부터 3초를 재생한 뒤 돌아옵니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对于视频，“播放3秒”会从当前位置播放三秒，然后返回。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對於影片，「播放3秒」會從目前位置播放三秒，然後返回。"
+          }
+        }
+      }
+    },
     "Format" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1860,6 +1965,41 @@
         }
       }
     },
+    "Free: 1 photo export and 1 video export (first 10 seconds, up to 1080p SDR)." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Free: 1 photo export and 1 video export (first 10 seconds, up to 1080p SDR)."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無料：写真1回、ビデオ1回の書き出し（最初の10秒、最大1080p SDR）。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "무료: 사진 1회, 동영상 1회 내보내기(처음 10초, 최대 1080p SDR)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "免费：可导出 1 张照片和 1 个视频（前 10 秒，最高 1080p SDR）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "免費：可匯出 1 張照片和 1 部影片（前 10 秒，最高 1080p SDR）。"
+          }
+        }
+      }
+    },
     "Full-length video exports" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1926,6 +2066,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "取得 Pro"
+          }
+        }
+      }
+    },
+    "Guide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guide"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使い方"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용 방법"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用方法"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用方法"
           }
         }
       }
@@ -2206,6 +2381,251 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "HDR 來源 · SDR 預覽"
+          }
+        }
+      }
+    },
+    "Help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Help"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ヘルプ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "도움말"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帮助"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "說明"
+          }
+        }
+      }
+    },
+    "Pick a look: Natural Dive, Tropical or Deep Dive. Intensity sets how strong it is." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick a look: Natural Dive, Tropical or Deep Dive. Intensity sets how strong it is."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ナチュラルダイブ、トロピカル、ディープダイブから選びます。強度で効果の強さを調整できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "내추럴 다이브, 트로피컬, 딥 다이브 중 하나를 고르세요. 강도로 효과의 세기를 조절합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择自然潜水、热带或深潜效果。用强度调整效果的强弱。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇自然潛水、熱帶或深潛效果。用強度調整效果的強弱。"
+          }
+        }
+      }
+    },
+    "Send photos, videos and diagnostic reports by email. Don’t attach them to a public GitHub issue." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send photos, videos and diagnostic reports by email. Don’t attach them to a public GitHub issue."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真、ビデオ、診断レポートはメールで送ってください。公開のGitHub Issueには添付しないでください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진, 동영상, 진단 보고서는 이메일로 보내 주세요. 공개 GitHub 이슈에 첨부하지 마세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请通过电子邮件发送照片、视频和诊断报告。请勿附加到公开的 GitHub 问题中。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請透過電子郵件傳送照片、影片和診斷報告。請勿附加到公開的 GitHub 問題中。"
+          }
+        }
+      }
+    },
+    "Support" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サポート"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지원"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支援"
+          }
+        }
+      }
+    },
+    "Support website" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support website"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サポートWebサイト"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지원 웹사이트"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持网站"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支援網站"
+          }
+        }
+      }
+    },
+    "Tap Compare to see the original. In the photo editor, pinch or double-tap to zoom." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap Compare to see the original. In the photo editor, pinch or double-tap to zoom."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比較をタップするとオリジナルを表示します。写真の編集画面では、ピンチまたはダブルタップで拡大できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비교를 탭하면 원본을 볼 수 있습니다. 사진 편집 화면에서는 핀치하거나 두 번 탭해 확대하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点“对比”可查看原始效果。在照片编辑界面中，双指开合或连按两下即可缩放。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "點一下「比較」可查看原始畫面。在照片編輯畫面中，用雙指開合或點兩下即可縮放。"
+          }
+        }
+      }
+    },
+    "Tap Export, then Save to Photos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap Export, then Save to Photos."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き出すをタップしてから、写真に保存をタップします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "내보내기를 탭한 다음 사진에 저장을 탭하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点“导出”，然后轻点“保存到照片”。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "點一下「匯出」，然後點一下「儲存到照片」。"
           }
         }
       }
@@ -4882,6 +5302,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保留廣色域。無法匯出 HDR 照片。"
+          }
+        }
+      }
+    },
+    "With Pro, select up to %lld photos to correct them together. Tap a photo to give it its own look." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With Pro, select up to %lld photos to correct them together. Tap a photo to give it its own look."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proでは最大%lld枚の写真を選んでまとめて補正できます。写真をタップすると個別に調整できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pro에서는 사진을 최대 %lld장까지 선택해 한 번에 보정할 수 있습니다. 사진을 탭하면 따로 조정할 수 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 Pro 可选择最多 %lld 张照片一起校正。轻点某张照片可单独调整。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 Pro 可選擇最多 %lld 張照片一起校正。點一下某張照片可單獨調整。"
           }
         }
       }
