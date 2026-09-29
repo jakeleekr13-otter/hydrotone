@@ -115,6 +115,30 @@
             "state" : "new",
             "value" : "Couldn’t add %1$@ of %2$@."
           }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@件中%1$@件を追加できませんでした。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@개 중 %1$@개를 추가하지 못했습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@ 项中有 %1$@ 项无法添加。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@ 項中有 %1$@ 項無法加入。"
+          }
         }
       }
     },
