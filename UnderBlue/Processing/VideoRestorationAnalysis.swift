@@ -310,10 +310,10 @@ extension ColorCorrection {
         [\.redRebuild, \.redGateLow, \.redGateHigh, \.subjectRed, \.waterRedness, \.waterSaturation, \.waterChroma,
          \.waterType, \.redCeiling, \.violetGuard, \.midLift, \.toneCurve, \.tonePivot, \.brightness, \.contrast,
          \.saturation, \.shadowLift, \.highlightAmount, \.clarity, \.clarityRadius, \.definition, \.definitionRadius,
-         \.detail, \.detailFloor, \.detailRadius, \.warmth, \.vibrance, \.physicalWeight]
+         \.detail, \.detailFloor, \.detailRadius, \.warmth, \.vibrance, \.physicalWeight, \.referenceStrength]
     }
     static var mixedVectors: [WritableKeyPath<Self, SIMD3<Float>>] {
-        [\.castGains, \.waterTone, \.subjectTone, \.neutralGains, \.waterLit]
+        [\.castGains, \.waterTone, \.subjectTone, \.neutralGains, \.waterLit, \.referenceGains]
     }
 
     func mixed(with other: Self, amount: Float) -> Self {

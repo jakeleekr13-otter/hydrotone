@@ -96,6 +96,7 @@ Environment variables:
 | `HT_EVAL_OUT` | `$TMPDIR/underblue-color-eval` |
 | `HT_EVAL_MAXDIM` | 640. The longest side of the render. The AquaColorFix gate uses 960. |
 | `HT_EVAL_LOG` | unset. Set it to print every image's analysis, correction values, plan, and a probe of the water, neutral and mean colours through the colour kernel and the whole finishing chain. |
+| `HT_EVAL_PNG` | Set to `1` to save lossless sRGB PNG companions alongside JPEG sheets. Use PNG for patch/noise measurements. |
 
 - Results never go into the repo.
 - The first run compiles the Core ML depth model into the cache.
@@ -115,6 +116,31 @@ The harness compiles a fixed list of Processing files (`common.sh`, `build_eval`
 | m6 manta belly | 0.44, 0.38, 0.56, 0.50 |
 
 The boxes were placed by eye. Check them again if an image is replaced.
+
+### m5 panel evaluation (native macOS)
+
+```sh
+# Native kernel/CPU and behavioural checks; no simulator:
+scripts/color-eval/native_checks.sh
+# Render at the source's 1600-pixel width and annotate 18 chart patch interiors:
+scripts/color-eval/m5_eval.sh m5-candidate /path/to/baseline/render
+# A source snapshot can produce the baseline with the same renderer:
+HT_EVAL_SOURCES=/path/to/baseline/Processing scripts/color-eval/m5_eval.sh m5-baseline
+```
+
+The optional baseline directory must contain the same-size `m5__*.png` images. The report
+includes per-patch CIE76 differences, whole-frame and water/coral/sand regions, black-pixel
+share, and a local high-pass chroma proxy. On textured coral that proxy includes real texture;
+use the flat water and sand regions to assess noise. `render/m5_regions.png` shows the masks,
+`render/m5_comparison.png` shows original/baseline/candidate/reference, and
+`render/m5_metrics.json` retains every measurement. A lower average does not certify acceptance:
+patches that get worse by more than one CIE76 unit are explicitly listed. This one-unit reporting
+threshold is not a perceptual acceptance threshold or a calibrated chart tolerance.
+
+The chart is tilted and its bottom edge is obscured by sand. Interiors, not row-wide rectangles,
+are sampled. Its reference grey row is visibly cyan; reference similarity and neutral correctness
+are different measures. No chart colour/coordinate is available to production processing.
+See [the implementation evaluation](../../docs/M5ColorEvaluation.md) for results and remaining gaps.
 
 ## Guards used for tuning
 

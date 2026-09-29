@@ -11,9 +11,11 @@ This page describes how UnderBlue corrects underwater colour. It is for develope
 - We use our own simple, explainable logic. General optics is fine. We do not copy research code or tables.
 - Target look: clear cyan-to-blue water, warm natural subjects, more contrast and clarity, slightly brighter. Not grey, not violet or indigo, not neon.
 - Order: particle and noise removal come before colour correction. Sharpening and deblur come after them.
-  - Today there is no noise removal and no deblur.
+  - The bright-scene reference-adaptation contribution now removes noise before its channel gains
+    (29 Sep 2026; see [m5 evaluation](M5ColorEvaluation.md)). The other contributions still have
+    no noise removal, and there is no deblur.
   - Sharpening does run: two unsharp masks and the [fine detail layer](#clarity).
-  - So the sharpening amplifies noise that no earlier step removed. See [Open problems](#open-problems-and-next-tasks).
+  - Sharpening can still amplify noise in contributions without prior denoising. See [Open problems](#open-problems-and-next-tasks).
 
 ## Pipeline overview
 
@@ -93,6 +95,39 @@ Subjects are lit through the same water, so they carry its colour: blue, or gree
 - A grey scene has grey water and gets gains of one.
 
 The white reference below reads the result, so a neutral surface needs less from it.
+
+### Bright-scene reference adaptation (29 Sep 2026)
+
+`referenceGains` and `referenceStrength` add a conservative alternative for subjects in bright
+blue-water scenes with a broad white reference. The old red-from-green rebuild and subject
+channel floors can pull different subject colours toward similar grey/beige results; on m5 the
+purple and blue chart patches expose that loss. This alternative preserves measured channel
+differences with diagonal gains in linear sRGB, then converts back to linear Rec. 2020.
+
+- Evidence rises from a neutral share of 0.06 to 0.18, and median luminance 0.18 to 0.28.
+  Strength also follows cast confidence and `(1 - waterType)`. Dark scenes and green water keep
+  the established correction. No image name, chart coordinate or reference-image pixel is read.
+- As with the white reference, the restored path reads its reference at depth percentile 35.
+  A reference with a missing channel (linear sRGB minimum at or below 0.015), or a warm one,
+  cannot enable this adaptation. Gains map the reference to its channel geometric mean and
+  stay within 0.25 to 8. The geometric mean reduces the bright veil without adding red from green.
+- The existing neutral-surface weight selects pixels. Very dark pixels fade in over linear
+  luminance 0.04 to 0.16; bright, pale pixels retain more of the established highlight treatment.
+  The green exposure anchor fades the adaptation out over linear sRGB 0.8 to 0.9: near clipping,
+  its measured ratios no longer reliably describe the surface.
+- Only the adapted contribution reads `CINoiseReduction` (noise level 0.04, sharpness zero),
+  before the channel gains. This is not a general denoiser before physical restoration, nor a
+  temporal video denoiser. Water and the other colour contribution retain their existing input.
+- For adapted surfaces, the black offset uses a smooth channel toe instead of a hard subtract
+  and clip. It maps zero to zero while retaining small channel differences. The corresponding
+  share of contrast/brightness is removed from the later `CIColorControls`, avoiding double
+  application. The colour-matrix fallback retains the original controls.
+- Metal and the CPU mirror implement the same per-pixel rules. The CPU mirror accepts the
+  denoised reference pixel separately; it does not reproduce the spatial noise filter. Video
+  scene interpolation carries both new values.
+
+This is a measured improvement, not an assertion that the Sea-thru target has been reproduced.
+See [M5ColorEvaluation.md](M5ColorEvaluation.md) for per-region results and remaining regressions.
 
 ### Red rebuild and guards
 

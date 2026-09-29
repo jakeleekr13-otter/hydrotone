@@ -3,7 +3,8 @@ import simd
 
 /// CPU mirror of the UnderBlueFinishColor kernel. Unit tests use it; keep both equal.
 enum FinishingMath {
-    static func color(_ source: SIMD3<Float>, correction v: ColorCorrection) -> SIMD3<Float> {
+    static func color(_ source: SIMD3<Float>, correction v: ColorCorrection,
+                      referenceInput: SIMD3<Float>? = nil) -> SIMD3<Float> {
         func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {
             let t = min(1, max(0, (x - low) / max(1e-5, high - low)))
             return t * t * (3 - 2 * t)
@@ -15,6 +16,10 @@ enum FinishingMath {
         // White reference: pixels that are not water-like, or clearly brighter than the water,
         // move with the scene's neutral surfaces.
         let neutral = neutralWeight(c, correction: v)
+        var adaptation = neutral * smoothstep(0.04, 0.16, (input * ColorCorrection.luma).sum())
+        // Green anchors the exposure estimate. Once it clips, channel ratios no longer
+        // describe the surface; keep the established highlight correction there.
+        adaptation *= 1 - smoothstep(0.8, 0.9, display(input).y)
         c *= SIMD3(repeating: 1) + (pointwiseMax(v.neutralGains, .zero) - 1) * neutral
         // A bright pixel that the white reference made nearly grey is a pale surface, not water.
         // The water saturation and the water tone skip it; as a cast on grey they read violet or green.
@@ -41,6 +46,14 @@ enum FinishingMath {
         let subject = smoothstep(v.subjectRed, v.subjectRed + 0.3, c.x / max(c.y, 1e-4))
         let rebuilt = max(v.redRebuild, 0) * c.y * hue * (0.6 + 0.4 * subject)
         c.x += min(rebuilt, max(0, c.y * v.redCeiling - c.x))
+        if v.referenceStrength > 0 {
+            let shown = pointwiseMax(display(referenceInput ?? input), .zero) * v.referenceGains
+            let chroma = shown.max() > 1e-4 ? (shown.max() - shown.min()) / shown.max() : 0
+            // The geometric exposure must not dim an already bright, nearly neutral surface.
+            adaptation *= 1 - smoothstep(0.5, 0.8, (input * ColorCorrection.luma).sum()) * (1 - smoothstep(0.15, 0.45, chroma))
+            let adapted = working(shown)
+            c += (adapted - c) * (v.referenceStrength * adaptation)
+        }
         let l = (c * ColorCorrection.luma).sum()
         if l > 1e-5 && l < 1 {
             var x = pow(l, 1 / 2.2)
@@ -48,6 +61,21 @@ enum FinishingMath {
             let y = min(1, max(0, x + 4 * v.toneCurve * (x - v.tonePivot) * x * (1 - x)))
             let peak = c.max()
             c *= min(pow(y, 2.2) / l, max(1, peak) / max(peak, 1e-5))
+        }
+        // Smooth the RGB black offset on adapted subjects. Unlike a hard subtraction/clamp,
+        // the toe keeps small channel differences and maps a true zero to zero.
+        if v.referenceStrength > 0 {
+            let offset = v.brightness + (1 - v.contrast) * 0.5
+            let linear = c * max(0, v.contrast) + SIMD3(repeating: offset)
+            var soft = linear
+            if offset < 0 {
+                let floor = 0.5 * (offset + sqrt(offset * offset + 0.0004))
+                for channel in 0..<3 {
+                    let x = linear[channel]
+                    soft[channel] = max(0, 0.5 * (x + sqrt(x * x + 0.0004)) - floor)
+                }
+            }
+            c += (linear + (soft - linear) * adaptation - c) * v.referenceStrength
         }
         return c.x.isFinite && c.y.isFinite && c.z.isFinite ? c : input
     }
@@ -117,6 +145,12 @@ enum FinishingMath {
         SIMD3(1.660491 * c.x - 0.587641 * c.y - 0.072850 * c.z,
               -0.124550 * c.x + 1.132900 * c.y - 0.008349 * c.z,
               -0.018151 * c.x - 0.100579 * c.y + 1.118730 * c.z)
+    }
+    /// Linear sRGB to the linear Rec. 2020 working primaries.
+    static func working(_ c: SIMD3<Float>) -> SIMD3<Float> {
+        SIMD3(0.627404 * c.x + 0.329283 * c.y + 0.043313 * c.z,
+              0.069097 * c.x + 0.919540 * c.y + 0.011362 * c.z,
+              0.016391 * c.x + 0.088013 * c.y + 0.895595 * c.z)
     }
     /// 0...1: how much the white reference acts on a colour (after the cast gains). Water-like
     /// pixels get none, unless they are 1.3 to 1.8 times brighter than the water and of another

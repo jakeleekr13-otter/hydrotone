@@ -25,7 +25,7 @@ build_eval() {
         xcrun coremlcompiler compile $REPO/UnderBlue/Resources/Models/DepthAnythingV2SmallF16P6.mlpackage $HT_EVAL_OUT/cache > $HT_EVAL_OUT/cache/model.log 2>&1 || { echo "model compile failed"; return 1; }
     fi
     local src=${HT_EVAL_SOURCES:A}
-    swiftc -O -swift-version 6 -o $out/eval $HERE/main.swift $src/FilterEngine.swift $src/FinishingKernels.swift \
+    swiftc -O -swift-version 6 -o $out/eval ${2:-$HERE/main.swift} $src/FilterEngine.swift $src/FinishingKernels.swift \
         $src/FinishingMath.swift $src/ColorCorrection.swift $src/ColorMath.swift $src/WaterAnalysis.swift \
         $src/FilterSettings.swift $src/DivePreset.swift $src/RestorationPlan.swift \
         $src/RestorationEngine.swift $src/WaterModelEstimator.swift $src/DepthEstimator.swift $HERE/PlanUniform.swift \

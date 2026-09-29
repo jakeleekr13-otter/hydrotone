@@ -39,6 +39,13 @@ func save(_ image: CIImage, _ url: URL) {
           let d = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else { return }
     CGImageDestinationAddImage(d, cg, [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary)
     CGImageDestinationFinalize(d)
+    // Lossless companion for patch colour and noise measurements. Keep JPEG sheets compatible.
+    if ProcessInfo.processInfo.environment["HT_EVAL_PNG"] == "1",
+       let png = CGImageDestinationCreateWithURL(url.deletingPathExtension().appendingPathExtension("png") as CFURL,
+                                                UTType.png.identifier as CFString, 1, nil) {
+        CGImageDestinationAddImage(png, cg, nil)
+        CGImageDestinationFinalize(png)
+    }
 }
 func grayWorld(_ image: CIImage) -> CIImage {
     let avg = CIFilter.areaAverage(); avg.inputImage = image; avg.extent = image.extent
@@ -181,6 +188,11 @@ for name in selected {
         for (label, c) in [("current", ColorCorrection.make(analysis: analysis, preset: settings.preset)),
                            ("restored", plan.map { ColorCorrection.make(analysis: analysis, preset: settings.preset, plan: $0) })] {
             guard let c else { continue }
+            // Reflection keeps this harness usable against older source snapshots without these fields.
+            let referenceValues = Mirror(reflecting: c).children.filter { $0.label?.hasPrefix("reference") == true }
+            if !referenceValues.isEmpty {
+                print("\(name) \(label) adaptation: " + referenceValues.map { "\($0.label!)=\($0.value)" }.joined(separator: " "))
+            }
             print("\(name) \(label): gains=(\(c.castGains.x),\(c.castGains.y),\(c.castGains.z)) water=(\(c.waterTone.x),\(c.waterTone.y),\(c.waterTone.z))x\(c.waterSaturation) redness=\(c.waterRedness) chroma=\(c.waterChroma) type=\(c.waterType) guard=\(c.violetGuard) gate=\(c.redGateLow) rebuild=\(c.redRebuild) subjectRed=\(c.subjectRed) midLift=\(c.midLift) curve=\(c.toneCurve)@\(c.tonePivot) bright=\(c.brightness) contrast=\(c.contrast) sat=\(c.saturation) shadows=\(c.shadowLift) clarity=\(c.clarity) def=\(c.definition) vib=\(c.vibrance) weight=\(c.physicalWeight) neutral=(\(c.neutralGains.x),\(c.neutralGains.y),\(c.neutralGains.z)) subject=(\(c.subjectTone.x),\(c.subjectTone.y),\(c.subjectTone.z)) waterLit=(\(c.waterLit.x),\(c.waterLit.y),\(c.waterLit.z))")
         }
         // Probe: one colour (working space, linear) through the colour kernel alone and through the whole

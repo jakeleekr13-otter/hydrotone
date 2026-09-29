@@ -63,6 +63,10 @@ struct ColorCorrection: Sendable, Equatable {
     /// White-reference gains. They move the scene's near-neutral surfaces toward grey and act on
     /// pixels that are not water-like, so the water keeps its colour. One means no reference.
     var neutralGains = SIMD3<Float>(repeating: 1)
+    /// Linear sRGB channel adaptation for bright scenes with a broad neutral reference.
+    /// Keeps measured channel differences instead of adding green into every subject's red.
+    var referenceGains = SIMD3<Float>(repeating: 1)
+    var referenceStrength: Float = 0
     /// The water colour after the cast gains. A pixel clearly brighter than it, and of another
     /// hue, is a lit subject (a pale belly can be as unred as the water) and takes the white
     /// reference in full. Brighter water of the same hue does not. Zero means no such exception.
@@ -101,10 +105,35 @@ struct ColorCorrection: Sendable, Equatable {
         // paths. The white reference below sees the result.
         v.midLift = min(0.9, max(minimumMidLift, v.midLift - 0.12 * scene.highlight + min(0, user.brightness) * Caps.brightnessDown))
         v.neutralGains = whiteReference(analysis, correction: v, plan: plan)
+        referenceAdaptation(&v, analysis: analysis, plan: plan, scene: scene)
         return v.sanitized()
     }
 
     private typealias Caps = CustomAdjustments.Caps
+
+    private static func referenceAdaptation(_ v: inout Self, analysis: WaterAnalysis,
+                                           plan: RestorationPlan?, scene: SceneFactors) {
+        func ramp(_ x: Float, _ lo: Float, _ hi: Float) -> Float {
+            let t = min(1, max(0, (x - lo) / (hi - lo)))
+            return t * t * (3 - 2 * t)
+        }
+        let evidence = ramp(analysis.neutralShare, 0.06, 0.18)
+        let bright = ramp(analysis.midLuminance, 0.18, 0.28)
+        let strength = evidence * bright * scene.cast * (1 - scene.waterType)
+        guard strength > 0 else { return }
+        let seen = plan.map { p -> SIMD3<Float> in
+            let sorted = p.depth.values.sorted()
+            return restoredMean(analysis.neutralColor, plan: p,
+                                depth: sorted.isEmpty ? nil : sorted[sorted.count * 35 / 100])
+        } ?? analysis.neutralColor
+        let reference = FinishingMath.display(seen)
+        // A missing/clipped red channel cannot identify a white balance reliably.
+        guard reference.min() > 0.015, reference.x < reference.y, reference.x < reference.z else { return }
+        let level = pow(reference.x * reference.y * reference.z, 1 / Float(3))
+        v.referenceGains = pointwiseMin(SIMD3(repeating: 8), pointwiseMax(SIMD3(repeating: 0.25),
+                                                                 SIMD3(repeating: level) / reference))
+        v.referenceStrength = strength
+    }
 
     /// The scene factors every rule reads, derived once from the analysis and the preset. Each is
     /// 0...1 unless noted.
@@ -401,6 +430,8 @@ struct ColorCorrection: Sendable, Equatable {
         if !(v.waterLit.x.isFinite && v.waterLit.y.isFinite && v.waterLit.z.isFinite) { v.waterLit = fallback.waterLit }
         if !(v.neutralGains.x.isFinite && v.neutralGains.y.isFinite && v.neutralGains.z.isFinite) { v.neutralGains = fallback.neutralGains }
         if !(v.subjectTone.x.isFinite && v.subjectTone.y.isFinite && v.subjectTone.z.isFinite) { v.subjectTone = fallback.subjectTone }
+        if !(v.referenceGains.x.isFinite && v.referenceGains.y.isFinite && v.referenceGains.z.isFinite) { v.referenceGains = .one; v.referenceStrength = 0 }
+        v.referenceStrength = v.referenceStrength.isFinite ? min(1, max(0, v.referenceStrength)) : 0
         v.midLift = min(0.9, max(Self.minimumMidLift, v.midLift))
         v.toneCurve = min(0.3, max(0, v.toneCurve))
         v.physicalWeight = min(1, max(0, v.physicalWeight))

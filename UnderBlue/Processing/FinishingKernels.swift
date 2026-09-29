@@ -10,7 +10,7 @@ extension FilterEngine {
     #include <CoreImage/CoreImage.h>
     using namespace metal;
 
-    [[stitchable]] float4 UnderBlueFinishColor(coreimage::sample_t source, float4 gains, float4 water, float4 shape, float4 red, float4 tone, float4 neutral, float4 waterLit, float4 subjectTone) {
+    [[stitchable]] float4 UnderBlueFinishColor(coreimage::sample_t source, coreimage::sample_t referenceInput, float4 gains, float4 water, float4 shape, float4 red, float4 tone, float4 neutral, float4 waterLit, float4 subjectTone, float4 reference) {
         const float3 input = max(source.rgb, float3(0.0f));
         float3 c = input * max(gains.rgb, float3(0.0f));
         // Redder subjects stay protected, with a broad transition through similar water colours.
@@ -69,6 +69,23 @@ extension FilterEngine {
         const float subject = smoothstep(red.w, red.w + 0.3f, c.r / max(c.g, 1e-4f));
         // Rebuilt red stops at shape.z times green, so grey subjects stay grey.
         c.r += min(max(red.x, 0.0f) * c.g * hue * (0.6f + 0.4f * subject), max(0.0f, c.g * shape.z - c.r));
+        float surface = (1.0f - waterLike * (1.0f - bright))
+            * smoothstep(0.04f, 0.16f, dot(input, float3(0.2126f, 0.7152f, 0.0722f)));
+        surface *= 1.0f - smoothstep(0.8f, 0.9f, dot(input, float3(-0.124550f, 1.132900f, -0.008349f)));
+        if (reference.w > 0.0f) {
+            float3 shown = float3(dot(referenceInput.rgb, float3(1.660491f, -0.587641f, -0.072850f)),
+                                  dot(referenceInput.rgb, float3(-0.124550f, 1.132900f, -0.008349f)),
+                                  dot(referenceInput.rgb, float3(-0.018151f, -0.100579f, 1.118730f)));
+            shown = max(shown, float3(0.0f)) * reference.rgb;
+            const float shownTop = max(shown.r, max(shown.g, shown.b));
+            const float shownChroma = shownTop > 1e-4f ? (shownTop - min(shown.r, min(shown.g, shown.b))) / shownTop : 0.0f;
+            surface *= 1.0f - smoothstep(0.5f, 0.8f, dot(input, float3(0.2126f, 0.7152f, 0.0722f)))
+                * (1.0f - smoothstep(0.15f, 0.45f, shownChroma));
+            const float3 adapted = float3(dot(shown, float3(0.627404f, 0.329283f, 0.043313f)),
+                                          dot(shown, float3(0.069097f, 0.919540f, 0.011362f)),
+                                          dot(shown, float3(0.016391f, 0.088013f, 0.895595f)));
+            c = mix(c, adapted, reference.w * surface);
+        }
         // Mid-tone lift, then an S-curve around the scene median, both on gamma luminance.
         // Zero and one stay fixed.
         const float l = dot(c, float3(0.2126f, 0.7152f, 0.0722f));
@@ -80,6 +97,15 @@ extension FilterEngine {
             const float peak = max(c.r, max(c.g, c.b));
             // Cap the gain so no channel crosses one, and HDR peaks above one never grow.
             c *= min(pow(y, 2.2f) / l, max(1.0f, peak) / max(peak, 1e-5f));
+        }
+        if (reference.w > 0.0f) {
+            const float3 linear = c * max(0.0f, neutral.w) + tone.w;
+            float3 soft = linear;
+            if (tone.w < 0.0f) {
+                const float floor = 0.5f * (tone.w + sqrt(tone.w * tone.w + 0.0004f));
+                soft = max(float3(0.0f), 0.5f * (linear + sqrt(linear * linear + 0.0004f)) - floor);
+            }
+            c = mix(c, mix(linear, soft, surface), reference.w);
         }
         if (!all(isfinite(c))) { c = input; }
         return float4(c, source.a);

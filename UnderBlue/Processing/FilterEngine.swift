@@ -53,9 +53,11 @@ final class FilterEngine: Sendable {
 
         let controls = CIFilter.colorControls()
         controls.inputImage = corrected
-        controls.contrast = v.contrast
+        // The colour-matrix fallback does not implement reference adaptation or its tone step.
+        let referenceStrength = colorKernel == nil ? 0 : v.referenceStrength
+        controls.contrast = 1 + (v.contrast - 1) * (1 - referenceStrength)
         controls.saturation = v.saturation
-        controls.brightness = v.brightness
+        controls.brightness = v.brightness * (1 - referenceStrength)
         corrected = controls.outputImage ?? corrected
 
         let shadows = CIFilter.highlightShadowAdjust()
@@ -134,15 +136,26 @@ final class FilterEngine: Sendable {
             matrix.bVector = CIVector(x: 0, y: 0, z: CGFloat(g.z), w: 0)
             return matrix.outputImage ?? image
         }
+        // Denoise before amplifying the measured red channel. Only the reference-adapted
+        // contribution reads this image; the established water/fallback path retains its input.
+        var referenceInput = image
+        if v.referenceStrength > 0 {
+            let noise = CIFilter.noiseReduction()
+            noise.inputImage = image.clampedToExtent()
+            noise.noiseLevel = 0.04
+            noise.sharpness = 0
+            referenceInput = (noise.outputImage ?? image).cropped(to: image.extent)
+        }
         return colorKernel.apply(extent: image.extent, arguments: [
-            image, CIVector(x: CGFloat(v.castGains.x), y: CGFloat(v.castGains.y), z: CGFloat(v.castGains.z), w: 0),
+            image, referenceInput, CIVector(x: CGFloat(v.castGains.x), y: CGFloat(v.castGains.y), z: CGFloat(v.castGains.z), w: 0),
             CIVector(x: CGFloat(v.waterTone.x), y: CGFloat(v.waterTone.y), z: CGFloat(v.waterTone.z), w: CGFloat(v.waterRedness)),
             CIVector(x: CGFloat(v.waterSaturation), y: CGFloat(v.waterChroma), z: CGFloat(v.redCeiling), w: CGFloat(v.violetGuard)),
             CIVector(x: CGFloat(v.redRebuild), y: CGFloat(v.redGateLow), z: CGFloat(v.redGateHigh), w: CGFloat(v.subjectRed)),
-            CIVector(x: CGFloat(v.toneCurve), y: CGFloat(v.tonePivot), z: CGFloat(v.midLift), w: 0),
-            CIVector(x: CGFloat(v.neutralGains.x), y: CGFloat(v.neutralGains.y), z: CGFloat(v.neutralGains.z), w: 0),
+            CIVector(x: CGFloat(v.toneCurve), y: CGFloat(v.tonePivot), z: CGFloat(v.midLift), w: CGFloat(v.brightness + (1 - v.contrast) * 0.5)),
+            CIVector(x: CGFloat(v.neutralGains.x), y: CGFloat(v.neutralGains.y), z: CGFloat(v.neutralGains.z), w: CGFloat(v.contrast)),
             CIVector(x: CGFloat(v.waterLit.x), y: CGFloat(v.waterLit.y), z: CGFloat(v.waterLit.z), w: 0),
-            CIVector(x: CGFloat(v.subjectTone.x), y: CGFloat(v.subjectTone.y), z: CGFloat(v.subjectTone.z), w: 0)
+            CIVector(x: CGFloat(v.subjectTone.x), y: CGFloat(v.subjectTone.y), z: CGFloat(v.subjectTone.z), w: 0),
+            CIVector(x: CGFloat(v.referenceGains.x), y: CGFloat(v.referenceGains.y), z: CGFloat(v.referenceGains.z), w: CGFloat(v.referenceStrength))
         ]) ?? image
     }
     func blend(_ source: CIImage, _ target: CIImage, amount: Float) -> CIImage {
