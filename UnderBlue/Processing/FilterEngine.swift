@@ -10,7 +10,7 @@ final class FilterEngine: Sendable {
     private let shoulderKernel: CIColorKernel?
     private let detailKernel: CIColorKernel?
     private let lumaKernel: CIColorKernel?
-    /// False when the finishing kernel failed to compile. Output then uses the weaker colour-matrix
+    /// False when the finishing kernel failed to load. Output then uses the weaker colour-matrix
     /// fallback, so owners with a DiagnosticRecorder report it.
     var finishingKernelAvailable: Bool { colorKernel != nil }
     /// The detail kernel, for the kernel-versus-mirror test (finishing on a solid image cannot exercise it).
@@ -22,11 +22,10 @@ final class FilterEngine: Sendable {
         let options: [CIContextOption: Any] = [.workingColorSpace: Self.workingSpace, .workingFormat: CIFormat.RGBAh, .cacheIntermediates: false]
         if let device = MTLCreateSystemDefaultDevice() { context = CIContext(mtlDevice: device, options: options) }
         else { context = CIContext(options: options) }
-        let kernels = try? CIKernel.kernels(withMetalString: Self.colorSource)
-        colorKernel = kernels?.first { $0.name == "UnderBlueFinishColor" } as? CIColorKernel
-        shoulderKernel = kernels?.first { $0.name == "UnderBlueHighlightShoulder" } as? CIColorKernel
-        detailKernel = kernels?.first { $0.name == "UnderBlueDetail" } as? CIColorKernel
-        lumaKernel = kernels?.first { $0.name == "UnderBlueLumaTransfer" } as? CIColorKernel
+        colorKernel = MetalKernels.color("UnderBlueFinishColor")
+        shoulderKernel = MetalKernels.color("UnderBlueHighlightShoulder")
+        detailKernel = MetalKernels.color("UnderBlueDetail")
+        lumaKernel = MetalKernels.color("UnderBlueLumaTransfer")
     }
 
     func apply(_ image: CIImage, settings: FilterSettings) -> CIImage {
