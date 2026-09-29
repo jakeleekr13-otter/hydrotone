@@ -167,7 +167,10 @@ Still open:
 
 ## Known issues to keep in mind
 
-- **PurchaseTests hang on the simulator.** The StoreKit test session fails with `SKInternalErrorDomain Code=3`. It hung the same way at 14:51 on 25 Sep 2026, before any change on this list. Skip it on the simulator.
+- **PurchaseTests are not run** (decision, 29 Sep 2026). Purchases are checked by hand with a sandbox account instead. See `QA.md`.
+  - Why they hang: storekitd rejects the test session with "com.underblue.app is not installed for development" (`SKInternalErrorDomain Code=3`).
+  - StoreKit then uses the real sandbox. `purchase()` waits for a sandbox sign-in that never comes, and the test has no time limit.
+  - Seen on 25 Sep and 29 Sep 2026. Why storekitd rejects the app is unknown.
 - **LongVideoTests can fail under load.** In one full run, the memory growth was 424 MiB against a 220 MiB limit. Another agent was running at the same time. Run alone twice, it passed with 134 MiB and 154 MiB.
 - **UI tests that already failed at `6a850b4` on this simulator:**
   - `UnderBlueUITests.testPhotoImportPresetsCompareExportSaveAndTrialGate`, lines 24–29

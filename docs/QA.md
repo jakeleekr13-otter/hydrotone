@@ -1,6 +1,6 @@
 # QA matrix
 
-Status reflects automated tests in this repository. “Device QA” is deliberately not marked complete without physical media/hardware.
+Status reflects automated tests in this repository, except where a row says it was checked by hand. “Device QA” is deliberately not marked complete without physical media/hardware.
 
 | Area | Coverage | Status |
 |---|---|---|
@@ -20,7 +20,7 @@ Status reflects automated tests in this repository. “Device QA” is deliberat
 | HDR input/output | HLG and PQ 10-bit detection; HDR→SDR; HLG/PQ Main10 signaling; highlight values above SDR white | Automated pass on simulator codecs |
 | Dolby Vision | No output claim; base HDR compatibility only | Device QA required |
 | Trial | One photo; one video; 10 seconds; rollback after failure/interruption; real Keychain round trip | Automated pass |
-| StoreKit | Product load, purchase, current entitlement, restore, refund, pending approval, cancellation and simulated error | Automated StoreKit pass |
+| StoreKit | Real App Store sandbox: buy; Restore Purchase; Pro returns after delete and reinstall without Restore Purchase | Sandbox pass by hand (Jake, 29 Sep 2026). `PurchaseTests` are not run, by decision (29 Sep 2026) |
 | Localization | English source/fallback; Korean, Japanese, Simplified Chinese, Traditional Chinese; localized errors and Photos usage string | Automated bundle pass |
 | Diagnostics | Failure classification, nested errors, bounded retry, privacy sanitization, burst aggregation and report size | Automated pass |
 | UI | Home, paywall, Photos picker, photo editor, compare, export sheet, save and consumed-trial gate; landscape video editor | Simulator UI test |
@@ -38,5 +38,5 @@ Run these before an App Store release:
 - Run the dedicated [Video V2 real-world matrix](VideoV2QA.md); specifically inspect temporal color pumping, depth-map popping and environment transitions.
 - Background, lock, phone call, memory warning, thermal critical, disk-full and Photos permission-denied flows. Confirm cleanup and trial rollback.
 - VoiceOver, Dynamic Type accessibility sizes, landscape layout, long Japanese/Chinese strings and every supported language in pseudolocalization.
-- Real App Store sandbox: not purchased, buy, cancel, Ask to Buy/pending, interrupted transaction, restore, refund/revocation and offline StoreKit.
+- Real App Store sandbox: not purchased, cancel, Ask to Buy/pending, interrupted transaction, refund/revocation and offline StoreKit. Buy, restore and reinstall passed on 29 Sep 2026.
 - TestFlight crash/hang: detach the debugger, reproduce, confirm symbolication in Xcode Organizer and inspect the user-shared local diagnostic report.
