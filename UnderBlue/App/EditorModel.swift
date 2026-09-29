@@ -187,7 +187,7 @@ final class EditorModel {
     func requestExport(purchases: PurchaseStore, trial: TrialStore) async {
         await purchases.refreshEntitlement()
         if !purchases.isPro {
-            guard trial.available else { report(HydroError.trialUnavailable); return }
+            guard trial.available else { report(UnderBlueError.trialUnavailable); return }
             guard trial.canExport(media.kind) else { showPro = true; return }
             options.range = .sdr
             options.resolution = .hd
@@ -325,7 +325,7 @@ final class EditorModel {
         guard let item = notification.object as? AVPlayerItem, item === player?.currentItem else { return }
         previewPaused = true
         let playbackError = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error
-            ?? item.error ?? HydroError.unreadable
+            ?? item.error ?? UnderBlueError.unreadable
         report(playbackError, operation: .preview)
     }
     func report(_ error: Error, operation: Operation = .export) {

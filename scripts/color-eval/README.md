@@ -83,7 +83,7 @@ scripts/color-eval/run_eval.sh dev-run holdout:40
 # AquaColorFix development gate (photo and video path, one line each):
 scripts/color-eval/aquacolorfix_eval.sh my-run
 # Score any five rendered files against A1-A5, for example an iPhone export set:
-python3 scripts/color-eval/aquacolorfix_benchmark.py --hydro-files "/path/H{n}.jpg" --label phone
+python3 scripts/color-eval/aquacolorfix_benchmark.py --underblue-files "/path/H{n}.jpg" --label phone
 ```
 
 Environment variables:

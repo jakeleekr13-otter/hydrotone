@@ -59,6 +59,6 @@ struct PhotoFormatStore {
 struct StorageCheck {
     static func require(bytes: Int64) throws {
         let values = try TemporaryFiles.directory.deletingLastPathComponent().resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        if let available = values.volumeAvailableCapacityForImportantUsage, available < bytes + 100_000_000 { throw HydroError.storage }
+        if let available = values.volumeAvailableCapacityForImportantUsage, available < bytes + 100_000_000 { throw UnderBlueError.storage }
     }
 }

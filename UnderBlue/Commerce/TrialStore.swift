@@ -27,7 +27,7 @@ struct KeychainTrialPersistence: TrialPersistence {
         let status = SecItemCopyMatching(q as CFDictionary, &result)
         if status == errSecItemNotFound { return TrialState() }
         guard status == errSecSuccess, let data = result as? Data,
-              let state = try? JSONDecoder().decode(TrialState.self, from: data) else { throw HydroError.trialUnavailable }
+              let state = try? JSONDecoder().decode(TrialState.self, from: data) else { throw UnderBlueError.trialUnavailable }
         return state
     }
     func write(_ state: TrialState) throws {
@@ -37,8 +37,8 @@ struct KeychainTrialPersistence: TrialPersistence {
         if status == errSecItemNotFound {
             var q = query
             attributes.forEach { q[$0.key] = $0.value }
-            guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else { throw HydroError.trialUnavailable }
-        } else if status != errSecSuccess { throw HydroError.trialUnavailable }
+            guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else { throw UnderBlueError.trialUnavailable }
+        } else if status != errSecSuccess { throw UnderBlueError.trialUnavailable }
     }
 }
 
@@ -68,13 +68,13 @@ final class TrialStore {
     }
     func canExport(_ kind: ImportedMedia.Kind) -> Bool { available && state.pending == nil && state.available(kind) }
     func reserve(_ kind: ImportedMedia.Kind) throws {
-        guard canExport(kind) else { throw HydroError.trialUnavailable }
+        guard canExport(kind) else { throw UnderBlueError.trialUnavailable }
         var next = state
         next.pending = kind == .photo ? "photo" : "video"
         try persistence.write(next); state = next
     }
     func commit(_ kind: ImportedMedia.Kind) throws {
-        guard state.pending == (kind == .photo ? "photo" : "video") else { throw HydroError.trialUnavailable }
+        guard state.pending == (kind == .photo ? "photo" : "video") else { throw UnderBlueError.trialUnavailable }
         var next = state
         if kind == .photo { next.photoUsed = true } else { next.videoUsed = true }
         next.pending = nil

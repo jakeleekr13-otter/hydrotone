@@ -55,7 +55,7 @@ enum TemporaryFiles {
     }
 }
 
-enum HydroError: LocalizedError {
+enum UnderBlueError: LocalizedError {
     case unreadable, unsupported, exportFailed, permission, storage, invalidOutput, trialUnavailable
     var errorDescription: String? {
         switch self {

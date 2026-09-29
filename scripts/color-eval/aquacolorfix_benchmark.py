@@ -222,10 +222,10 @@ def make_sheet(rows: list[tuple[int, Path | None, Path, Path, Image.Image]], out
     for index, label in enumerate(labels):
         draw.text((index * cell_width + 8, 8), label, fill="black", font=font)
     y = header
-    for number, source_path, hydro_path, aqua_path, difference in rows:
+    for number, source_path, underblue_path, aqua_path, difference in rows:
         draw.text((8, y + 6), f"Pair {number}", fill="black", font=font)
         y += row_label
-        paths = [source_path, hydro_path, aqua_path]
+        paths = [source_path, underblue_path, aqua_path]
         for index, path in enumerate(paths):
             image = None if path is None else ImageOps.exif_transpose(Image.open(path)).convert("RGB")
             sheet.paste(cell(image, cell_width, cell_height), (index * cell_width, y))
@@ -242,7 +242,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path,
                         default=Path(tempfile.gettempdir()) / "underblue-aquacolorfix-benchmark")
     parser.add_argument("--max-dimension", type=int, default=960)
-    parser.add_argument("--hydro-files", default=None,
+    parser.add_argument("--underblue-files", default=None,
                         help="Score these files instead of the H exports. A pattern with {n} for the pair number, "
                              "for example a harness sheet folder: /out/sheet/p{n}__combined.jpg")
     parser.add_argument("--label", default="UnderBlue", help="Name of the candidate in the report")
@@ -255,60 +255,60 @@ def main() -> None:
     records: list[dict[str, object]] = []
     sheet_rows: list[tuple[int, Path | None, Path, Path, Image.Image]] = []
     for number in range(1, 6):
-        hydro_path = Path(args.hydro_files.format(n=number)) if args.hydro_files else find_export(data, "H", number)
-        if not hydro_path.exists():
-            raise RuntimeError(f"Candidate for pair {number} not found: {hydro_path}")
+        underblue_path = Path(args.underblue_files.format(n=number)) if args.underblue_files else find_export(data, "H", number)
+        if not underblue_path.exists():
+            raise RuntimeError(f"Candidate for pair {number} not found: {underblue_path}")
         aqua_path = find_export(data, "A", number)
         source_path = find_export(data, "O", number)
         size = fit_size(aqua_path, args.max_dimension)
-        hydro, aqua = load_rgb(hydro_path, size), load_rgb(aqua_path, size)
+        underblue, aqua = load_rgb(underblue_path, size), load_rgb(aqua_path, size)
         source = load_rgb(source_path, size)
         valid = watermark_mask(size[1], size[0])
-        mask_reference = source if source is not None else (hydro + aqua) / 2
+        mask_reference = source if source is not None else (underblue + aqua) / 2
         water, neutral, subject = scene_masks(mask_reference, valid)
-        hm, am = metrics(hydro, valid, water, neutral, subject), metrics(aqua, valid, water, neutral, subject)
-        hydro_lab, aqua_lab = linear_to_lab(srgb_to_linear(hydro)), linear_to_lab(srgb_to_linear(aqua))
-        delta = np.linalg.norm(hydro_lab - aqua_lab, axis=-1)
+        hm, am = metrics(underblue, valid, water, neutral, subject), metrics(aqua, valid, water, neutral, subject)
+        underblue_lab, aqua_lab = linear_to_lab(srgb_to_linear(underblue)), linear_to_lab(srgb_to_linear(aqua))
+        delta = np.linalg.norm(underblue_lab - aqua_lab, axis=-1)
         record: dict[str, object] = {
             "pair": number, "source": str(source_path.relative_to(repo)),
-            "hydro_file": hydro_path.name, "aqua_file": aqua_path.name,
+            "underblue_file": underblue_path.name, "aqua_file": aqua_path.name,
             "mean_delta_e_h_to_a": float(np.mean(delta[valid])),
             "p90_delta_e_h_to_a": float(np.percentile(delta[valid], 90)),
-            "hydro": asdict(hm), "aqua": asdict(am),
+            "underblue": asdict(hm), "aqua": asdict(am),
         }
-        record["hydro_gain_rgb"] = median_channel_gain(source, hydro, valid)
+        record["underblue_gain_rgb"] = median_channel_gain(source, underblue, valid)
         record["aqua_gain_rgb"] = median_channel_gain(source, aqua, valid)
         source_lab = linear_to_lab(srgb_to_linear(source))
-        record["mean_delta_e_source_to_h"] = float(np.mean(np.linalg.norm(source_lab - hydro_lab, axis=-1)[valid]))
+        record["mean_delta_e_source_to_h"] = float(np.mean(np.linalg.norm(source_lab - underblue_lab, axis=-1)[valid]))
         record["mean_delta_e_source_to_a"] = float(np.mean(np.linalg.norm(source_lab - aqua_lab, axis=-1)[valid]))
-        record["global_mapping_rmse_h"] = global_mapping_rmse(source, hydro, valid, number * 10 + 1)
+        record["global_mapping_rmse_h"] = global_mapping_rmse(source, underblue, valid, number * 10 + 1)
         record["global_mapping_rmse_a"] = global_mapping_rmse(source, aqua, valid, number * 10 + 2)
         reference_path = repo / REFERENCE_MAP[number] if number in REFERENCE_MAP else None
         if reference_path and reference_path.exists():
             reference_lab = linear_to_lab(srgb_to_linear(load_rgb(reference_path, size)))
-            record["mean_delta_e_reference_to_h"] = float(np.mean(np.linalg.norm(reference_lab - hydro_lab, axis=-1)[valid]))
+            record["mean_delta_e_reference_to_h"] = float(np.mean(np.linalg.norm(reference_lab - underblue_lab, axis=-1)[valid]))
             record["mean_delta_e_reference_to_a"] = float(np.mean(np.linalg.norm(reference_lab - aqua_lab, axis=-1)[valid]))
         records.append(record)
-        sheet_rows.append((number, source_path, hydro_path, aqua_path, heatmap(delta, valid)))
+        sheet_rows.append((number, source_path, underblue_path, aqua_path, heatmap(delta, valid)))
 
     with (output / "benchmark.json").open("w", encoding="utf-8") as handle:
         json.dump(records, handle, ensure_ascii=False, indent=2, allow_nan=True)
 
     metric_names = list(asdict(Metrics(*([0] * 17))).keys())
     with (output / "benchmark.csv").open("w", encoding="utf-8", newline="") as handle:
-        fields = ["pair", "source", "hydro_file", "aqua_file", "mean_delta_e_h_to_a", "p90_delta_e_h_to_a",
+        fields = ["pair", "source", "underblue_file", "aqua_file", "mean_delta_e_h_to_a", "p90_delta_e_h_to_a",
                   "mean_delta_e_source_to_h", "mean_delta_e_source_to_a", "global_mapping_rmse_h",
                   "global_mapping_rmse_a", "mean_delta_e_reference_to_h", "mean_delta_e_reference_to_a"]
-        fields += [f"hydro_{name}" for name in metric_names] + [f"aqua_{name}" for name in metric_names]
-        fields += ["hydro_gain_r", "hydro_gain_g", "hydro_gain_b", "aqua_gain_r", "aqua_gain_g", "aqua_gain_b"]
+        fields += [f"underblue_{name}" for name in metric_names] + [f"aqua_{name}" for name in metric_names]
+        fields += ["underblue_gain_r", "underblue_gain_g", "underblue_gain_b", "aqua_gain_r", "aqua_gain_g", "aqua_gain_b"]
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         for record in records:
             row = {key: record.get(key, "") for key in fields}
-            for app in ("hydro", "aqua"):
+            for app in ("underblue", "aqua"):
                 for name, value in record[app].items():
                     row[f"{app}_{name}"] = value
-            for app in ("hydro", "aqua"):
+            for app in ("underblue", "aqua"):
                 for channel, value in zip("rgb", record.get(f"{app}_gain_rgb", ["", "", ""])):
                     row[f"{app}_gain_{channel}"] = value
             writer.writerow(row)
@@ -326,15 +326,15 @@ def main() -> None:
         "|---:|---:|---:|---:|---:|---:|",
     ]
     for record in records:
-        h, a = record["hydro"], record["aqua"]
+        h, a = record["underblue"], record["aqua"]
         report.append(f"| {record['pair']} | {record['mean_delta_e_h_to_a']:.2f} | "
                       f"{h['mean_l']:.1f}/{a['mean_l']:.1f} | {h['neutral_chroma']:.3f}/{a['neutral_chroma']:.3f} | "
                       f"{h['water_hue']:.0f}°/{a['water_hue']:.0f}° | {h['detail_energy']:.2f}/{a['detail_energy']:.2f} |")
     report += ["", "## Aggregate", "",
                f"- Mean output gap: ΔE76 {np.mean([r['mean_delta_e_h_to_a'] for r in records]):.2f}.",
-               f"- AquaColorFix mean lightness is {mean('aqua', 'mean_l') - mean('hydro', 'mean_l'):+.1f} L* versus UnderBlue.",
-               f"- AquaColorFix neutral-candidate chroma is {(mean('aqua', 'neutral_chroma') / mean('hydro', 'neutral_chroma') - 1) * 100:+.1f}% versus UnderBlue.",
-               f"- AquaColorFix fine-detail/noise energy is {(mean('aqua', 'detail_energy') / mean('hydro', 'detail_energy') - 1) * 100:+.1f}% versus UnderBlue.",
+               f"- AquaColorFix mean lightness is {mean('aqua', 'mean_l') - mean('underblue', 'mean_l'):+.1f} L* versus UnderBlue.",
+               f"- AquaColorFix neutral-candidate chroma is {(mean('aqua', 'neutral_chroma') / mean('underblue', 'neutral_chroma') - 1) * 100:+.1f}% versus UnderBlue.",
+               f"- AquaColorFix fine-detail/noise energy is {(mean('aqua', 'detail_energy') / mean('underblue', 'detail_energy') - 1) * 100:+.1f}% versus UnderBlue.",
                "- Detail energy combines real detail, sharpening halos and noise; higher is not automatically better.",
                "- Bright-neutral and water masks come from the shared source where available and are heuristic.", ""]
     if "mean_delta_e_reference_to_h" in records[3]:
@@ -356,12 +356,12 @@ def main() -> None:
     print(f"{args.label}: mean dE H->A {np.mean([r['mean_delta_e_h_to_a'] for r in records]):.2f} | "
           f"gate pairs 2,4,5 {np.mean([r['mean_delta_e_h_to_a'] for r in gate]):.2f} | "
           + " ".join(f"p{r['pair']}={r['mean_delta_e_h_to_a']:.2f}" for r in records) + " | "
-          f"neutral C {mean('hydro', 'neutral_chroma'):.3f} vs A {mean('aqua', 'neutral_chroma'):.3f} | "
-          f"L* {mean('hydro', 'mean_l'):.1f} vs A {mean('aqua', 'mean_l'):.1f} | "
-          f"water hue " + " ".join(f"{r['hydro']['water_hue']:.0f}/{r['aqua']['water_hue']:.0f}" for r in records))
-    print(f"{args.label}: detail (ours/A) " + " ".join(f"p{r['pair']}={r['hydro']['detail_energy']:.2f}/{r['aqua']['detail_energy']:.2f}" for r in records)
-          + " | water detail (ours/A) " + " ".join(f"{r['hydro']['water_detail_energy']:.2f}/{r['aqua']['water_detail_energy']:.2f}" for r in records)
-          + " | subject detail (ours/A) " + " ".join(f"{r['hydro']['subject_detail_energy']:.2f}/{r['aqua']['subject_detail_energy']:.2f}" for r in records))
+          f"neutral C {mean('underblue', 'neutral_chroma'):.3f} vs A {mean('aqua', 'neutral_chroma'):.3f} | "
+          f"L* {mean('underblue', 'mean_l'):.1f} vs A {mean('aqua', 'mean_l'):.1f} | "
+          f"water hue " + " ".join(f"{r['underblue']['water_hue']:.0f}/{r['aqua']['water_hue']:.0f}" for r in records))
+    print(f"{args.label}: detail (ours/A) " + " ".join(f"p{r['pair']}={r['underblue']['detail_energy']:.2f}/{r['aqua']['detail_energy']:.2f}" for r in records)
+          + " | water detail (ours/A) " + " ".join(f"{r['underblue']['water_detail_energy']:.2f}/{r['aqua']['water_detail_energy']:.2f}" for r in records)
+          + " | subject detail (ours/A) " + " ".join(f"{r['underblue']['subject_detail_energy']:.2f}/{r['aqua']['subject_detail_energy']:.2f}" for r in records))
     print(output)
 
 

@@ -34,10 +34,10 @@ actor VideoExporter {
         guard ProcessInfo.processInfo.thermalState != .critical else { throw Failure(kind: .thermal, domain: "UnderBlue", code: 0) }
         try Task.checkCancellation()
         let hdr = options.range == .hdr
-        guard !hdr || (metadata.isHDR && (metadata.dynamicRange == .hlg || metadata.dynamicRange == .pq) && (metadata.bitDepth ?? 0) >= 10) else { throw HydroError.unsupported }
+        guard !hdr || (metadata.isHDR && (metadata.dynamicRange == .hlg || metadata.dynamicRange == .pq) && (metadata.bitDepth ?? 0) >= 10) else { throw UnderBlueError.unsupported }
         let restoration = settings.preset == .original ? nil : restorationAnalysis
         let asset = AVURLAsset(url: url)
-        guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw HydroError.unreadable }
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw UnderBlueError.unreadable }
         let duration = min(metadata.duration, options.durationLimit ?? metadata.duration)
         let size = options.size(for: metadata.displaySize)
         let bitrate = Int(min(100_000_000, max(6_000_000, size.width * size.height * Double(max(24, metadata.frameRate)) * 0.12)))
@@ -75,12 +75,12 @@ actor VideoExporter {
             output = AVAssetReaderTrackOutput(track: track, outputSettings: decoderSettings)
         }
         output.alwaysCopiesSampleData = false
-        guard reader.canAdd(output) else { throw HydroError.unsupported }
+        guard reader.canAdd(output) else { throw UnderBlueError.unsupported }
         reader.add(output)
         let videoSettings: [String: Any] = [AVVideoCodecKey: AVVideoCodecType.hevc, AVVideoWidthKey: Int(size.width),
             AVVideoHeightKey: Int(size.height), AVVideoColorPropertiesKey: colors,
             AVVideoCompressionPropertiesKey: VideoColorPipeline.compression(hdr: hdr, bitrate: bitrate, frameRate: metadata.frameRate)]
-        guard writer.canApply(outputSettings: videoSettings, forMediaType: .video) else { throw HydroError.unsupported }
+        guard writer.canApply(outputSettings: videoSettings, forMediaType: .video) else { throw UnderBlueError.unsupported }
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
         input.expectsMediaDataInRealTime = false
         // Keep the source timescale. The default 1/600 s can round a last frame that starts
@@ -88,7 +88,7 @@ actor VideoExporter {
         let timescale = max(1, try await track.load(.naturalTimeScale))
         input.mediaTimeScale = timescale
         writer.movieTimeScale = timescale
-        guard writer.canAdd(input) else { throw HydroError.unsupported }
+        guard writer.canAdd(input) else { throw UnderBlueError.unsupported }
         writer.add(input)
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
             kCVPixelBufferPixelFormatTypeKey as String: pixelFormat,
@@ -101,15 +101,15 @@ actor VideoExporter {
             let audioOutput = AVAssetReaderTrackOutput(track: audioTrack, outputSettings: nil)
             audioOutput.alwaysCopiesSampleData = false
             let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: nil, sourceFormatHint: format)
-            guard reader.canAdd(audioOutput), writer.canAdd(audioInput) else { throw HydroError.unsupported }
+            guard reader.canAdd(audioOutput), writer.canAdd(audioInput) else { throw UnderBlueError.unsupported }
             reader.add(audioOutput); writer.add(audioInput)
             audio.append((audioOutput, audioInput))
         }
         let end = CMTime(seconds: duration, preferredTimescale: timescale)
         reader.timeRange = CMTimeRange(start: .zero, end: end)
-        guard writer.startWriting() else { throw writer.error ?? HydroError.exportFailed }
+        guard writer.startWriting() else { throw writer.error ?? UnderBlueError.exportFailed }
         writer.startSession(atSourceTime: .zero)
-        guard reader.startReading() else { throw reader.error ?? HydroError.unreadable }
+        guard reader.startReading() else { throw reader.error ?? UnderBlueError.unreadable }
         let loopStartedAt = Date()
         var videoDone = false
         var audioDone = Set<Int>()
@@ -120,19 +120,19 @@ actor VideoExporter {
         while !videoDone || audioDone.count < audio.count {
             try Task.checkCancellation()
             if frames % 30 == 0, ProcessInfo.processInfo.thermalState == .critical { throw Failure(kind: .thermal, domain: "UnderBlue", code: 0) }
-            guard writer.status == .writing, reader.status != .failed else { throw writer.error ?? reader.error ?? HydroError.exportFailed }
+            guard writer.status == .writing, reader.status != .failed else { throw writer.error ?? reader.error ?? UnderBlueError.exportFailed }
             var advanced = false
             var destination: CVPixelBuffer?
             if !videoDone && input.isReadyForMoreMediaData {
-                guard let pool = adaptor.pixelBufferPool else { throw HydroError.exportFailed }
+                guard let pool = adaptor.pixelBufferPool else { throw UnderBlueError.exportFailed }
                 let allocation = CVPixelBufferPoolCreatePixelBufferWithAuxAttributes(nil, pool,
                     [kCVPixelBufferPoolAllocationThresholdKey: 6] as CFDictionary, &destination)
-                guard allocation == kCVReturnSuccess || allocation == kCVReturnWouldExceedAllocationThreshold else { throw HydroError.exportFailed }
+                guard allocation == kCVReturnSuccess || allocation == kCVReturnWouldExceedAllocationThreshold else { throw UnderBlueError.exportFailed }
             }
             if !videoDone && input.isReadyForMoreMediaData, let destination {
                 let frame: (CIImage, CMTime)? = try autoreleasepool {
                     guard let sample = output.copyNextSampleBuffer() else { videoDone = true; input.markAsFinished(); return nil }
-                    guard let buffer = CMSampleBufferGetImageBuffer(sample) else { throw HydroError.unreadable }
+                    guard let buffer = CMSampleBufferGetImageBuffer(sample) else { throw UnderBlueError.unreadable }
                     let time = CMSampleBufferGetPresentationTimeStamp(sample)
                     guard time < end else { videoDone = true; input.markAsFinished(); return nil }
                     let source = CIImage(cvPixelBuffer: buffer).transformed(by: toneMappedByComposition ? .identity : metadata.transform)
@@ -159,7 +159,7 @@ actor VideoExporter {
                     } else { corrected = fallback }
                     engine.context.render(corrected, to: destination, bounds: CGRect(origin: .zero, size: size),
                                           colorSpace: VideoColorPipeline.colorSpace(hdr: hdr, pq: metadata.dynamicRange == .pq))
-                    guard adaptor.append(destination, withPresentationTime: frame.1) else { throw writer.error ?? HydroError.exportFailed }
+                    guard adaptor.append(destination, withPresentationTime: frame.1) else { throw writer.error ?? UnderBlueError.exportFailed }
                     frames += 1
                     if frames.isMultiple(of: 300) { engine.context.clearCaches() }
                 }
@@ -173,7 +173,7 @@ actor VideoExporter {
                 try autoreleasepool {
                     if let sample = pair.0.copyNextSampleBuffer() {
                         if CMSampleBufferGetNumSamples(sample) > 0 {
-                            guard pair.1.append(sample) else { throw writer.error ?? HydroError.exportFailed }
+                            guard pair.1.append(sample) else { throw writer.error ?? UnderBlueError.exportFailed }
                         }
                     } else { pair.1.markAsFinished(); audioDone.insert(index) }
                 }
@@ -181,17 +181,17 @@ actor VideoExporter {
             }
             if advanced { lastActivity = Date() }
             else {
-                guard Date().timeIntervalSince(lastActivity) < 30 else { throw HydroError.exportFailed }
+                guard Date().timeIntervalSince(lastActivity) < 30 else { throw UnderBlueError.exportFailed }
                 try await Task.sleep(for: .milliseconds(2))
             }
         }
         let frameLoopSeconds = Date().timeIntervalSince(loopStartedAt)
         try Task.checkCancellation()
-        guard frames > 0, reader.status != .failed else { throw reader.error ?? HydroError.unreadable }
+        guard frames > 0, reader.status != .failed else { throw reader.error ?? UnderBlueError.unreadable }
         writer.endSession(atSourceTime: end)
         await writer.finishWriting()
         try Task.checkCancellation()
-        guard writer.status == .completed else { throw writer.error ?? HydroError.exportFailed }
+        guard writer.status == .completed else { throw writer.error ?? UnderBlueError.exportFailed }
         let result = try await OutputValidator().validate(target, source: metadata, options: options, expectedFrames: frames)
         await progress(1)
         #if DEBUG

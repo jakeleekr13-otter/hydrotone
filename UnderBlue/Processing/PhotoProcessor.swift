@@ -39,7 +39,7 @@ actor PhotoProcessor {
     func open(_ url: URL) throws -> CIImage {
         if UTType(filenameExtension: url.pathExtension)?.conforms(to: .rawImage) == true { return try openRAW(url) }
         guard let image = CIImage(contentsOf: url, options: [.applyOrientationProperty: true, .expandToHDR: true]),
-              image.extent.width > 0, image.extent.height > 0 else { throw HydroError.unreadable }
+              image.extent.width > 0, image.extent.height > 0 else { throw UnderBlueError.unreadable }
         return image
     }
     /// Camera RAW needs CIRAWFilter. On iOS, CIImage(contentsOf:) returned only the small embedded
@@ -47,7 +47,7 @@ actor PhotoProcessor {
     /// SDR rendering, upright. A RAW this device can't decode is reported as unsupported, not exported small.
     private func openRAW(_ url: URL) throws -> CIImage {
         guard let image = CIRAWFilter(imageURL: url)?.outputImage, image.extent.width > 0, image.extent.height > 0 else {
-            throw HydroError.unsupported
+            throw UnderBlueError.unsupported
         }
         return image
     }
@@ -62,7 +62,7 @@ actor PhotoProcessor {
         let ratio = min(1, maxPixel / max(source.extent.width, source.extent.height))
         let small = source.transformed(by: CGAffineTransform(scaleX: ratio, y: ratio))
         let result = original ? small : processed(small, settings: settings, plan: plan)
-        guard let rendered = engine.context.createCGImage(result, from: result.extent, format: .RGBA8, colorSpace: FilterEngine.photoSpace) else { throw HydroError.unreadable }
+        guard let rendered = engine.context.createCGImage(result, from: result.extent, format: .RGBA8, colorSpace: FilterEngine.photoSpace) else { throw UnderBlueError.unreadable }
         return rendered
     }
     /// Headroom above SDR white. Above 1, the photo can export as HDR. RAW opens as SDR.
@@ -82,7 +82,7 @@ actor PhotoProcessor {
         // The SDR image in the file is the normal export. The HDR version (PhotoHDR) becomes its gain map.
         var hdr: CIImage?
         if keepHDR, original.contentHeadroom > 1 {
-            guard let expanded = photoHDR.reexpand(image, original: original, toneMapped: source) else { throw HydroError.exportFailed }
+            guard let expanded = photoHDR.reexpand(image, original: original, toneMapped: source) else { throw UnderBlueError.exportFailed }
             hdr = expanded
         }
         let target = try TemporaryFiles.makeURL(extension: format.fileExtension)
@@ -112,11 +112,11 @@ actor PhotoProcessor {
               let decoded = CGImageSourceCreateImageAtIndex(file, 0, nil),
               decoded.width == Int(size.width.rounded()), decoded.height == Int(size.height.rounded()),
               format == .jpeg || (CGImageSourceCopyPropertiesAtIndex(file, 0, nil) as? [CFString: Any])?[kCGImagePropertyDepth] as? Int == 10
-        else { throw HydroError.invalidOutput }
+        else { throw UnderBlueError.invalidOutput }
         guard hdr else { return }
         guard CGImageSourceCopyAuxiliaryDataInfoAtIndex(file, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil,
               let expanded = CIImage(contentsOf: url, options: [.expandToHDR: true]), expanded.contentHeadroom > 1
-        else { throw HydroError.invalidOutput }
+        else { throw UnderBlueError.invalidOutput }
     }
 
     /// Orientation is baked into the pixels. Only the capture dates are kept: no stale thumbnails,

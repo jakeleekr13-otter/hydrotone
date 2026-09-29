@@ -116,7 +116,7 @@ scripts/color-eval/run_eval.sh m5-final2-holdout-20260929 holdout:40
 결과 루트는 `${TMPDIR}/underblue-color-eval`이다. 개발 이미지와 생성 결과는 앱/테스트
 번들에 추가하지 않았다. 최종 m5 폴더의 `render/m5_comparison.png`, `m5__combined.png`,
 `m5_regions.png`, `m5_metrics.json` 및 상위 `report.txt`, `m5.log`에 근거를 남겼다.
-빌드 로그는 `/tmp/hydrotone-m5-build.log`이다.
+빌드 로그는 로컬 `/tmp` 임시 파일에 남겼다.
 
 후속 작업은 산호의 남은 청록색과 포화된 밝은 패치, 일정 깊이 경로의 모래/암부를
 해결하는 것이다. 전체 휘도 계수 교체, 물 hue 정책 변경, plan confidence 재설계,

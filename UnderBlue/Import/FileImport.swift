@@ -27,7 +27,7 @@ enum FileImport {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let type = (try? url.resourceValues(forKeys: [.contentTypeKey]).contentType) ?? UTType(filenameExtension: url.pathExtension)
-        guard let kind = kind(of: type) else { throw HydroError.unsupported }
+        guard let kind = kind(of: type) else { throw UnderBlueError.unsupported }
         var copied: Result<URL, Error>?
         var coordination: NSError?
         // A coordinated read downloads an iCloud Drive file that is not on the iPhone yet.
@@ -35,7 +35,7 @@ enum FileImport {
             copied = Result { try TemporaryFiles.copyImport(readable) }
         }
         if let coordination { throw coordination }
-        guard let copied else { throw HydroError.unreadable }
+        guard let copied else { throw UnderBlueError.unreadable }
         return ImportedMedia(url: try copied.get(), kind: kind, originalName: url.lastPathComponent)
     }
 

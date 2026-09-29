@@ -19,5 +19,5 @@ for n in 1 2 3 4 5; do
     ln -s $DATA/A$n.* $REF/p$n.jpg
 done
 ( cd $O && HT_EVAL_MAXDIM=960 HT_EVAL_LOG=1 ./eval $RAW $REF aqua.csv all sheet > aqua.log 2>&1 )
-python3 $HERE/aquacolorfix_benchmark.py --hydro-files "$O/sheet/p{n}__combined.jpg" --label "$1" --output $O/bench | grep "^$1:"
-python3 $HERE/aquacolorfix_benchmark.py --hydro-files "$O/sheet/p{n}__uniform.jpg" --label "$1-uniform" --output $O/bench-uniform | grep "^$1-uniform:"
+python3 $HERE/aquacolorfix_benchmark.py --underblue-files "$O/sheet/p{n}__combined.jpg" --label "$1" --output $O/bench | grep "^$1:"
+python3 $HERE/aquacolorfix_benchmark.py --underblue-files "$O/sheet/p{n}__uniform.jpg" --label "$1-uniform" --output $O/bench-uniform | grep "^$1-uniform:"

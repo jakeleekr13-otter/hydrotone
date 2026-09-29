@@ -31,7 +31,7 @@ final class Reader {
     let output: AVAssetReaderTrackOutput
     init(_ path: String, format: OSType, start: Double, seconds: Double, size: (Int, Int)? = nil) async throws {
         let asset = AVURLAsset(url: URL(fileURLWithPath: path))
-        guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw HydroBenchError.noTrack }
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw BenchError.noTrack }
         reader = try AVAssetReader(asset: asset)
         var settings: [String: Any] = [kCVPixelBufferPixelFormatTypeKey as String: format,
                                        kCVPixelBufferIOSurfacePropertiesKey as String: [:]]
@@ -41,7 +41,7 @@ final class Reader {
         reader.add(output)
         reader.timeRange = CMTimeRange(start: CMTime(seconds: start, preferredTimescale: 60000),
                                        duration: CMTime(seconds: seconds, preferredTimescale: 60000))
-        guard reader.startReading() else { throw reader.error ?? HydroBenchError.start }
+        guard reader.startReading() else { throw reader.error ?? BenchError.start }
     }
     func next() -> (CVPixelBuffer, CMTime)? {
         while let sample = output.copyNextSampleBuffer() {
@@ -51,7 +51,7 @@ final class Reader {
     }
 }
 
-enum HydroBenchError: Error { case noTrack, start, transfer }
+enum BenchError: Error { case noTrack, start, transfer }
 
 /// Exact luma through VTPixelTransferSession into plain 420v / x420, in 8-bit code values (10-bit divided by 4).
 final class Luma {
@@ -70,7 +70,7 @@ final class Luma {
         self.tenBit = tenBit; w = width; h = height
     }
     func plain(_ buffer: CVPixelBuffer) throws -> CVPixelBuffer {
-        guard VTPixelTransferSessionTransferImage(session, from: buffer, to: target) == noErr else { throw HydroBenchError.transfer }
+        guard VTPixelTransferSessionTransferImage(session, from: buffer, to: target) == noErr else { throw BenchError.transfer }
         return target
     }
     func read(_ buffer: CVPixelBuffer) throws -> [Float] {
@@ -314,7 +314,7 @@ func quality(_ name: String, path: String, tag: String) async throws -> ClipResu
     var result = ClipResult(name: name)
     let format = TemporalDenoiser.sourcePixelFormat(hdr: false)
     let reader = try await Reader(path, format: format, start: 0, seconds: clipSeconds)
-    guard let first = reader.next() else { throw HydroBenchError.start }
+    guard let first = reader.next() else { throw BenchError.start }
     let w = CVPixelBufferGetWidth(first.0), h = CVPixelBufferGetHeight(first.0)
     let luma = Luma(width: w, height: h, tenBit: false)
     let denoisers = strengths.compactMap { TemporalDenoiser(width: w, height: h, hdr: false, strength: $0) }
@@ -399,7 +399,7 @@ func independentDecodeCheck(_ path: String, hdr: Bool, frameIndex: Int) async th
     let a = try await Reader(path, format: TemporalDenoiser.sourcePixelFormat(hdr: hdr), start: 0, seconds: clipSeconds)
     let b = try await Reader(path, format: hdr ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, start: 0, seconds: clipSeconds)
     for _ in 0..<frameIndex { _ = a.next(); _ = b.next() }
-    guard let fa = a.next(), let fb = b.next(), fa.1 == fb.1 else { throw HydroBenchError.start }
+    guard let fa = a.next(), let fb = b.next(), fa.1 == fb.1 else { throw BenchError.start }
     return meanAbs(render(fa.0), render(fb.0))
 }
 

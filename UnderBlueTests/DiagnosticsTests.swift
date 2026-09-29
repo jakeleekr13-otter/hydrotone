@@ -40,7 +40,7 @@ final class DiagnosticsTests: XCTestCase {
         do {
             let _: String = try await SafeReadRetry(maximumAttempts: 3).run(operation: .inspection) {
                 permanent.increment()
-                throw HydroError.unsupported
+                throw UnderBlueError.unsupported
             }
             XCTFail("Permanent failure unexpectedly succeeded")
         } catch { XCTAssertEqual(permanent.count, 1) }

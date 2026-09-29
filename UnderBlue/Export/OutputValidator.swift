@@ -7,7 +7,7 @@ struct OutputValidator {
     #endif
 
     /// The error for a failed check. DEBUG builds log which check failed and its values.
-    private func rejected(_ check: String) -> HydroError {
+    private func rejected(_ check: String) -> UnderBlueError {
         #if DEBUG
         Self.logger.error("export rejected: \(check, privacy: .public)")
         #endif

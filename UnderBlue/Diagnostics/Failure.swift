@@ -71,9 +71,9 @@ struct Failure: Error, Codable, Sendable, Equatable {
     static func classify(_ error: Error, operation: Operation) -> Self {
         if let failure = error as? Self { return failure }
         if error is CancellationError { return Self(kind: .cancelled, domain: "Swift", code: 0) }
-        if let hydro = error as? HydroError {
+        if let appError = error as? UnderBlueError {
             let kind: Kind
-            switch hydro {
+            switch appError {
             case .unreadable: kind = .unreadable
             case .unsupported: kind = .unsupported
             case .exportFailed: kind = .exportFailed
@@ -144,6 +144,6 @@ struct SafeReadRetry {
                 try await Task.sleep(for: .milliseconds(250 * attempt))
             }
         }
-        throw HydroError.unreadable
+        throw UnderBlueError.unreadable
     }
 }

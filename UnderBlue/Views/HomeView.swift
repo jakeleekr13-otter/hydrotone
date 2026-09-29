@@ -141,7 +141,7 @@ struct HomeView: View {
         loading = true
         defer { loading = false }
         guard let shared = await FileImport.takeShared() else { return }
-        let failure = shared.failed > 0 ? Failure.classify(HydroError.unreadable, operation: .importing) : nil
+        let failure = shared.failed > 0 ? Failure.classify(UnderBlueError.unreadable, operation: .importing) : nil
         if let failure { await diagnostics.recorder.record(failure, operation: .importing) }
         finish(shared.media, selected: shared.media.count + shared.failed, firstFailure: failure)
     }

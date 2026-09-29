@@ -20,11 +20,11 @@ struct VideoMetadata: Sendable {
 struct MediaInspector {
     func inspect(_ url: URL) async throws -> VideoMetadata {
         let asset = AVURLAsset(url: url)
-        guard try await asset.load(.isReadable), let track = try await asset.loadTracks(withMediaType: .video).first else { throw HydroError.unreadable }
+        guard try await asset.load(.isReadable), let track = try await asset.loadTracks(withMediaType: .video).first else { throw UnderBlueError.unreadable }
         let (size, transform, rate, formats) = try await track.load(.naturalSize, .preferredTransform, .nominalFrameRate, .formatDescriptions)
-        guard let format = formats.first else { throw HydroError.unsupported }
+        guard let format = formats.first else { throw UnderBlueError.unsupported }
         let duration = try await asset.load(.duration).seconds
-        guard duration.isFinite, duration > 0, size.width > 0, size.height > 0 else { throw HydroError.unreadable }
+        guard duration.isFinite, duration > 0, size.width > 0, size.height > 0 else { throw UnderBlueError.unreadable }
         let extensions = (CMFormatDescriptionGetExtensions(format) as NSDictionary?) ?? [:]
         let transfer = extensions[kCMFormatDescriptionExtension_TransferFunction] as? String
         let primaries = extensions[kCMFormatDescriptionExtension_ColorPrimaries] as? String

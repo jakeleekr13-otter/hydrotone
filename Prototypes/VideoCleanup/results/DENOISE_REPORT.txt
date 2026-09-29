@@ -1,9 +1,9 @@
 I wrote and benchmarked the denoiser. On this Mac (Apple M3, 16 GB, macOS 27.0) the hardware filter is supported and runs on every frame. At 1080p it runs at 135–168 fps. I recommend strength 0.5. REPORT.md was not written: the harness refused to let me create report files, so the full report is below.
 
 Files:
-- /private/tmp/claude-501/-Users-jakelee-personal-project-hydrotone/00feba6b-8486-4e3c-b73e-1e43d1047e14/scratchpad/denoise/TemporalDenoiser.swift
-- /private/tmp/claude-501/-Users-jakelee-personal-project-hydrotone/00feba6b-8486-4e3c-b73e-1e43d1047e14/scratchpad/denoise/bench.swift (build steps at the top)
-- /private/tmp/claude-501/-Users-jakelee-personal-project-hydrotone/00feba6b-8486-4e3c-b73e-1e43d1047e14/scratchpad/denoise/crops/ (12 detail PNGs and 3 grid PNGs)
+- <session scratchpad>/denoise/TemporalDenoiser.swift
+- <session scratchpad>/denoise/bench.swift (build steps at the top)
+- <session scratchpad>/denoise/crops/ (12 detail PNGs and 3 grid PNGs)
 - Logs in the same folder: run_all.log (run 2), clip1.log, clip2_anemone.log, clip3_school.log, hdr.log (run 1)
 - Checks in the same folder: check/UseInActor.swift, check/edge/main.swift, check/bgra/main.swift
 

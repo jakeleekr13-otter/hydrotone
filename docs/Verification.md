@@ -115,7 +115,7 @@ Still open, on the iPhone:
 ## Renamed to UnderBlue (28 Sep 2026)
 
 The app was never uploaded, so the name and every ID changed:
-- HydroTone: HYDRO TONE is a live US trademark for aquatic exercise gear (reg 1550289, class 28).
+- The first working name: it is a live US trademark for aquatic exercise gear (reg 1550289, class 28).
 - MarineLens: a live iPhone app already uses that exact name (NEXASPHERE INC., id 6772336245).
 - UnderBlue: the iTunes Search API returned 0 results for "underblue" in the US, KR, JP and GB stores.
 
@@ -129,7 +129,7 @@ Checked:
 Still open:
 - Trademark search for UNDERBLUE: USPTO, KIPRIS, EUIPO. These could not be searched from here.
 - Create the app record in App Store Connect early, so the name is held.
-- On the iPhone, the new bundle ID installs as a new app. Check that the home screen and share sheet show UnderBlue. Delete the old HydroTone app.
+- On the iPhone, the new bundle ID installs as a new app. Check that the home screen and share sheet show UnderBlue. Delete the app installed under the old bundle ID.
 - The new App Group and app IDs get registered on the first device build with automatic signing.
 - The screenshot source captures still show the old colour output. Capture them again after colour tuning ends.
 - `scripts/generate_localizations.py` is stale. Its output differs from the catalog by about 6,000 lines. Do not run it.

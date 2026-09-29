@@ -6,8 +6,8 @@ final class TrialTests: XCTestCase {
     final class MemoryPersistence: TrialPersistence {
         var value = TrialState()
         var fail = false
-        func read() throws -> TrialState { if fail { throw HydroError.trialUnavailable }; return value }
-        func write(_ state: TrialState) throws { if fail { throw HydroError.trialUnavailable }; value = state }
+        func read() throws -> TrialState { if fail { throw UnderBlueError.trialUnavailable }; return value }
+        func write(_ state: TrialState) throws { if fail { throw UnderBlueError.trialUnavailable }; value = state }
     }
     func testExactlyOnePhotoAndOneTenSecondVideoWithRollback() throws {
         let persistence = MemoryPersistence()
