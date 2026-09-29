@@ -526,11 +526,14 @@ Limits:
 - Near subjects on the constant-depth video path go darker and greener. `keepBlueFamily` covers only blue-family pixels.
 - On an iPhone 17 (iOS 27.0), both kernel/CPU-mirror tests and the two device-only depth tests pass (4 test suites, 65 tests, 0 failures). One depth inference took 22 ms. Full video export speed on an iPhone is unmeasured.
 - Mood grades like m3 are out of scope for automatic correction.
-- m5 stays brighter than Sea-thru: mean L* 46.7 at HEAD against 36.4 (58.3 at `6fd84cf`). Its original is already bright (60.1).
+- m5 still differs from Sea-thru after the 29 Sep reference-adaptation change. At 640 px the latest
+  scorecard reports mean L* 38.7 against 36.4; at the source-resolution PNG evaluation the whole-image
+  CIE76 improved from 19.71 to 17.25. Do not compare those values across harness resolutions.
 - On m6 the reef under the manta is olive-green (photo path) or yellow-green (video path). On Sea-thru it is brown.
 - The detail layer has one strength for every scene. Pairs 1 and 4 now carry more fine-detail energy than AquaColorFix (9.4 and 8.6 against 6.7 and 7.7): their sources are busier. A source-detail measurement in the analysis could set the strength per scene; it is not built.
 - Against AquaColorFix: pair 2's fish keeps a faint green-yellow tint (chroma about 0.02) and is about 10 L* brighter. The darker half of pair 4's manta keeps some mint. Pair 5's fish school is pale cyan where AquaColorFix has it warm. Pairs 4 and 5 stay 4 to 6 L* brighter in the mid-tones.
-- The neutral-surface residual is now green-yellow instead of cyan, and the chart grey row's chroma rose to 0.063 (see the scorecard).
+- The m5 chart and sand improved overall, but individual bright chart patches still regress. The
+  source-resolution panel result and its limitations are in [the m5 evaluation](M5ColorEvaluation.md).
 - Market m2 is darker than its target since the 28 Sep 2026 tuning.
 - The white reference on real video is unmeasured. The harness has no video; only unit tests cover the averaging.
 - The highlight shoulder on HDR export is unmeasured. It reads its peak in BT.709, so saturated Display P3 colours are held a little lower than P3 needs.
@@ -543,7 +546,9 @@ Limits:
 
 ## Open problems and next tasks
 
-Status on 28 Sep 2026, HEAD `b4594ab`.
+Status reviewed on 29 Sep 2026. Historical measurements below name their original date/commit;
+current m5 and wider reference results are in [M5ColorEvaluation.md](M5ColorEvaluation.md) and
+[AdditionalReferenceReview.md](AdditionalReferenceReview.md).
 
 ### Reported by the product owner
 
@@ -551,10 +556,10 @@ The product owner still sees these four problems by eye on current outputs (28 S
 
 | Symptom | Related measurements so far | At HEAD |
 |---|---|---|
-| Green cast is made stronger | Neutral-surface residual turned green-yellow (hue 126 to 173) at the tuning commit. m6 reef under the manta is olive-green. The O3 belly was green (OKLab hue 150) until `9a92ca5`. | unmeasured |
+| Green cast is made stronger | Neutral-surface residual turned green-yellow (hue 126 to 173) at the tuning commit. m6 reef under the manta is olive-green. Sea-thru 03–05 and 07–08 still retain cyan/green subjects. | visible in the additional reference review; no subject-mask gate yet |
 | Violet appears | Deep Dive turns 12.1% of r11's pixels lavender. The violet band near the sun (IMG_7287) was fixed in `29f677d`. | unmeasured; the images are not collected yet |
-| Colours are flat: everything comes out beige | On 8682 the target has 9.6% warm pixels, ours had 0% (28 Sep 2026, at `c092902`). Pair 5's fish school is pale cyan where AquaColorFix has it warm. | unmeasured |
-| Strong noise | O3 colour noise after luminance-only sharpening: flat water 1.28 against AquaColorFix 0.96, fish 3.29 against 1.81. The detail layer adds grain to bright open water; its cause is unmeasured. No step removes noise before the sharpening. | unmeasured |
+| Colours are flat: everything comes out beige | On 8682 the target has 9.6% warm pixels, ours had 0% (28 Sep 2026, at `c092902`). Aqua 02 and 05 and Sea-thru 03 still lack warm subject colours. | visible and paired; no general warm-subject metric yet |
+| Strong noise | O3 colour noise after luminance-only sharpening: flat water 1.28 against AquaColorFix 0.96, fish 3.29 against 1.81. The 29 Sep adapted contribution now denoises before its channel gains; other contributions do not. | m5 flat-region proxy measured; O3 and general pipeline still unresolved |
 
 ### Found in the 28 Sep 2026 review
 
@@ -565,12 +570,18 @@ All measured at HEAD. The numbers are in the [scorecard](#current-scorecard) and
 3. **Plan confidence is nearly flat.** It is 0.62 to 0.68 on 80% of the holdout. So "a low-confidence fit gives `current`" almost never acts.
 4. **`contrast` and `brightness` are a linear gain and a black offset.** Their names do not say so, and two filters nearly cancel each other on dark scenes.
 5. **The luminance weights do not match the working space.** `ColorCorrection.luma`, `FilterEngine.analyze`, the finishing kernels and `WaterModelEstimator` use BT.709 weights (0.2126, 0.7152, 0.0722). The working space is linear Rec. 2020, whose weights are (0.2627, 0.6780, 0.0593). `lab`, `oklab` and `PhotoHDR` use the Rec. 2020 weights. On the pair 1 water colour the difference is about 6%; red is under-weighted by 19%.
-6. **Sharpening runs without noise removal.** This breaks the product rule on order (see [Purpose and product rules](#purpose-and-product-rules)).
+6. **Most sharpening inputs still have no noise removal.** The 29 Sep bright-scene adapted
+   contribution denoises before its channel gains, but this is not a general pre-colour or temporal
+   denoiser. The product-order problem remains for the rest of the pipeline.
 7. **The veil offset rests on one image.** Its evidence is m5 alone. Only gate pair 4 has a median luminance of 0.2 or more (0.21), and it is teal (`waterType` 0.57), so its offset is tiny. The code comment says "median 0.2 to 0.3", but the full offset also applies above 0.3.
 
 ### Tasks, in order
 
 1. **Make each reported symptom measurable.**
+   - Partial on 29 Sep: m5 now has source-resolution PNG regions for its 18 panel patches, sand,
+     coral and water, plus black-share and high-pass colour-residual proxies. Sea-thru 8 pairs and
+     AquaColorFix 5 pairs were reviewed. This does not yet provide the four general subject masks
+     and metrics below, so the task remains open.
    - Collect the images that show each symptom from the product owner. Keep them in `DeveloperMedia/`, never under `UnderBlueTests/`.
    - Add one number per symptom to `aquacolorfix_eval.sh`:
      - green cast: share of subject pixels (not water-like) with OKLab hue 110 to 170 and chroma 0.03 or more
@@ -586,4 +597,7 @@ All measured at HEAD. The numbers are in the [scorecard](#current-scorecard) and
 5. **Confidence.** Make plan and depth confidence follow the real fit quality. Or state that the weight is a fixed 0.66.
 6. **Explainable tone values.** Replace `CIColorControls` contrast and brightness with a named gain and a named black offset. Move `luma` to the Rec. 2020 weights. Both need a retune, so do them after tasks 1 to 4.
 7. **A second look set.** Add images that no tuning step used, scored against the product look, as a holdout for the gate.
+   - Partial on 29 Sep: UIEB holdout:40 was run after freezing the candidate, and the separate
+     Sea-thru set exposed weak generalization. Sea-thru needs registration and caption/border masks
+     before it can become a quantitative gate; duplicated scenes must not be counted independently.
 8. **Carried over.** Particle removal before colour correction; deblur after it. Measure the full video export speed on an iPhone once the algorithm is done.

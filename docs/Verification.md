@@ -4,7 +4,8 @@ This page lists the checks that are still open. The product owner decided to fin
 
 ## Open work (do first)
 
-- **Done (29 Sep 2026): the three built-in presets look almost the same.** Jake checked the tuned presets (`8b9f278`) on the iPhone and accepted them. The product owner found this on the iPhone on 25 Sep 2026. The preset tuning (`e02c19e`) made each preset match its name, but it kept the changes small to stay inside the guards. Next: make Natural, Tropical and Deep Dive clearly different at the default intensity, then check them with the other presets items below.
+- **Done (29 Sep 2026): distinguish the three built-in presets.** Jake checked the tuned presets
+  (`8b9f278`) on the iPhone and accepted them. This closes the issue first reported on 25 Sep 2026.
   - 29 Sep 2026, tuned: Tropical moves 5.4 from Natural (was 4.0), Deep Dive 5.2 (was 3.2), median CIE76 on 26 images. Natural Dive is unchanged (pin test). Values and rejected tries: [ColorAlgorithm](ColorAlgorithm.md).
   - 29 Sep 2026, before tuning: Jake sees a slight difference on the iPhone. The code reads every preset value in `ColorCorrection.make`. Tropical adds 600 K warmth, which is scaled down when the colour cast is weak, and more saturation, which is scaled down in neon water. Deep Dive adds +0.10 shadow lift, 0.85× water chroma and more clarity. The vibrance difference is almost zero on the test scenes: Natural's final vibrance is 0.005. The Tropical and Deep Dive tests in `PresetTests` pass.
 - **Natural pin regenerated (29 Sep 2026).** `edcc663` added `referenceGains` and `referenceStrength` (bright-scene white reference) without updating the pin. No existing value moved; the step is active on 3 of the 18 fixtures. Jake chose to keep `edcc663`, so the pin now includes it.
@@ -17,6 +18,7 @@ This page lists the checks that are still open. The product owner decided to fin
 | `13ffbee` | Custom user preset: five saved sliders for photo, batch and video |
 | `e02c19e` | Tropical and Deep Dive tuned to match their names |
 | `7651372` | Custom Saturation and Temperature made visible (wider ranges) |
+| `8b9f278` | Tropical and Deep Dive made clearly distinct from Natural Dive; accepted on iPhone in `7b1a015` |
 
 ## Long-video notice (28 Sep 2026)
 
@@ -91,12 +93,20 @@ JPEG now saves at quality 1. 10-bit HEIC is a new choice. PhotoFormatTests, Phot
 - **Sharing a HEIC out.** Send one to a non-Apple app, such as a messenger. Record whether it arrives as HEIC or JPEG.
 - **Size, time and memory on the iPhone.** Export a 20 MP ARW and a 48 MP iPhone photo in both formats. Record file size and export time, and watch for memory warnings. The Mac sizes are in [Architecture](Architecture.md).
 
-## Colour tuning against AquaColorFix (28 Sep 2026)
+## Colour tuning and m5 reference adaptation (29 Sep 2026)
 
-The colour rules changed to move toward the AquaColorFix look ([benchmark](AquaColorFixBenchmark.md)). Run again before release:
+The colour rules first changed to move toward the AquaColorFix look
+([benchmark](AquaColorFixBenchmark.md)), then gained a bright-scene reference adaptation for m5.
+Static results and known regressions are in [M5ColorEvaluation](M5ColorEvaluation.md) and
+[AdditionalReferenceReview](AdditionalReferenceReview.md). Run the remaining checks before release:
 
-- **Holdout.** Not run after this change. The last value (20.12 combined, 20.10 uniform) is from `6fd84cf`.
-- **Presets on the new colour.** Tropical and Deep Dive were not re-checked. The Natural Dive pin in `PresetTests` was regenerated; that is the product change.
+- **Holdout.** Run after the final 29 Sep static candidate: 20.3411 combined and 20.3539 uniform,
+  against 20.4373 and 20.4364 from the pre-change source snapshot. The mean improved, but
+  `144_img_.png` regressed by 1.53 on uniform; this is not an unconditional pass.
+- **Presets on the new colour.** Done on 29 Sep: Jake checked and accepted the tuned Natural,
+  Tropical and Deep Dive presets on the iPhone (`8b9f278`, recorded by `7b1a015`). The Natural Dive
+  pin was regenerated for the reference-adaptation values. Repeat this check only if colour or
+  preset values change again.
 - **Market pairs by eye.** m1 and m4 lost about 1.5 ΔE against their targets and m2 lost 3.9 (its mid-tones are darker than the target). The AquaColorFix gate gained 8.2. Decide by eye which look the product wants on m2 (a dark, murky turtle scene).
 - **Custom sliders.** The tone values under the sliders changed (shadow lift, highlight compression). Re-measure the caps in `CustomAdjustments.Caps`.
 - **Real video.** The subject light removal and the trusted blue reference were not seen on video. Watch a bright fish or diver against blue water for a warm flicker.
@@ -143,15 +153,19 @@ Still open:
 
 ## Final round checklist
 
-1. **Colour scorecard.** Run `scripts/color-eval/tune_eval.sh <name>`. Check every guard in [the harness README](../scripts/color-eval/README.md#guards-used-for-tuning).
-2. **Holdout, once.** Run `scripts/color-eval/run_eval.sh <name>-holdout holdout:40`. The last value was 20.12 (combined) and 20.10 (uniform) at `6fd84cf`. It was not run after that.
+1. **Colour scorecard.** The 29 Sep candidate was run as `m5-final2-dev-20260929`; rerun if any
+   colour source changes. Check every guard in [the harness README](../scripts/color-eval/README.md#guards-used-for-tuning),
+   including individual regressions that an improved mean can hide.
+2. **Holdout, once per final candidate.** The 29 Sep final static candidate was checked once:
+   20.3411 combined and 20.3539 uniform. If the implementation changes again, treat that as a new
+   candidate and run a fresh holdout only after tuning is frozen.
 3. **Presets.** The tuning round checked each preset at intensity 0.8, on photos only:
    - Tropical on shallow, bright scenes: r03, r08, r10, m5
    - Deep Dive on deep, dark-blue scenes: r02, r09, r11, r12, r13
    - Still to check:
      - UIEB dev and holdout for Tropical and Deep Dive
      - intensity values other than 0.8
-     - by eye: do the presets differ enough to match their names? The differences are small.
+     - by eye: done on 29 Sep; the three presets were distinct enough to match their names and accepted on iPhone
      - Deep Dive's lavender sea fans on r11, and Tropical's peach sun core on r10
 4. **Custom slider ranges.** The caps in `CustomAdjustments.Caps` were measured before the white reference and the highlight shoulder. Measure them again on the current code:
    - all five sliders at -1 and +1, at full strength

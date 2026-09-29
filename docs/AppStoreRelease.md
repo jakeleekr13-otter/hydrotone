@@ -1,6 +1,23 @@
 # App Store release checklist
 
-Last reviewed: 2026-09-25
+Last reviewed: 2026-09-29
+
+## Current release decision
+
+The current source colour pipeline changed after the last App Store Connect archive and screenshot capture.
+Do not submit the existing archive or the current `final-v2` screenshots as the final 1.0 assets.
+The change improves the m5 photo and its colour panel, but it does not yet pass every colour-quality
+criterion: several individual panel patches and evaluation images regress, Sea-thru subjects remain
+too cyan/bright, and the constant-depth video proxy still has sand/noise and shadow regressions.
+
+Evidence and scope are recorded in [the m5 evaluation](M5ColorEvaluation.md) and
+[the additional Sea-thru/AquaColorFix review](AdditionalReferenceReview.md). Before release, either:
+
+1. accept these documented limits as the 1.0 colour behavior, rerun the physical-device matrix and
+   capture a fresh archive and screenshots from exactly that source; or
+2. continue colour work, then repeat the same evaluation and release checks.
+
+An App Store Connect form being complete does not override this local release gate.
 
 ## Xcode configuration
 
@@ -80,7 +97,9 @@ If a diagnostic attachment is retained together with the sender's email address,
 
 ## Screenshots and promotional assets
 
-Five upload-ready English iPhone screenshots are in `AppStoreAssets/Screenshots/en-US/final-v2`. Each is a flattened 1320×2868 RGB JPEG without alpha.
+Five technically uploadable English iPhone screenshots are in `AppStoreAssets/Screenshots/en-US/final-v2`.
+Each is a flattened 1320×2868 RGB JPEG without alpha. Their corrected-image content predates the
+29 Sep colour-pipeline change, so recapture them after the final colour decision before submission.
 
 1. `01-before-after.jpg`
 2. `02-deep-dive.jpg`
@@ -109,7 +128,9 @@ The production price is USD 14.99 (Jake, 29 Sep 2026). The local StoreKit config
 
 ## Remaining App Store Connect work
 
-Jake reported on 29 Sep 2026 that every item except the screenshots is done in App Store Connect.
+Jake reported on 29 Sep 2026 that every App Store Connect item except the screenshots was done.
+Since then, the local colour source changed; the selected build and screenshots must therefore be
+replaced after the release decision above.
 
 - [x] Confirm that the `UnderBlue` name is available and create/verify the app record.
 - [x] Confirm the final SKU before creating the record; it cannot be changed afterward.
@@ -121,10 +142,11 @@ Jake reported on 29 Sep 2026 that every item except the screenshots is done in A
 - [x] Enter a reachable App Review contact name, email and international-format phone number.
 - [x] Create `com.underblue.pro`, choose its production price and tax category, and add its localisation.
 - [x] Capture and upload the real UnderBlue Pro purchase-screen review screenshot.
-- [ ] Upload the five iPhone screenshots.
+- [ ] Recapture and upload five iPhone screenshots from the accepted final colour source.
 - [x] Paste the prepared description, promotional text, keywords and App Review notes.
 - [x] Publish the App Privacy answers and verify the Product Page Preview.
-- [x] Upload and select a fresh archive built from the final source.
+- [ ] Upload and select a fresh archive built from the accepted final source. The previously selected
+  archive predates the current-source colour changes.
 - [x] Add both iOS app version 1.0 and UnderBlue Pro to the same draft submission.
 
 ## Before each upload
@@ -132,7 +154,9 @@ Jake reported on 29 Sep 2026 that every item except the screenshots is done in A
 1. Increase `CURRENT_PROJECT_VERSION` for every build previously uploaded to App Store Connect. Build `1` can be reused only if it has never been uploaded.
 2. Increase `MARKETING_VERSION` only when creating a new App Store version.
    Change both numbers in the `UnderBlue` **and** `UnderBlueShare` targets. A mismatch fails App Store validation.
-3. Run the physical-device matrices in `QA.md` and `VideoV2QA.md`.
+3. Run the physical-device matrices in `QA.md` and `VideoV2QA.md`. For the current colour candidate,
+   include m5, at least one Sea-thru-like bright reef, AquaColorFix-like yellow subjects, and a real
+   video with changing light. Confirm the photo result and actual video output, not only `uniform`.
 4. Select **Any iOS Device (arm64)**, then Product → Archive.
 5. In Organizer, run **Validate App** before **Distribute App**.
    Confirm the archive contains `PlugIns/UnderBlueShare.appex`, and that both profiles include the App Group.
@@ -143,9 +167,20 @@ Do not upload the existing local archive blindly: create a fresh archive after t
 
 ## Current local verification
 
-- iPhone device build: succeeded
-- App, unit-test and UI-test `build-for-testing`: succeeded
-- Full unit suite from the latest functional run: 44 tests executed, 0 failures, 2 physical-device-only Core ML tests skipped in Simulator
+- Generic iOS device Debug build with code signing disabled: succeeded on 29 Sep 2026 after the latest
+  colour changes. This proves compilation only; it is not a signed-device run or an archive validation.
+- Native macOS colour checks: 72 passed, covering Metal/CPU agreement, reference evidence,
+  Original/neutral preservation, colour separation, clipping protection and shadow-channel retention.
+- Built-in presets: the tuned Natural, Tropical and Deep Dive looks from `8b9f278` were checked and
+  accepted on an iPhone on 29 Sep 2026; `7b1a015` records that result. Recheck only if those values
+  or the shared colour pipeline change again.
+- Static image evaluation: m5 whole-image CIE76 19.71→17.25 and colour-panel mean 26.89→20.68.
+  UIEB dev and holdout means improved slightly; AquaColorFix gate improved slightly.
+- Known regressions remain: two m5 photo patches worsened by more than 1 CIE76; UIEB dev
+  `114_img_.png` worsened by 2.12 photo / 2.17 uniform, and holdout `144_img_.png` worsened by
+  1.53 uniform. Sea-thru generalization is not established.
+- App/unit/UI `build-for-testing` and the 44-test functional result belong to an earlier source state.
+  They must be rerun after the colour source is accepted. No simulator test was run for this colour task.
 - Supported-target build settings verified for Debug; the same settings are generated for Release
 
 ## Crash and diagnostics intake

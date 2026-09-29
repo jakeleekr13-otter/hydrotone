@@ -8,7 +8,9 @@
 
 **판정: 구현 후보와 평가는 완료했지만, 목표 이미지 재현 및 모든 품질 기준 통과는 미달이다.**
 전체·패널·모래의 색차는 개선됐다. 일부 밝은 패치와 산호의 색감은 추가 개선이 필요하다.
-시뮬레이터는 사용하지 않았다. 변경은 작업 트리에 있으며 배포하지 않았다.
+시뮬레이터는 사용하지 않았다. 구현은 현재 소스에 포함돼 있지만 App Store 배포 결과는 아니다.
+따라서 이 결과만으로 App Store 1.0 색상 동작을 승인하지 않는다. 릴리스 판단과 재검증
+조건은 [App Store release checklist](AppStoreRelease.md#current-release-decision)에 기록했다.
 
 ## 구현
 
@@ -29,7 +31,7 @@
 
 ## 평가 조건
 
-- 기준 코드: `eb0b7a4`의 Processing 소스 스냅샷. 후보: 이번 작업 트리.
+- 기준 코드: `eb0b7a4`의 Processing 소스 스냅샷. 후보: 현재 소스의 색상 구현.
 - Natural 기본값, intensity 0.8, 동일한 macOS Core Image/Core ML 실행 환경.
 - m5: 1600×1066 sRGB PNG. 전체 및 영역별 CIE76 평균 색차, 작을수록 목표에 가깝다.
 - 패널 점수는 18개 패치 점수의 동일 가중 평균이다. 기울어진 패널 내부만 샘플링하며
@@ -87,8 +89,8 @@ Photo 전체 색차는 약 12.5%, 패널은 23.1%, 모래는 42.0% 감소했다.
 
 Native 검증은 Metal/CPU 일치, 색공간 왕복, reference 증거, Original 유지,
 어두운/중립 장면 보호, 유색 채널 구분, 포화 보호, 어두운 채널 보존을 검사한다.
-빌드는 실제 앱과 영상 보간 코드를 포함한다. iOS XCTest/UI 테스트나 기기 실행을
-통과했다고 주장하지 않는다.
+빌드는 실제 앱과 영상 보간 코드를 포함한다. 서명을 끈 generic iOS device Debug 빌드이며,
+iOS XCTest/UI 테스트, 실제 기기 실행 또는 Archive Validate를 통과했다고 주장하지 않는다.
 
 Market 6장, 실제 촬영 15장, UIEB dev/holdout과 challenging 8장도 렌더링했다.
 Dev/holdout의 물 indigo/violet 분류 개수는 증가하지 않았다. 기존 녹색 물 처리 문제는

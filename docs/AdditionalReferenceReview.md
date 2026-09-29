@@ -3,7 +3,7 @@
 `DeveloperMedia/market/Sea_thru_before_after`의 before/after 8쌍과
 `DeveloperMedia/aquacolorfix`의 O/A 5쌍을 모두 확인했다.
 각 원본·현재 `combined` 결과·목표를 나란히 보고, Sea-thru 8장은 이전 코드
-`eb0b7a4`와 현재 작업 트리 양쪽으로 새로 렌더링했다. AquaColorFix는 동일한 현재 코드로
+`eb0b7a4`와 현재 소스 양쪽으로 새로 렌더링했다. AquaColorFix는 동일한 현재 코드로
 이미 실행한 `m5-final2-aqua-20260929` 결과를 사용했다. 시뮬레이터는 사용하지 않았다.
 
 **결론: m5 개선이 다양한 수중 장면의 자연스러운 색 복원으로 일반화됐다고 볼 수 없다.**
@@ -69,3 +69,6 @@ Photo에서 02·06만 의미 있게 바뀌고 나머지는 표시 정밀도에�
 - `render/`, `baseline/`: 원본 해상도 PNG와 JPEG
 
 추가 확인 결과는 [m5 구현 평가](M5ColorEvaluation.md)의 미달 판정을 유지한다.
+특히 이 세트는 1.0 릴리스 전에 “m5에서 좋아졌으므로 일반적으로 좋아졌다”는 판단을
+막는 holdout 역할을 한다. 현재 릴리스 상태는
+[App Store release checklist](AppStoreRelease.md#current-release-decision)를 따른다.
