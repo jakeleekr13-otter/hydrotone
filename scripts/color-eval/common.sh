@@ -1,6 +1,6 @@
 # Shared setup for the colour evaluation scripts (zsh). Source it; do not run it.
 # HT_EVAL_DATA     data root (UIEB, market pairs, real photos). Default: DeveloperMedia/ (git-ignored, outside every Xcode group).
-# HT_EVAL_SOURCES  folder with the colour sources (FilterEngine, FinishingKernels, FinishingMath, ColorCorrection,
+# HT_EVAL_SOURCES  folder with the colour sources (FilterEngine, MetalKernels, the .metal files, FinishingMath, ColorCorrection,
 #                  ColorMath, WaterAnalysis, FilterSettings, DivePreset), RestorationPlan, RestorationEngine,
 #                  WaterModelEstimator and DepthEstimator.
 # HT_EVAL_MARKET   market pairs (raw/, ref/). Default: $HT_EVAL_DATA/market.
@@ -17,7 +17,8 @@ UIEB=$HT_EVAL_DATA/samples/photo
 MODEL=$HT_EVAL_OUT/cache/DepthAnythingV2SmallF16P6.mlmodelc
 export HT_EVAL_DATA
 
-# build_eval <outDir>: compile the harness against HT_EVAL_SOURCES and link the depth model next to it.
+# build_eval <outDir>: compile the harness and the kernels (default.metallib) against HT_EVAL_SOURCES,
+# and link the depth model next to it.
 build_eval() {
     local out=${1:A}
     mkdir -p $out $HT_EVAL_OUT/cache
@@ -25,7 +26,8 @@ build_eval() {
         xcrun coremlcompiler compile $REPO/UnderBlue/Resources/Models/DepthAnythingV2SmallF16P6.mlpackage $HT_EVAL_OUT/cache > $HT_EVAL_OUT/cache/model.log 2>&1 || { echo "model compile failed"; return 1; }
     fi
     local src=${HT_EVAL_SOURCES:A}
-    swiftc -O -swift-version 6 -o $out/eval ${2:-$HERE/main.swift} $src/FilterEngine.swift $src/FinishingKernels.swift \
+    xcrun -sdk macosx metal -o $out/default.metallib $src/*.metal > $out/metal.log 2>&1 || { echo "kernel build failed, see $out/metal.log"; return 1; }
+    swiftc -O -swift-version 6 -o $out/eval ${2:-$HERE/main.swift} $src/FilterEngine.swift $src/MetalKernels.swift \
         $src/FinishingMath.swift $src/ColorCorrection.swift $src/ColorMath.swift $src/WaterAnalysis.swift \
         $src/FilterSettings.swift $src/DivePreset.swift $src/RestorationPlan.swift \
         $src/RestorationEngine.swift $src/WaterModelEstimator.swift $src/DepthEstimator.swift $HERE/PlanUniform.swift \
