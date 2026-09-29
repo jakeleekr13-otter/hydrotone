@@ -16,11 +16,12 @@
 
 UnderBlue brings believable colour and clarity back to underwater photos and videos.
 
-Choose a photo or video, select a simple look, adjust the intensity, and compare it with the original. Behind the scenes, UnderBlue uses depth-aware underwater restoration to reduce colour loss and backscatter while keeping the result natural and temporally stable.
+Choose a photo or video, pick a look, and compare it with the original. Adjust the look's intensity, or use Custom to set brightness, contrast, saturation, clarity and temperature yourself. Behind the scenes, UnderBlue uses depth-aware underwater restoration to reduce colour loss and backscatter while keeping the result natural and temporally stable.
 
 Features:
 
 • Natural Dive, Tropical and Deep Dive looks
+• Custom look with five adjustment sliders
 • Depth-aware photo and video restoration
 • Temporally stabilized video correction
 • Original-resolution and 4K video export with UnderBlue Pro
@@ -30,7 +31,7 @@ Features:
 • Original frame rate, timing, orientation and audio preservation
 • Fully on-device processing with no account or cloud upload
 
-Try one photo export and the first 10 seconds of one video for free. UnderBlue Pro is a one-time purchase that unlocks unlimited photos, full-length video, 4K and supported HDR export.
+Try one photo export and the first 10 seconds of one video for free. UnderBlue Pro is a one-time purchase that unlocks unlimited photos (up to 10 at a time), full-length video, 4K and supported HDR export.
 
 UnderBlue is designed for recreational diving memories. It is not a scientific colour-measurement or professional grading tool.
 
@@ -38,11 +39,12 @@ UnderBlue is designed for recreational diving memories. It is not a scientific c
 
 UnderBlue는 수중 사진과 영상에서 사라진 색과 선명함을 자연스럽게 되살립니다.
 
-사진이나 영상을 선택하고, 원하는 룩과 강도만 고른 뒤 원본과 비교하세요. 내부적으로는 깊이 인식 수중 복원 기술을 사용해 색 손실과 후방 산란을 줄이면서도 결과가 과장되거나 영상의 색이 흔들리지 않도록 처리합니다.
+사진이나 영상을 선택하고 원하는 룩을 고른 뒤 원본과 비교하세요. 룩의 강도를 조절하거나, ‘사용자’ 룩에서 밝기·대비·채도·선명도·색온도를 직접 맞출 수 있습니다. 내부적으로는 깊이 인식 수중 복원 기술을 사용해 색 손실과 후방 산란을 줄이면서도 결과가 과장되거나 영상의 색이 흔들리지 않도록 처리합니다.
 
 주요 기능:
 
-• Natural Dive, Tropical, Deep Dive 룩
+• 내추럴 다이브, 트로피컬, 딥 다이브 룩
+• 조절 슬라이더 5개를 갖춘 ‘사용자’ 룩
 • 깊이 인식 사진·영상 복원
 • 프레임마다 색이 깜빡이지 않는 안정적인 영상 보정
 • UnderBlue Pro에서 원본 해상도 및 4K 영상 내보내기
@@ -52,7 +54,7 @@ UnderBlue는 수중 사진과 영상에서 사라진 색과 선명함을 자연�
 • 원본 프레임률, 타이밍, 방향 및 오디오 유지
 • 계정이나 클라우드 업로드 없는 완전한 온디바이스 처리
 
-사진 1장과 영상 1개의 첫 10초를 무료로 내보낼 수 있습니다. 일회성 구매인 UnderBlue Pro는 사진 무제한, 전체 길이 영상, 4K 및 지원되는 HDR 내보내기를 잠금 해제합니다.
+사진 1장과 영상 1개의 첫 10초를 무료로 내보낼 수 있습니다. 일회성 구매인 UnderBlue Pro는 사진 무제한(한 번에 최대 10장), 전체 길이 영상, 4K 및 지원되는 HDR 내보내기를 잠금 해제합니다.
 
 UnderBlue는 레저 다이빙의 추억을 위한 앱이며 과학적 색 측정이나 전문가용 컬러 그레이딩 도구가 아닙니다.
 
@@ -102,4 +104,4 @@ The optional promoted-IAP image is ready at `AppStoreAssets/IAP/UnderBluePro-102
 
 ## App Review notes
 
-UnderBlue processes imported photos and videos entirely on device. No account or cloud service is used. The free trial allows one photo export and one video export limited to the first 10 seconds at up to 1080p SDR. UnderBlue Pro is the non-consumable product `com.underblue.pro`. Completed exports are offered to the user before add-only Photos permission is requested. The share extension copies shared photos or videos into the app's App Group container on the device, then opens UnderBlue to edit them. Diagnostics remain local and are shared only when the user explicitly uses the system share sheet.
+UnderBlue processes imported photos and videos entirely on device. No account or cloud service is used. The free trial allows one photo export and one video export limited to the first 10 seconds at up to 1080p SDR. UnderBlue Pro is the non-consumable product `com.underblue.pro`. The free trial opens one photo at a time; with UnderBlue Pro, up to 10 photos can be opened and saved together. The Custom look and its sliders are free. Completed exports are offered to the user before add-only Photos permission is requested. The share extension copies shared photos or videos into the app's App Group container on the device, then opens UnderBlue to edit them. Diagnostics remain local and are shared only when the user explicitly uses the system share sheet.
