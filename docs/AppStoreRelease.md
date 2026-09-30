@@ -112,7 +112,11 @@ The first image is an authentic same-frame before/after comparison. The source c
 
 An App Preview video is optional and is intentionally omitted from the first submission.
 
-The optional 1024×1024 promoted-IAP image is `AppStoreAssets/IAP/UnderBluePro-1024.png`. It is not the IAP review screenshot. The required review screenshot must show the real UnderBlue Pro screen, the localised App Store price, feature list, one-time purchase wording and Restore Purchase button.
+The optional 1024×1024 promoted-IAP image is `AppStoreAssets/IAP/UnderBluePro-1024.png`. It is not the
+IAP review screenshot. The real purchase-screen review screenshot is
+`AppStoreAssets/IAP/UnderBluePro-Review-1206x2622.png`; it shows the production price, feature list,
+one-time purchase wording, Restore Purchase and Redeem Code. It is RGB without alpha and matches an
+accepted iPhone screenshot size.
 
 ## UnderBlue Pro In-App Purchase
 

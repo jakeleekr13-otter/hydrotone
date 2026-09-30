@@ -88,9 +88,14 @@ An App Preview video isn't required for the first release. If produced later, sh
 
 **Korean:** 사진·전체 영상·4K·HDR 무제한 내보내기
 
-The IAP review screenshot should show the UnderBlue Pro screen with the one-time purchase wording, feature list, localised App Store price and Restore Purchase button. If a promoted-IAP image is used, prepare a flattened 1024 × 1024 RGB JPG/PNG without rounded corners.
+The IAP review screenshot is ready at `AppStoreAssets/IAP/UnderBluePro-Review-1206x2622.png`.
+It is a real iPhone purchase screen showing the one-time purchase wording, feature list, production
+price, Restore Purchase and Redeem Code. It is a flattened RGB PNG without alpha at an accepted
+1206 × 2622 iPhone screenshot size. If a promoted-IAP image is used, prepare a flattened
+1024 × 1024 RGB JPG/PNG without rounded corners.
 
-The optional promoted-IAP image is ready at `AppStoreAssets/IAP/UnderBluePro-1024.png`. A separate real in-app purchase-screen review screenshot is still required.
+The optional promoted-IAP image is ready at `AppStoreAssets/IAP/UnderBluePro-1024.png`. It is separate
+from the review-only purchase-screen screenshot above.
 
 ## Public URLs
 
