@@ -83,7 +83,7 @@ struct RestorationPlan: Sendable, Equatable {
     let transmissionFloorPixelPercentage: Float
     let maximumGainPixelPercentage: Float
     /// Linear luminance of the source water (WaterAnalysis.waterColor) the plan was fitted on: the
-    /// level the local veil is measured against (RestorationMath.localVeilScale). Zero means no local veil.
+    /// level the local veil is measured against (RestorationMath.localVeil). Zero means no local veil.
     var veilLevel: Float = 0
 
     init(depth: NormalizedDepthMap, depthSource: DepthSource, depthStatistics: DepthStatistics,

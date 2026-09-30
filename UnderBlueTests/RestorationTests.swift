@@ -179,6 +179,16 @@ final class RestorationTests: XCTestCase {
         // No level (a plan without one) or a non-finite light: the plan's veil as it is.
         XCTAssertEqual(RestorationMath.localVeilScale(broadLuminance: 0.5, level: 0), 1)
         XCTAssertEqual(RestorationMath.localVeilScale(broadLuminance: .nan, level: level), 1)
+        // The veil takes the broad light's colour at the scaled veil luminance. A blue scene veil under
+        // whitish surface light would otherwise leave red and blue (pink) behind.
+        let sceneVeil = SIMD3<Float>(0.04, 0.08, 0.17), surface = SIMD3<Float>(0.3, 0.33, 0.34)
+        let local = RestorationMath.localVeil(sceneVeil, broad: surface, level: level)
+        let scale = RestorationMath.localVeilScale(broadLuminance: (surface * ColorCorrection.luma).sum(), level: level)
+        XCTAssertEqual((local * ColorCorrection.luma).sum(), (sceneVeil * ColorCorrection.luma).sum() * scale, accuracy: 1e-5)
+        XCTAssertEqual(local.x / local.y, surface.x / surface.y, accuracy: 1e-5)
+        XCTAssertEqual(local.z / local.y, surface.z / surface.y, accuracy: 1e-5)
+        // No level: the scene veil as it is.
+        XCTAssertEqual(RestorationMath.localVeil(sceneVeil, broad: surface, level: 0), sceneVeil)
     }
 
     func testRestorationKernelMatchesCPUMirrorWithLocalVeil() throws {
@@ -198,9 +208,8 @@ final class RestorationTests: XCTestCase {
             var pixel = [Float](repeating: 0, count: 4)
             engine.context.render(try restoration.restore(image, plan: plan), toBitmap: &pixel, rowBytes: 16,
                                   bounds: CGRect(x: 1, y: 1, width: 1, height: 1), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
-            let scale = RestorationMath.localVeilScale(broadLuminance: (color * ColorCorrection.luma).sum(), level: plan.veilLevel)
             let expected = RestorationMath.inverse(observed: color, depth: 0.6, backscatterInfinity: infinity,
-                betaDirect: direct, betaBackscatter: back, limits: plan.limits, veilScale: scale).color
+                betaDirect: direct, betaBackscatter: back, limits: plan.limits, broad: color, veilLevel: plan.veilLevel).color
             assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
         }
     }

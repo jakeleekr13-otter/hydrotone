@@ -11,13 +11,15 @@ struct DiagnosticsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Guide") {
+                Section {
                     step(1, "Choose a photo or video, or import from Files. You can also share to UnderBlue from the Photos app.")
                     step(2, "Pick a look: Natural Dive, Tropical or Deep Dive. Intensity sets how strong it is.")
                     step(3, "Custom starts from the Natural Dive result. Adjust it with five sliders.")
                     step(4, "Tap Compare to see the original. In the photo editor, pinch or double-tap to zoom.")
                     step(5, "For a video, Play 3s plays three seconds from the current position, then returns.")
                     step(6, "Tap Export, then Save to Photos.")
+                } header: { Text("Guide") } footer: {
+                    Text("Results depend on the original. Very dark or very bright scenes may not look as you expect. The same goes for photos and videos that were already edited.")
                 }
                 Section {
                     Label(String(localized: "With Pro, select up to \(BatchModel.maxPhotos) photos to correct them together. Tap a photo to give it its own look."),

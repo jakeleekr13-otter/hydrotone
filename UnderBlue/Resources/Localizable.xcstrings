@@ -3992,6 +3992,41 @@
         }
       }
     },
+    "Results depend on the original. Very dark or very bright scenes may not look as you expect. The same goes for photos and videos that were already edited." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Results depend on the original. Very dark or very bright scenes may not look as you expect. The same goes for photos and videos that were already edited."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結果は元の写真やビデオによって変わります。非常に暗いシーンや明るすぎるシーンは、期待どおりにならない場合があります。すでに編集された写真やビデオも同様です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "결과는 원본에 따라 달라집니다. 매우 어둡거나 너무 밝은 장면은 원하는 결과가 나오지 않을 수 있습니다. 이미 보정한 사진과 동영상도 마찬가지입니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "效果取决于原始照片或视频。非常暗或过亮的场景可能达不到预期效果。已编辑过的照片和视频也是如此。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "效果取決於原始照片或影片。非常暗或過亮的場景可能達不到預期效果。已編輯過的照片和影片也是如此。"
+          }
+        }
+      }
+    },
     "Retry" : {
       "extractionState" : "manual",
       "localizations" : {

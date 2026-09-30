@@ -125,22 +125,29 @@ Static results and known regressions are in [M5ColorEvaluation](M5ColorEvaluatio
 
 ## Local veil and shadow toe (30 Sep 2026)
 
-Two changes, both on photo and video:
+Three changes, all on photo and video:
 
 - **Local veil.** The restoration scales the veil by the broad light around each pixel. The broad light is a blur of 5% of the short side. The scale is its share of the scene's water level, within 0.33x to 3x. One veil per scene had left a grey-pink band in sunlit water and a hard shadow on a fish school.
+- **Veil colour follows the light.** The local veil also takes the broad light's colour, at the same luminance. The scene veil was bluer than whitish surface light. Taking it away left red and blue, so surface light turned pink or violet.
 - **Shadow toe.** Contrast and brightness now run in `UnderBlueBlackOffset`. Values below twice the black offset get a quadratic toe instead of a clip to black.
 
-Measured on the Mac (harness, videosim), against HEAD `9ee3bb6`:
+Measured on the Mac (harness, videosim). `292facd` has the local veil and the shadow toe; the last column adds the veil colour:
 
-| Check | HEAD | New |
-|---|---|---|
-| AquaColorFix gate, photo / video path | 12.27 / 12.82 | 11.23 / 11.01 |
-| m5 full / panel dE | 17.25 / 20.68 | 14.70 / 19.65 |
-| Challenge video band (OKLab C < 0.05) at 32 / 36 / 38 s | 15.1 / 28.8 / 31.4% | 1.9 / 4.2 / 18.9% |
-| video2 pink or violet share at 0 / 5 / 20 / 32 s | 34.9 / 30.2 / 6.9 / 34.0% | 12.7 / 4.3 / 7.0 / 10.6% |
-| video2 at 5 s, near-black share on the dark manta (source 11.2%) | 52.0% | 19.0% |
+| Check | `9ee3bb6` | `292facd` | Veil colour |
+|---|---|---|---|
+| AquaColorFix gate, photo / video path | 12.27 / 12.82 | 11.23 / 11.01 | 12.87 / 12.96 |
+| m5 full / panel dE | 17.25 / 20.68 | 14.70 / 19.65 | 13.34 / 19.98 |
+| Challenge video band (OKLab C < 0.05) at 32 / 36 / 38 s | 15.1 / 28.8 / 31.4% | 1.9 / 4.2 / 18.9% | 0.4 / 3.1 / 22.7% |
+| video2 pink or violet share at 0 / 5 / 20 / 32 s | 34.9 / 30.2 / 6.9 / 34.0% | 12.7 / 4.3 / 7.0 / 10.6% | 1.1 / 0.1 / 0.0 / 0.1% |
+| video2 at 5 s, near-black share on the dark manta (source 11.2%) | 52.0% | 19.0% | 19.0% |
 
-Known gaps: the band at 38 s remains (18.9%). Gate pair 1 got darker (7.40 to 9.89). The steady part of the challenge video (8 s) looks flatter by eye; this is not measured.
+The gate got worse with the veil colour, mostly on pair 2 (12.56 to 17.06). The napoleon wrasse is cooler. m5 improved, and m5 wins when the two disagree (Jake, 30 Sep 2026).
+
+Known gaps:
+
+- The challenge video at 38 s keeps a beige ring around a dark blue centre, like a vignette. The frame is almost all veil. After veil removal about 30% of the light is left. That is right at the `keepHueWhereDark` threshold. A broad-light version of that rule was tried and did not remove the ring. The Help guide now says that very dark or very bright scenes may not look as expected.
+- Gate pair 1 got darker (7.40 to 9.19).
+- The steady part of the challenge video (8 s) looks flatter by eye, and its corners look pink-beige. Neither is measured.
 
 Run before release:
 

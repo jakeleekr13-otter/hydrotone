@@ -21,25 +21,29 @@ enum RestorationMath {
         return finite(result)
     }
 
-    /// `veilScale` is the local veil share (localVeilScale); one means the plan's veil as it is.
+    /// `broad` is the broad light around the pixel and `veilLevel` the plan's water level, for the
+    /// local veil (localVeil). Without them the plan's veil is used as it is.
     static func inverse(observed: SIMD3<Float>, depth: Float, backscatterInfinity: SIMD3<Float>,
                         betaDirect: SIMD3<Float>, betaBackscatter: SIMD3<Float>,
                         limits: RestorationLimits, recoverability: SIMD3<Float> = .init(repeating: 1),
-                        veilScale: Float = 1) -> RestorationPixelResult {
+                        broad: SIMD3<Float>? = nil, veilLevel: Float = 0) -> RestorationPixelResult {
         let source = finite(observed)
         let z = safe(depth, fallback: 0, range: 0...1)
         var corrected = SIMD3<Float>(repeating: 0)
         var hitFloor = false, hitGain = false
+        var veil = SIMD3<Float>(repeating: 0)
+        for channel in 0..<3 {
+            veil[channel] = max(0, safe(backscatterInfinity[channel])) * (1 - exp(-max(0, safe(betaBackscatter[channel])) * z))
+        }
+        if let broad { veil = localVeil(veil, broad: finite(broad), level: veilLevel) }
         for channel in 0..<3 {
             let directTransmission = exp(-max(0, safe(betaDirect[channel])) * z)
-            let backscatterTransmission = exp(-max(0, safe(betaBackscatter[channel])) * z)
             let transmission = max(safe(limits.transmissionFloor, fallback: 0.28, range: 0.01...1), directTransmission)
             let maximumGain = safe(limits.maximumGain[channel], fallback: 1, range: 1...16)
             let gain = min(1 / transmission, maximumGain)
             hitFloor = hitFloor || directTransmission <= limits.transmissionFloor
             hitGain = hitGain || gain >= maximumGain - 1e-5
-            let backscatter = max(0, safe(backscatterInfinity[channel])) * (1 - backscatterTransmission) * max(0, safe(veilScale, fallback: 1))
-            corrected[channel] = max(0, source[channel] - backscatter) * gain
+            corrected[channel] = max(0, source[channel] - veil[channel]) * gain
         }
         let sourcePeak = max(source.x, source.y, source.z)
         let highlight = smoothstep(limits.highlightStart, limits.highlightEnd, sourcePeak) * 0.8
@@ -55,12 +59,23 @@ enum RestorationMath {
         return RestorationPixelResult(color: finite(corrected), hitTransmissionFloor: hitFloor, hitMaximumGain: hitGain)
     }
 
-    /// Local veil. One veil colour per scene does not fit water whose light changes across the frame:
+    /// Local veil. One veil per scene does not fit water whose light changes across the frame:
     /// toward the sun the real veil is brighter, and behind a fish school it is darker. With one veil,
     /// sunlit water kept a grey-pink band and the school turned into a hard shadow (challenge video,
     /// 32 to 38 s, 30 Sep 2026). So the veil scales with the broad light around the pixel (a blur of
     /// localVeilRadius of the short side), as a share of the scene's water level (RestorationPlan.veilLevel),
-    /// within localVeilRange. A level of zero means no local veil. The kernel mirrors it.
+    /// within localVeilRange (localVeilScale).
+    /// Its colour follows the broad light too, at the same luminance. In open water the water itself
+    /// shows the veil's colour. The scene veil was bluer than whitish surface light, so taking it away
+    /// left red and blue: video2's surface light turned pink or violet on 12.7% of the frame at 0 s
+    /// (1.1% with the colour following). A level of zero means no local veil. The kernel mirrors it.
+    static func localVeil(_ veil: SIMD3<Float>, broad: SIMD3<Float>, level: Float) -> SIMD3<Float> {
+        guard level > 1e-4 else { return veil }
+        let light = pointwiseMax(broad, .zero), broadLuminance = (light * ColorCorrection.luma).sum()
+        let scaled = veil * localVeilScale(broadLuminance: broadLuminance, level: level)
+        guard broadLuminance > 1e-4 else { return scaled }
+        return light * ((scaled * ColorCorrection.luma).sum() / broadLuminance)
+    }
     static func localVeilScale(broadLuminance: Float, level: Float) -> Float {
         guard level > 1e-4, broadLuminance.isFinite else { return 1 }
         return min(localVeilRange.upperBound, max(localVeilRange.lowerBound, max(0, broadLuminance) / level))
@@ -154,7 +169,7 @@ final class RestorationEngine: Sendable {
         blur.inputImage = image.clampedToExtent()
         blur.radius = max(1.5, Self.detailSplitRadius * (short.isFinite ? short : 0))
         let low = detailKernel == nil ? image : (blur.outputImage ?? image).cropped(to: image.extent)
-        // The broad light around each pixel, for the local veil (RestorationMath.localVeilScale).
+        // The broad light around each pixel, for the local veil (RestorationMath.localVeil).
         let broadBlur = CIFilter.gaussianBlur()
         broadBlur.inputImage = image.clampedToExtent()
         broadBlur.radius = max(4, RestorationMath.localVeilRadius * (short.isFinite ? short : 0))

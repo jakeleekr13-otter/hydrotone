@@ -19,10 +19,14 @@ using namespace metal;
     const float3 gain = min(1.0f / safeTransmission, max(maximumGain.rgb, float3(1.0f)));
     float3 backscatter = max(backscatterInfinity.rgb, float3(0.0f)) * (1.0f - backscatterTransmission);
     // Local veil (veil = level, lowest scale, highest scale): the veil follows the broad light
-    // around the pixel (broadSample), as a share of the scene's water level. RestorationMath.localVeilScale mirrors it.
+    // around the pixel (broadSample) in size, as a share of the scene's water level, and in colour.
+    // RestorationMath.localVeil mirrors it.
     if (veil.x > 1e-4f) {
-        const float broadLum = dot(max(broadSample.rgb, float3(0.0f)), float3(0.2126f, 0.7152f, 0.0722f));
+        const float3 luma = float3(0.2126f, 0.7152f, 0.0722f);
+        const float3 broad = max(broadSample.rgb, float3(0.0f));
+        const float broadLum = dot(broad, luma);
         backscatter *= clamp(broadLum / veil.x, veil.y, veil.z);
+        if (broadLum > 1e-4f) { backscatter = broad * (dot(backscatter, luma) / broadLum); }
     }
     float3 restored = max(source.rgb - backscatter, float3(0.0f)) * gain;
     const float peak = max(source.r, max(source.g, source.b));
