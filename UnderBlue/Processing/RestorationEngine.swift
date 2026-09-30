@@ -21,9 +21,11 @@ enum RestorationMath {
         return finite(result)
     }
 
+    /// `veilScale` is the local veil share (localVeilScale); one means the plan's veil as it is.
     static func inverse(observed: SIMD3<Float>, depth: Float, backscatterInfinity: SIMD3<Float>,
                         betaDirect: SIMD3<Float>, betaBackscatter: SIMD3<Float>,
-                        limits: RestorationLimits, recoverability: SIMD3<Float> = .init(repeating: 1)) -> RestorationPixelResult {
+                        limits: RestorationLimits, recoverability: SIMD3<Float> = .init(repeating: 1),
+                        veilScale: Float = 1) -> RestorationPixelResult {
         let source = finite(observed)
         let z = safe(depth, fallback: 0, range: 0...1)
         var corrected = SIMD3<Float>(repeating: 0)
@@ -36,7 +38,7 @@ enum RestorationMath {
             let gain = min(1 / transmission, maximumGain)
             hitFloor = hitFloor || directTransmission <= limits.transmissionFloor
             hitGain = hitGain || gain >= maximumGain - 1e-5
-            let backscatter = max(0, safe(backscatterInfinity[channel])) * (1 - backscatterTransmission)
+            let backscatter = max(0, safe(backscatterInfinity[channel])) * (1 - backscatterTransmission) * max(0, safe(veilScale, fallback: 1))
             corrected[channel] = max(0, source[channel] - backscatter) * gain
         }
         let sourcePeak = max(source.x, source.y, source.z)
@@ -52,6 +54,19 @@ enum RestorationMath {
         corrected = keepBlueFamily(source: source, restored: corrected)
         return RestorationPixelResult(color: finite(corrected), hitTransmissionFloor: hitFloor, hitMaximumGain: hitGain)
     }
+
+    /// Local veil. One veil colour per scene does not fit water whose light changes across the frame:
+    /// toward the sun the real veil is brighter, and behind a fish school it is darker. With one veil,
+    /// sunlit water kept a grey-pink band and the school turned into a hard shadow (challenge video,
+    /// 32 to 38 s, 30 Sep 2026). So the veil scales with the broad light around the pixel (a blur of
+    /// localVeilRadius of the short side), as a share of the scene's water level (RestorationPlan.veilLevel),
+    /// within localVeilRange. A level of zero means no local veil. The kernel mirrors it.
+    static func localVeilScale(broadLuminance: Float, level: Float) -> Float {
+        guard level > 1e-4, broadLuminance.isFinite else { return 1 }
+        return min(localVeilRange.upperBound, max(localVeilRange.lowerBound, max(0, broadLuminance) / level))
+    }
+    static let localVeilRadius: Float = 0.05
+    static let localVeilRange: ClosedRange<Float> = 0.33...3
 
     /// Where veil removal leaves little light (far water is mostly veil), the channel that lost
     /// least (often red, which is recovered least) would dominate and turn the water red-brown or
@@ -139,12 +154,19 @@ final class RestorationEngine: Sendable {
         blur.inputImage = image.clampedToExtent()
         blur.radius = max(1.5, Self.detailSplitRadius * (short.isFinite ? short : 0))
         let low = detailKernel == nil ? image : (blur.outputImage ?? image).cropped(to: image.extent)
+        // The broad light around each pixel, for the local veil (RestorationMath.localVeilScale).
+        let broadBlur = CIFilter.gaussianBlur()
+        broadBlur.inputImage = image.clampedToExtent()
+        broadBlur.radius = max(4, RestorationMath.localVeilRadius * (short.isFinite ? short : 0))
+        let broad = (broadBlur.outputImage ?? image).cropped(to: image.extent)
         let restoredLow = kernel.apply(extent: image.extent, arguments: [
-            low, depth,
+            low, depth, broad,
             vector(plan.backscatterInfinity), vector(plan.betaDirect), vector(plan.betaBackscatter),
             CIVector(x: CGFloat(limits.transmissionFloor), y: CGFloat(limits.highlightStart),
                      z: CGFloat(limits.highlightEnd), w: CGFloat(limits.maximumOutput)),
-            vector(limits.maximumGain), vector(plan.channelRecoverability)
+            vector(limits.maximumGain), vector(plan.channelRecoverability),
+            CIVector(x: CGFloat(plan.veilLevel), y: CGFloat(RestorationMath.localVeilRange.lowerBound),
+                     z: CGFloat(RestorationMath.localVeilRange.upperBound), w: 0)
         ])
         guard let restoredLow else { throw RestorationError.kernelUnavailable }
         guard let detailKernel, low !== image else { return restoredLow.cropped(to: image.extent) }

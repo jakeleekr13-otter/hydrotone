@@ -4,18 +4,26 @@ using namespace metal;
 
 [[stitchable]] float4 UnderBlueRestoration(coreimage::sample_t source,
                                             coreimage::sample_t depthSample,
+                                            coreimage::sample_t broadSample,
                                             float4 backscatterInfinity,
                                             float4 betaDirect,
                                             float4 betaBackscatter,
                                             float4 limits,
                                             float4 maximumGain,
-                                            float4 recoverability) {
+                                            float4 recoverability,
+                                            float4 veil) {
     const float z = clamp(depthSample.r, 0.0f, 1.0f);
     const float3 directTransmission = exp(-max(betaDirect.rgb, float3(0.0f)) * z);
     const float3 backscatterTransmission = exp(-max(betaBackscatter.rgb, float3(0.0f)) * z);
     const float3 safeTransmission = max(directTransmission, float3(max(0.01f, limits.x)));
     const float3 gain = min(1.0f / safeTransmission, max(maximumGain.rgb, float3(1.0f)));
-    const float3 backscatter = max(backscatterInfinity.rgb, float3(0.0f)) * (1.0f - backscatterTransmission);
+    float3 backscatter = max(backscatterInfinity.rgb, float3(0.0f)) * (1.0f - backscatterTransmission);
+    // Local veil (veil = level, lowest scale, highest scale): the veil follows the broad light
+    // around the pixel (broadSample), as a share of the scene's water level. RestorationMath.localVeilScale mirrors it.
+    if (veil.x > 1e-4f) {
+        const float broadLum = dot(max(broadSample.rgb, float3(0.0f)), float3(0.2126f, 0.7152f, 0.0722f));
+        backscatter *= clamp(broadLum / veil.x, veil.y, veil.z);
+    }
     float3 restored = max(source.rgb - backscatter, float3(0.0f)) * gain;
     const float peak = max(source.r, max(source.g, source.b));
     const float highlight = smoothstep(limits.y, max(limits.y + 0.001f, limits.z), peak) * 0.8f;

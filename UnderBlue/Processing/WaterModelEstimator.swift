@@ -45,13 +45,15 @@ struct WaterModelEstimator {
                                                    redSurvival: redSurvival)
         let limits = RestorationLimits(maximumGain: spread(SIMD3(1.32 + 0.45 * redSurvival, 1.55, 1.45), by: cast))
         let hits = limitHitPercentages(depth: map.values, betaDirect: betaDirect, limits: limits)
-        return RestorationPlan(depth: map, depthSource: depth.source, depthStatistics: depth.statistics,
+        var plan = RestorationPlan(depth: map, depthSource: depth.source, depthStatistics: depth.statistics,
                                backscatterInfinity: finite(infinity), betaDirect: finite(betaDirect),
                                betaBackscatter: finite(betaBackscatter), confidence: confidence,
                                limits: limits, transmissionFloorPixelPercentage: hits.floor,
                                maximumGainPixelPercentage: hits.gain, depthConfidence: depth.confidence,
                                waterFitConfidence: sqrt(max(0, fitQuality)),
                                channelRecoverability: recoverability)
+        plan.veilLevel = (legacy.waterColor * ColorCorrection.luma).sum()
+        return plan
     }
 
     private func pixels(from image: CIImage, width: Int, height: Int, context: CIContext) throws -> [SIMD3<Float>] {

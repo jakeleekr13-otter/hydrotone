@@ -123,6 +123,33 @@ Static results and known regressions are in [M5ColorEvaluation](M5ColorEvaluatio
 - **Depth model on Core AI.** iOS 27 ships `CoreAI.framework` (`AIModel`, `InferenceFunction`, `.aimodel`), and `apple/coreai-models` has a Depth Anything **v3 small** export (float32). Our depth model is Depth Anything v2 small fp16 on Core ML. Nothing in the app's colour path uses a model; only `DepthEstimator` would change. Decide later whether to add an iOS 27 path; it needs a new depth-quality and holdout measurement, because the model is different.
 - **Video: values that follow the light.** Today a clip gets one set of values from 10 samples. So a clip whose light changes is right in some parts and wrong in others (the product owner, 28 Sep 2026). The analysis is a 48x48 statistic and needs no model. It can run on every frame or every few frames and be smoothed over time before `make()`. Only the depth model is costly, and the record says per-pixel depth did not help video. Design this as its own step. It changes `VideoRestorationAnalysis`, not the colour rules.
 
+## Local veil and shadow toe (30 Sep 2026)
+
+Two changes, both on photo and video:
+
+- **Local veil.** The restoration scales the veil by the broad light around each pixel. The broad light is a blur of 5% of the short side. The scale is its share of the scene's water level, within 0.33x to 3x. One veil per scene had left a grey-pink band in sunlit water and a hard shadow on a fish school.
+- **Shadow toe.** Contrast and brightness now run in `UnderBlueBlackOffset`. Values below twice the black offset get a quadratic toe instead of a clip to black.
+
+Measured on the Mac (harness, videosim), against HEAD `9ee3bb6`:
+
+| Check | HEAD | New |
+|---|---|---|
+| AquaColorFix gate, photo / video path | 12.27 / 12.82 | 11.23 / 11.01 |
+| m5 full / panel dE | 17.25 / 20.68 | 14.70 / 19.65 |
+| Challenge video band (OKLab C < 0.05) at 32 / 36 / 38 s | 15.1 / 28.8 / 31.4% | 1.9 / 4.2 / 18.9% |
+| video2 pink or violet share at 0 / 5 / 20 / 32 s | 34.9 / 30.2 / 6.9 / 34.0% | 12.7 / 4.3 / 7.0 / 10.6% |
+| video2 at 5 s, near-black share on the dark manta (source 11.2%) | 52.0% | 19.0% |
+
+Known gaps: the band at 38 s remains (18.9%). Gate pair 1 got darker (7.40 to 9.89). The steady part of the challenge video (8 s) looks flatter by eye; this is not measured.
+
+Run before release:
+
+- **iPhone photo export.** Check a full-size export of a reef and a bright blue-water photo. Look for halos where a subject meets open water. The broad blur is 5% of the short side.
+- **iPhone video export.** Export `challenge_video/original.MP4` and `challenge_video/video2`. Check the band at 32–38 s, the pink surface light, and the manta at 5 s. Watch the fish school edge for a moving halo or flicker: the broad blur is computed per frame.
+- **Export time.** The restoration now has one more blur per frame. Video export time is unmeasured.
+- **Holdout and presets.** Re-run the UIEB holdout. Check Tropical and Deep Dive by eye, because the restoration and the tone step changed.
+- **Custom Brightness down.** Check that dark areas keep their grades at the slider's minimum.
+
 ## HDR photo export (28 Sep 2026)
 
 29 Sep 2026: the real HDR photo and video checks are not done. There is no HDR source yet.

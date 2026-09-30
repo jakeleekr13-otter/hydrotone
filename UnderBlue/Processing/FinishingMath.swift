@@ -114,6 +114,24 @@ enum FinishingMath {
     static let detailEdgeLow: Float = 0.15, detailEdgeHigh: Float = 0.30
     static let detailShadowLow: Float = 0.02, detailShadowHigh: Float = 0.06
 
+    /// Contrast gain and black offset, as CIColorControls computes them: c * gain + offset. Measured
+    /// on the Mac, CIColorControls is exactly c * contrast + brightness + (1 - contrast) / 2 per channel,
+    /// with no clip, and its saturation commutes with it. The UnderBlueBlackOffset kernel mirrors this.
+    /// A negative offset clipped every channel darker than it to black at output. A dark manta in a
+    /// bright scene (video2 at 5 s, 30 Sep 2026) lost its whole body: 41% of that region near black, source 11%.
+    /// So below twice the offset a quadratic toe takes over. Zero stays zero, and the toe meets the
+    /// straight line with the same slope, so every channel from twice the offset up is as before.
+    static func blackOffset(_ c: SIMD3<Float>, gain: Float, offset: Float) -> SIMD3<Float> {
+        var out = c * gain + offset
+        guard offset < 0 else { return out }
+        let knee = -2 * offset
+        for channel in 0..<3 {
+            let x = c[channel] * gain
+            if x < knee { out[channel] = max(0, x) * max(0, x) / (2 * knee) }
+        }
+        return out
+    }
+
     /// Highlight shoulder, the last finishing step. The UnderBlueHighlightShoulder kernel mirrors it.
     /// The largest channel is read as a BT.709 / sRGB display shows it (`display`), because the
     /// smallest output gamut clips first. The ceiling is white (1), or the reference pixel's own

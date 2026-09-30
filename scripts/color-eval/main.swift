@@ -224,7 +224,9 @@ for name in selected {
         outputs["restoration"] = engine.blend(source, raw, amount: plan.confidence)
         outputs["combined"] = (try? restoration.combined(source, plan: plan, settings: settings, filter: engine)) ?? current
         if let uniform = try? plan.withUniformDepth() {
-            outputs["uniform"] = (try? restoration.combined(source, plan: uniform, settings: settings, filter: engine)) ?? current
+            // The video entry point (correction values passed in), as video frames are rendered.
+            outputs["uniform"] = (try? restoration.combined(source, plan: uniform, values: restoration.corrections(settings: settings, plan: uniform),
+                                                            settings: settings, filter: engine)) ?? current
         }
     } else {
         outputs["restoration"] = source; outputs["combined"] = current; outputs["uniform"] = current

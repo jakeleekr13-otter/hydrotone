@@ -169,6 +169,58 @@ final class RestorationTests: XCTestCase {
         }
     }
 
+    func testLocalVeilScaleFollowsTheBroadLightWithinItsRange() {
+        let level: Float = 0.12
+        XCTAssertEqual(RestorationMath.localVeilScale(broadLuminance: level, level: level), 1, accuracy: 1e-6)
+        XCTAssertEqual(RestorationMath.localVeilScale(broadLuminance: 2 * level, level: level), 2, accuracy: 1e-6)
+        // Sunlit water far brighter than the water level, and a shaded school far darker: the range holds.
+        XCTAssertEqual(RestorationMath.localVeilScale(broadLuminance: 10 * level, level: level), RestorationMath.localVeilRange.upperBound)
+        XCTAssertEqual(RestorationMath.localVeilScale(broadLuminance: 0, level: level), RestorationMath.localVeilRange.lowerBound)
+        // No level (a plan without one) or a non-finite light: the plan's veil as it is.
+        XCTAssertEqual(RestorationMath.localVeilScale(broadLuminance: 0.5, level: 0), 1)
+        XCTAssertEqual(RestorationMath.localVeilScale(broadLuminance: .nan, level: level), 1)
+    }
+
+    func testRestorationKernelMatchesCPUMirrorWithLocalVeil() throws {
+        let engine = FilterEngine(), restoration = RestorationEngine()
+        let infinity = SIMD3<Float>(0.043, 0.086, 0.121), direct = SIMD3<Float>(1.2, 0.6, 0.4), back = SIMD3<Float>(1.2, 1.6, 1.6)
+        let map = try NormalizedDepthMap(width: 4, height: 4, values: .init(repeating: 0.6, count: 16))
+        var plan = RestorationPlan(depth: map, depthSource: .monocular,
+            depthStatistics: .init(minimum: 0.6, maximum: 0.6, median: 0.6), backscatterInfinity: infinity,
+            betaDirect: direct, betaBackscatter: back, confidence: 0.8, limits: .init(),
+            transmissionFloorPixelPercentage: 0, maximumGainPixelPercentage: 0)
+        plan.veilLevel = 0.1
+        // A solid image is its own broad light. Sunlit water (scale above one), water at the level, a
+        // shaded school (below one) and a pixel past the range's top.
+        for color: SIMD3<Float> in [.init(0.2, 0.3, 0.35), .init(0.05, 0.11, 0.2), .init(0.02, 0.04, 0.07), .init(0.6, 0.7, 0.75)] {
+            let image = CIImage(color: CIColor(red: CGFloat(color.x), green: CGFloat(color.y), blue: CGFloat(color.z),
+                                               colorSpace: FilterEngine.workingSpace)!).cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+            var pixel = [Float](repeating: 0, count: 4)
+            engine.context.render(try restoration.restore(image, plan: plan), toBitmap: &pixel, rowBytes: 16,
+                                  bounds: CGRect(x: 1, y: 1, width: 1, height: 1), format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            let scale = RestorationMath.localVeilScale(broadLuminance: (color * ColorCorrection.luma).sum(), level: plan.veilLevel)
+            let expected = RestorationMath.inverse(observed: color, depth: 0.6, backscatterInfinity: infinity,
+                betaDirect: direct, betaBackscatter: back, limits: plan.limits, veilScale: scale).color
+            assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
+        }
+    }
+
+    func testPlanVeilLevelMixesAndSurvivesTheSceneMean() throws {
+        let map = try NormalizedDepthMap(width: 4, height: 4, values: .init(repeating: 0.6, count: 16))
+        func plan(_ level: Float) -> RestorationPlan {
+            var p = RestorationPlan(depth: map, depthSource: .monocular, depthStatistics: .init(minimum: 0.6, maximum: 0.6, median: 0.6),
+                backscatterInfinity: .init(0.04, 0.08, 0.12), betaDirect: .init(1.2, 0.6, 0.4), betaBackscatter: .init(1.2, 1.6, 1.6),
+                confidence: 0.8, limits: .init(), transmissionFloorPixelPercentage: 0, maximumGainPixelPercentage: 0)
+            p.veilLevel = level
+            return p
+        }
+        // A scene's plan averages its keyframes' levels; a scene change fades the level with the other
+        // plan values; limiting the output keeps it.
+        XCTAssertEqual(try RestorationPlan.sceneAverage([plan(0.1), plan(0.2)], keeping: [0, 1]).veilLevel, 0.15, accuracy: 1e-6)
+        XCTAssertEqual(try plan(0.1).mixed(with: plan(0.3), amount: 0.5).veilLevel, 0.2, accuracy: 1e-6)
+        XCTAssertEqual(plan(0.1).limiting(maximumOutput: 8).veilLevel, 0.1)
+    }
+
     /// IMG_7260 (28 Sep 2026): the veil takes signal, not noise, and the division by the
     /// transmission scales both, so far water got twice the noise per signal. Fine detail now
     /// grows with the signal only.
@@ -1069,6 +1121,49 @@ final class RestorationTests: XCTestCase {
         assertEqual(out / out.sum(), base / base.sum(), accuracy: 0.002)
         // A black pixel has no colour to keep, so it takes the sharpened pixel.
         assertEqual(try render(.zero, .init(0.01, 0.02, 0.03)), .init(0.01, 0.02, 0.03), accuracy: 0.001)
+    }
+
+    // MARK: Black offset
+
+    func testBlackOffsetMatchesColorControlsAboveTheToeAndKeepsShadowGradesBelowIt() throws {
+        let engine = FilterEngine()
+        let gain: Float = 1.065, brightness: Float = -0.08, offset = brightness + (1 - gain) * 0.5
+        let knee = -2 * offset
+        func solid(_ c: SIMD3<Float>) -> CIImage {
+            CIImage(color: CIColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), colorSpace: FilterEngine.workingSpace)!)
+                .cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+        }
+        func render(_ image: CIImage) -> SIMD3<Float> {
+            var p = [Float](repeating: 0, count: 4)
+            engine.context.render(image, toBitmap: &p, rowBytes: 16, bounds: CGRect(x: 1, y: 1, width: 1, height: 1),
+                                  format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            return SIMD3(p[0], p[1], p[2])
+        }
+        // Above the toe it is exactly CIColorControls.
+        let bright = SIMD3<Float>(0.3, 0.4, 0.5)
+        let controls = CIFilter.colorControls()
+        controls.inputImage = solid(bright); controls.contrast = gain; controls.brightness = brightness
+        assertEqual(FinishingMath.blackOffset(bright, gain: gain, offset: offset), render(controls.outputImage!), accuracy: 1e-4)
+        // Below it, shadow grades stay apart instead of clipping to black, and black stays black.
+        let darker = FinishingMath.blackOffset(.init(repeating: 0.03), gain: gain, offset: offset)
+        let dark = FinishingMath.blackOffset(.init(repeating: 0.06), gain: gain, offset: offset)
+        XCTAssertGreaterThan(darker.x, 0); XCTAssertGreaterThan(dark.x, darker.x)
+        assertEqual(FinishingMath.blackOffset(.zero, gain: gain, offset: offset), .zero, accuracy: 1e-7)
+        // The toe meets the straight line at the knee with the same value and slope.
+        let atKnee = SIMD3<Float>(repeating: knee / gain), step: Float = 1e-3
+        XCTAssertEqual(FinishingMath.blackOffset(atKnee, gain: gain, offset: offset).x, knee + offset, accuracy: 1e-5)
+        let below = FinishingMath.blackOffset(atKnee - step, gain: gain, offset: offset).x
+        let above = FinishingMath.blackOffset(atKnee + step, gain: gain, offset: offset).x
+        XCTAssertEqual((above - below) / (2 * step), gain, accuracy: 0.01)
+        // A positive offset (a lift) is the plain line.
+        assertEqual(FinishingMath.blackOffset(.init(0.01, 0.02, 0.03), gain: 1, offset: 0.02), .init(0.03, 0.04, 0.05), accuracy: 1e-7)
+        // The kernel matches the mirror.
+        let kernel = try XCTUnwrap(engine.offsetKernelForTesting)
+        for c: SIMD3<Float> in [bright, .init(0.03, 0.06, 0.12), .init(0.001, 0.02, 0.2), .init(-0.01, 0.05, 0.3)] {
+            let out = try XCTUnwrap(kernel.apply(extent: CGRect(x: 0, y: 0, width: 4, height: 4),
+                                                 arguments: [solid(c), CIVector(x: CGFloat(gain), y: CGFloat(offset), z: 0, w: 0)]))
+            assertEqual(render(out), FinishingMath.blackOffset(c, gain: gain, offset: offset), accuracy: 1e-3)
+        }
     }
 
     // MARK: Highlight shoulder

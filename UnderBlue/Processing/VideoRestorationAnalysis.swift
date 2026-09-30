@@ -342,7 +342,7 @@ extension RestorationPlan {
                                        highlightStart: mix(self.limits.highlightStart, other.limits.highlightStart),
                                        highlightEnd: mix(self.limits.highlightEnd, other.limits.highlightEnd),
                                        maximumOutput: mix(self.limits.maximumOutput, other.limits.maximumOutput))
-        return RestorationPlan(
+        var plan = RestorationPlan(
             depth: mixedDepth, depthSource: nearest.depthSource,
             depthStatistics: DepthStatistics(minimum: mix(depthStatistics.minimum, other.depthStatistics.minimum),
                                              maximum: mix(depthStatistics.maximum, other.depthStatistics.maximum),
@@ -358,5 +358,7 @@ extension RestorationPlan {
             waterFitConfidence: mix(waterFitConfidence, other.waterFitConfidence),
             temporalConfidence: mix(temporalConfidence, other.temporalConfidence),
             channelRecoverability: mix(channelRecoverability, other.channelRecoverability))
+        plan.veilLevel = mix(veilLevel, other.veilLevel)
+        return plan
     }
 }

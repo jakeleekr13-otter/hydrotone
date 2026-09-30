@@ -82,6 +82,9 @@ struct RestorationPlan: Sendable, Equatable {
     var limits: RestorationLimits
     let transmissionFloorPixelPercentage: Float
     let maximumGainPixelPercentage: Float
+    /// Linear luminance of the source water (WaterAnalysis.waterColor) the plan was fitted on: the
+    /// level the local veil is measured against (RestorationMath.localVeilScale). Zero means no local veil.
+    var veilLevel: Float = 0
 
     init(depth: NormalizedDepthMap, depthSource: DepthSource, depthStatistics: DepthStatistics,
          backscatterInfinity: SIMD3<Float>, betaDirect: SIMD3<Float>, betaBackscatter: SIMD3<Float>,
@@ -143,7 +146,7 @@ extension RestorationPlan {
                                        highlightStart: mean { $0.limits.highlightStart },
                                        highlightEnd: mean { $0.limits.highlightEnd },
                                        maximumOutput: mean { $0.limits.maximumOutput })
-        return RestorationPlan(depth: map, depthSource: first.depthSource,
+        var plan = RestorationPlan(depth: map, depthSource: first.depthSource,
                                depthStatistics: DepthStatistics(minimum: mean { $0.depthStatistics.minimum },
                                                                 maximum: mean { $0.depthStatistics.maximum },
                                                                 median: mean { $0.depthStatistics.median }),
@@ -154,6 +157,8 @@ extension RestorationPlan {
                                depthConfidence: mean { $0.depthConfidence }, waterFitConfidence: mean { $0.waterFitConfidence },
                                temporalConfidence: mean { $0.temporalConfidence },
                                channelRecoverability: mean { $0.channelRecoverability })
+        plan.veilLevel = mean { $0.veilLevel }
+        return plan
     }
 }
 

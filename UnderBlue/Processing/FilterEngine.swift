@@ -10,12 +10,14 @@ final class FilterEngine: Sendable {
     private let shoulderKernel: CIColorKernel?
     private let detailKernel: CIColorKernel?
     private let lumaKernel: CIColorKernel?
+    private let offsetKernel: CIColorKernel?
     /// False when the finishing kernel failed to load. Output then uses the weaker colour-matrix
     /// fallback, so owners with a DiagnosticRecorder report it.
     var finishingKernelAvailable: Bool { colorKernel != nil }
     /// The detail kernel, for the kernel-versus-mirror test (finishing on a solid image cannot exercise it).
     var detailKernelForTesting: CIColorKernel? { detailKernel }
     var lumaKernelForTesting: CIColorKernel? { lumaKernel }
+    var offsetKernelForTesting: CIColorKernel? { offsetKernel }
     static let workingSpace = CGColorSpace(name: CGColorSpace.extendedLinearITUR_2020)!
     static let photoSpace = CGColorSpace(name: CGColorSpace.displayP3)!
     init() {
@@ -26,6 +28,7 @@ final class FilterEngine: Sendable {
         shoulderKernel = MetalKernels.color("UnderBlueHighlightShoulder")
         detailKernel = MetalKernels.color("UnderBlueDetail")
         lumaKernel = MetalKernels.color("UnderBlueLumaTransfer")
+        offsetKernel = MetalKernels.color("UnderBlueBlackOffset")
     }
 
     func apply(_ image: CIImage, settings: FilterSettings) -> CIImage {
@@ -54,10 +57,17 @@ final class FilterEngine: Sendable {
         controls.inputImage = corrected
         // The colour-matrix fallback does not implement reference adaptation or its tone step.
         let referenceStrength = colorKernel == nil ? 0 : v.referenceStrength
-        controls.contrast = 1 + (v.contrast - 1) * (1 - referenceStrength)
+        let gain = 1 + (v.contrast - 1) * (1 - referenceStrength), brightness = v.brightness * (1 - referenceStrength)
         controls.saturation = v.saturation
-        controls.brightness = v.brightness * (1 - referenceStrength)
+        // Contrast and brightness go through UnderBlueBlackOffset, which gives the shadows a toe
+        // instead of clipping them (FinishingMath.blackOffset). Without the kernel, CIColorControls does it.
+        if offsetKernel == nil { controls.contrast = gain; controls.brightness = brightness }
         corrected = controls.outputImage ?? corrected
+        if let offsetKernel {
+            corrected = offsetKernel.apply(extent: image.extent, arguments: [
+                corrected, CIVector(x: CGFloat(gain), y: CGFloat(brightness + (1 - gain) * 0.5), z: 0, w: 0)
+            ]) ?? corrected
+        }
 
         let shadows = CIFilter.highlightShadowAdjust()
         shadows.inputImage = corrected

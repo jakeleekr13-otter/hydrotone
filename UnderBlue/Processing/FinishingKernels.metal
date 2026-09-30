@@ -146,6 +146,21 @@ using namespace metal;
     return all(isfinite(out)) ? float4(out, source.a) : source;
 }
 
+// Contrast gain and black offset (tone = gain, offset), as CIColorControls computes them, with a
+// shadow toe instead of a clip. FinishingMath.blackOffset is the CPU mirror.
+[[stitchable]] float4 UnderBlueBlackOffset(coreimage::sample_t source, float4 tone) {
+    const float3 x = source.rgb * tone.x;
+    float3 out = x + tone.y;
+    if (tone.y < 0.0f) {
+        // Below twice the offset, a quadratic toe: zero stays zero, and it meets the straight line
+        // with the same slope. Without it, everything darker than the offset clipped to black.
+        const float knee = -2.0f * tone.y;
+        const float3 toe = max(x, float3(0.0f)) * max(x, float3(0.0f)) / (2.0f * knee);
+        out = select(out, toe, x < knee);
+    }
+    return all(isfinite(out)) ? float4(out, source.a) : source;
+}
+
 // Highlight shoulder, the last finishing step. FinishingMath.shoulder is the CPU mirror.
 // The peak is read in BT.709 primaries; the ceiling is white or the reference's own (HDR) peak.
 // shape: x = shoulder width, y and z = the overshoot range, w = the start of the pale range.

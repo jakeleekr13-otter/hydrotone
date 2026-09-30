@@ -204,7 +204,8 @@ extension ColorCorrection {
     static let luma = SIMD3<Float>(0.2126, 0.7152, 0.0722)
 
     /// Scene mean colour after restoration, at the plan's mean depth (or at `depth`). It mirrors the
-    /// restoration kernel on one colour and ignores highlight protection.
+    /// restoration kernel on one colour and ignores highlight protection and the local veil (about one
+    /// at the water level).
     static func restoredMean(_ mean: SIMD3<Float>, plan: RestorationPlan, depth: Float? = nil) -> SIMD3<Float> {
         let values = plan.depth.values
         let z = depth.map { min(1, max(0, $0.isFinite ? $0 : 0.5)) } ?? (values.isEmpty ? 0.5 : values.reduce(0, +) / Float(values.count))
