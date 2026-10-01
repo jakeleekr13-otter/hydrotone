@@ -70,6 +70,8 @@ struct ColorCorrection: Sendable, Equatable {
     /// The water colour after the cast gains. A pixel clearly brighter than it, and of another
     /// hue, is a lit subject (a pale belly can be as unred as the water) and takes the white
     /// reference in full. Brighter water of the same hue does not. Zero means no such exception.
+    /// make() uses it to judge the white reference's strength, then sets it to zero (1 Oct 2026), so
+    /// the kernels apply no such exception. See make().
     var waterLit = SIMD3<Float>(repeating: 0)
     static let identity = ColorCorrection()
 
@@ -106,6 +108,12 @@ struct ColorCorrection: Sendable, Equatable {
         v.midLift = min(0.9, max(minimumMidLift, v.midLift - 0.12 * scene.highlight + min(0, user.brightness) * Caps.brightnessDown))
         v.neutralGains = whiteReference(analysis, correction: v, plan: plan)
         referenceAdaptation(&v, analysis: analysis, plan: plan, scene: scene)
+        // The bright exception still judges how strong the white reference is (whiteReference above),
+        // but the kernels do not apply it. Applied, it took sunlit water 1.3 to 1.8 times brighter than
+        // the water as a pale subject. That water turned grey, with a lavender band where it met the
+        // blue water (IMG_7400 light rays, 1 Oct 2026: hue 251 to 266 between 195 and 241).
+        // Off in the kernels: m5 13.34 -> 13.17, AquaColorFix gate 12.87 -> 13.01.
+        v.waterLit = .zero
         return v.sanitized()
     }
 
