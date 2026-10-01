@@ -69,11 +69,15 @@ final class FilterEngine: Sendable {
             ]) ?? corrected
         }
 
+        // The filter reads a neighbourhood. Fed the frame as it is, it changed the edge band on the
+        // restored path on the Mac: the challenge clip got a vignette (corners up to 0.13 OKLab L brighter
+        // than the ring around the centre, 1 Oct 2026). A clamped input keeps the edges. iOS had the same
+        // symptom from another cause (the reference input in colorStage); see docs/Verification.md.
         let shadows = CIFilter.highlightShadowAdjust()
-        shadows.inputImage = corrected
+        shadows.inputImage = corrected.clampedToExtent()
         shadows.shadowAmount = v.shadowLift
         shadows.highlightAmount = v.highlightAmount
-        corrected = shadows.outputImage ?? corrected
+        corrected = (shadows.outputImage ?? corrected).cropped(to: image.extent)
 
         let side = Float(min(image.extent.width, image.extent.height))
         let short = side.isFinite && side > 0 ? side : 480
@@ -145,16 +149,12 @@ final class FilterEngine: Sendable {
             matrix.bVector = CIVector(x: 0, y: 0, z: CGFloat(g.z), w: 0)
             return matrix.outputImage ?? image
         }
-        // Denoise before amplifying the measured red channel. Only the reference-adapted
-        // contribution reads this image; the established water/fallback path retains its input.
-        var referenceInput = image
-        if v.referenceStrength > 0 {
-            let noise = CIFilter.noiseReduction()
-            noise.inputImage = image.clampedToExtent()
-            noise.noiseLevel = 0.04
-            noise.sharpness = 0
-            referenceInput = (noise.outputImage ?? image).cropped(to: image.extent)
-        }
+        // The reference-adapted contribution reads the same image. A smoothed copy (CINoiseReduction, or a
+        // small blur) of the restored image as a second kernel input made iOS render the frame wrong: its
+        // edge rows broke and the whole output got about 7% darker, even at a reference strength of 0.0009
+        // (simulator and iPhone 17, 1 Oct 2026). The Mac renders it differently, so the harness did not show
+        // it. Without the smoothing the Mac harness measures more colour noise on m5 (sand 0.40 -> 0.76).
+        let referenceInput = image
         return colorKernel.apply(extent: image.extent, arguments: [
             image, referenceInput, CIVector(x: CGFloat(v.castGains.x), y: CGFloat(v.castGains.y), z: CGFloat(v.castGains.z), w: 0),
             CIVector(x: CGFloat(v.waterTone.x), y: CGFloat(v.waterTone.y), z: CGFloat(v.waterTone.z), w: CGFloat(v.waterRedness)),

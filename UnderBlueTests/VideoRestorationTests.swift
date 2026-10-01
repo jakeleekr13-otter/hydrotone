@@ -328,6 +328,40 @@ final class VideoRestorationTests: XCTestCase {
         XCTAssertNotEqual(analysis.legacyAnalysis, .neutral)
     }
 
+    /// The challenge clip (1 Oct 2026) showed a vignette: on the restored path the shadow and highlight
+    /// filter changed the frame's edge band (up to 0.13 OKLab L brighter corners, lavender at the
+    /// bottom). A frame's edge must keep the source's edge-to-inner lightness ratio.
+    func testRestoredVideoFrameKeepsItsEdges() async throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 640, height: 640)
+        let image = CIImage(cgImage: try await generator.image(at: CMTime(seconds: 0.2, preferredTimescale: 600)).image)
+        let engine = FilterEngine(), restoration = RestorationEngine()
+        let analysis = engine.analyze(image)
+        let map = try NormalizedDepthMap(width: 2, height: 2, values: .init(repeating: 0.6, count: 4))
+        var plan = RestorationPlan(depth: map, depthSource: .monocular, depthStatistics: .init(minimum: 0.6, maximum: 0.6, median: 0.6),
+            backscatterInfinity: .init(0.04, 0.09, 0.17), betaDirect: .init(0.65, 0.23, 0.13), betaBackscatter: .init(0.35, 0.2, 0.42),
+            confidence: 0.7, limits: .init(), transmissionFloorPixelPercentage: 0, maximumGainPixelPercentage: 0)
+        plan.veilLevel = (analysis.waterColor * ColorCorrection.luma).sum()
+        let scene = VideoScene(start: 0, end: 1, analysis: analysis, plan: plan, keyframes: 3)
+        let out = try restoration.combined(image, moment: VideoSceneMoment(from: scene, to: scene, amount: 0),
+                                           settings: FilterSettings(preset: .natural, intensity: 0.8, analysis: analysis), filter: engine)
+        func lightness(_ i: CIImage, _ r: CGRect) -> Float {
+            let average = CIFilter(name: "CIAreaAverage", parameters: [kCIInputImageKey: i, kCIInputExtentKey: CIVector(cgRect: r)])!.outputImage!
+            var p = [Float](repeating: 0, count: 4)
+            engine.context.render(average, toBitmap: &p, rowBytes: 16, bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+                                  format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            return (SIMD3(p[0], p[1], p[2]) * ColorCorrection.luma).sum()
+        }
+        let e = image.extent, band = e.height / 60
+        func edgeRatio(_ i: CIImage) -> Float {
+            lightness(i, CGRect(x: e.minX, y: e.minY, width: e.width, height: band))
+                / lightness(i, CGRect(x: e.minX, y: e.minY + 6 * band, width: e.width, height: band))
+        }
+        XCTAssertEqual(edgeRatio(out), edgeRatio(image), accuracy: 0.01)
+    }
+
     func testFiveFrameAnalyzerOnPhysicalDevice() async throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Compressed Depth Anything analysis requires a physical Apple device")
