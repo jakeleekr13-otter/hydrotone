@@ -997,7 +997,7 @@ final class RestorationTests: XCTestCase {
             $0.neutralGains = .init(1.6, 0.95, 0.8); $0.waterLit = .init(0.01, 0.25, 0.4) }
         // Water, brighter water of the same colour, a pale belly (bright, other hue), sand, a reddish
         // subject, a dark pixel and an HDR peak.
-        for color: SIMD3<Float> in [.init(0.01, 0.25, 0.4), .init(0.016, 0.4, 0.64), .init(0.03, 0.48, 0.49),
+        for color: SIMD3<Float> in [.init(0.01, 0.25, 0.4), .init(0.016, 0.4, 0.64), .init(0.08, 0.86, 0.88),
                                     .init(0.28, 0.59, 0.67), .init(0.3, 0.25, 0.2), .init(0.01, 0.03, 0.05),
                                     .init(1.5, 2, 2.2)] {
             let image = CIImage(color: CIColor(red: CGFloat(color.x), green: CGFloat(color.y), blue: CGFloat(color.z),
@@ -1008,8 +1008,8 @@ final class RestorationTests: XCTestCase {
             let expected = FinishingMath.shoulder(FinishingMath.color(color, correction: values), reference: color)
             assertEqual(SIMD3(pixel[0], pixel[1], pixel[2]), expected, accuracy: 0.004 * max(1, expected.max()))
         }
-        // The belly takes the reference, the water does not.
-        XCTAssertGreaterThan(FinishingMath.neutralWeight(.init(0.03, 0.48, 0.49) * values.castGains, correction: values), 0.9)
+        // The belly (3.2 times the water's luma) takes the reference, the brighter water does not.
+        XCTAssertGreaterThan(FinishingMath.neutralWeight(.init(0.08, 0.86, 0.88) * values.castGains, correction: values), 0.9)
         XCTAssertLessThan(FinishingMath.neutralWeight(.init(0.016, 0.4, 0.64) * values.castGains, correction: values), 0.1)
     }
 

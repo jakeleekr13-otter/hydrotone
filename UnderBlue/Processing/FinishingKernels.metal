@@ -26,7 +26,7 @@ using namespace metal;
     float bright = 0.0f;
     if (waterLum > 1e-4f && total > 1e-5f) {
         const float3 d = abs(c / total - lw / (lw.r + lw.g + lw.b));
-        bright = smoothstep(1.3f, 1.8f, dot(c, float3(0.2126f, 0.7152f, 0.0722f)) / waterLum)
+        bright = smoothstep(2.2f, 3.2f, dot(c, float3(0.2126f, 0.7152f, 0.0722f)) / waterLum)
             * smoothstep(0.08f, 0.2f, d.r + d.g + d.b);
     }
     c *= mix(float3(1.0f), max(neutral.rgb, float3(0.0f)), 1.0f - waterLike * (1.0f - bright));
@@ -136,7 +136,7 @@ using namespace metal;
     float bright = 0.0f;
     if (waterLum > 1e-4f && total > 1e-5f) {
         const float3 diff = abs(r / total - lw / (lw.r + lw.g + lw.b));
-        bright = smoothstep(1.3f, 1.8f, dot(r, luma) / waterLum) * smoothstep(0.08f, 0.2f, diff.r + diff.g + diff.b);
+        bright = smoothstep(2.2f, 3.2f, dot(r, luma) / waterLum) * smoothstep(0.08f, 0.2f, diff.r + diff.g + diff.b);
     }
     const float subject = 1.0f - waterLike * (1.0f - bright);
     const float weight = max(detail.x, 0.0f) * band * subject * lit;

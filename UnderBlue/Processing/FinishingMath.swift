@@ -171,9 +171,10 @@ enum FinishingMath {
               0.016391 * c.x + 0.088013 * c.y + 0.895595 * c.z)
     }
     /// 0...1: how much the white reference acts on a colour (after the cast gains). Water-like
-    /// pixels get none, unless they are 1.3 to 1.8 times brighter than the water and of another
+    /// pixels get none, unless they are 2.2 to 3.2 times brighter than the water and of another
     /// chromaticity (a pale belly). Brighter water of the water's own chromaticity gets none.
-    /// The kernel mirrors it.
+    /// The kernel mirrors it. At 1.3 to 1.8 times, sunlit water (IMG_7400 light rays) turned grey
+    /// with a lavender edge; with no exception, a pale manta kept a teal tint (1 Oct 2026).
     static func neutralWeight(_ c: SIMD3<Float>, correction v: ColorCorrection) -> Float {
         func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {
             let t = min(1, max(0, (x - low) / max(1e-5, high - low)))
@@ -184,7 +185,7 @@ enum FinishingMath {
         guard waterLum > 1e-4, c.sum() > 1e-5 else { return 1 - waterLike(c, correction: v) }
         // Chromaticity distance to the water: sum of |channel share - water channel share|.
         let apart = simd_reduce_add(abs(c / c.sum() - water / water.sum()))
-        let bright = smoothstep(1.3, 1.8, lum / waterLum) * smoothstep(0.08, 0.2, apart)
+        let bright = smoothstep(2.2, 3.2, lum / waterLum) * smoothstep(0.08, 0.2, apart)
         return 1 - waterLike(c, correction: v) * (1 - bright)
     }
     /// 0...1: how much a colour (after the cast gains) counts as open water.
