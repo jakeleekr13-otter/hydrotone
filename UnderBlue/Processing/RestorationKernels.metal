@@ -76,3 +76,20 @@ using namespace metal;
     const float w = weights.x * smoothstep(0.0f, max(1e-4f, weights.y), clamp(depthSample.r, 0.0f, 1.0f));
     return mix(current, depthAware, clamp(w, 0.0f, 1.0f));
 }
+
+// The local veil's broad light without the photo's subjects (SubjectMask). mode 0 gives the source
+// times (1 - mask), mode 1 the weight (1 - mask) alone; RestorationEngine.restore blurs both.
+[[stitchable]] float4 UnderBlueSubjectWeight(coreimage::sample_t source, coreimage::sample_t mask, float mode) {
+    const float w = 1.0f - clamp(mask.r, 0.0f, 1.0f);
+    return mode > 0.5f ? float4(w, w, w, 1.0f) : float4(max(source.rgb, float3(0.0f)) * w, 1.0f);
+}
+
+// Weighted blur over blurred weight, outside the subject. Inside it, and where little background
+// is near, the plain broad light stays (so a subject's own restoration is unchanged).
+[[stitchable]] float4 UnderBlueSubjectFreeLight(coreimage::sample_t weighted, coreimage::sample_t weight,
+                                                coreimage::sample_t broad, coreimage::sample_t mask) {
+    const float w = weight.r;
+    const float t = smoothstep(0.02f, 0.2f, w) * (1.0f - smoothstep(0.1f, 0.6f, mask.r));
+    const float3 out = mix(broad.rgb, weighted.rgb / max(w, 1e-3f), t);
+    return all(isfinite(out)) ? float4(out, broad.a) : broad;
+}

@@ -214,6 +214,41 @@ final class RestorationTests: XCTestCase {
         }
     }
 
+    func testSubjectMaskKeepsABrightSubjectFromDarkeningTheWaterBesideIt() throws {
+        let engine = FilterEngine(), restoration = RestorationEngine()
+        let side = 128, square = 40..<88
+        let map = try NormalizedDepthMap(width: 4, height: 4, values: .init(repeating: 0.6, count: 16))
+        var plan = RestorationPlan(depth: map, depthSource: .monocular,
+            depthStatistics: .init(minimum: 0.6, maximum: 0.6, median: 0.6), backscatterInfinity: .init(0.043, 0.086, 0.121),
+            betaDirect: .init(1.2, 0.6, 0.4), betaBackscatter: .init(1.2, 1.6, 1.6), confidence: 0.8, limits: .init(),
+            transmissionFloorPixelPercentage: 0, maximumGainPixelPercentage: 0)
+        plan.veilLevel = 0.1
+        // Blue water with a bright, pale subject in the middle (an O4-like manta).
+        let water = CIImage(color: CIColor(red: 0.05, green: 0.11, blue: 0.2, colorSpace: FilterEngine.workingSpace)!)
+        let subject = CIImage(color: CIColor(red: 0.7, green: 0.8, blue: 0.82, colorSpace: FilterEngine.workingSpace)!)
+            .cropped(to: CGRect(x: square.lowerBound, y: square.lowerBound, width: square.count, height: square.count))
+        let image = subject.composited(over: water).cropped(to: CGRect(x: 0, y: 0, width: side, height: side))
+        var values = [Float](repeating: 0, count: side * side)
+        for y in square { for x in square { values[y * side + x] = 1 } }
+        var masked = plan
+        masked.subjectMask = SubjectMask(width: side, height: side, values: values)
+        func luma(_ output: CIImage, _ x: Int, _ y: Int) -> Float {
+            var pixel = [Float](repeating: 0, count: 4)
+            engine.context.render(output, toBitmap: &pixel, rowBytes: 16, bounds: CGRect(x: x, y: y, width: 1, height: 1),
+                                  format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            return (SIMD3(pixel[0], pixel[1], pixel[2]) * ColorCorrection.luma).sum()
+        }
+        let plain = try restoration.restore(image, plan: plan), separated = try restoration.restore(image, plan: masked)
+        // Water 5 px beside the subject (past the 1.5 px detail split, within the 6.4 px broad blur)
+        // against water in the corner.
+        let besideBefore = luma(plain, square.upperBound + 5, 64), farBefore = luma(plain, 1, 1)
+        let besideAfter = luma(separated, square.upperBound + 5, 64), farAfter = luma(separated, 1, 1)
+        XCTAssertLessThan(besideBefore, farBefore * 0.8, "without the mask the subject darkens the water beside it")
+        XCTAssertEqual(besideAfter, farAfter, accuracy: farAfter * 0.05)
+        // The subject's own restoration does not change.
+        XCTAssertEqual(luma(separated, 64, 64), luma(plain, 64, 64), accuracy: 1e-3)
+    }
+
     func testPlanVeilLevelMixesAndSurvivesTheSceneMean() throws {
         let map = try NormalizedDepthMap(width: 4, height: 4, values: .init(repeating: 0.6, count: 16))
         func plan(_ level: Float) -> RestorationPlan {

@@ -85,6 +85,9 @@ struct RestorationPlan: Sendable, Equatable {
     /// Linear luminance of the source water (WaterAnalysis.waterColor) the plan was fitted on: the
     /// level the local veil is measured against (RestorationMath.localVeil). Zero means no local veil.
     var veilLevel: Float = 0
+    /// The photo's subjects (SubjectMask), left out of the local veil's broad light. Photos only:
+    /// video plans have none, so a mask that changes from frame to frame cannot flicker.
+    var subjectMask: SubjectMask?
 
     init(depth: NormalizedDepthMap, depthSource: DepthSource, depthStatistics: DepthStatistics,
          backscatterInfinity: SIMD3<Float>, betaDirect: SIMD3<Float>, betaBackscatter: SIMD3<Float>,

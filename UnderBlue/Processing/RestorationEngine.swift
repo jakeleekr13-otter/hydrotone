@@ -142,6 +142,8 @@ final class RestorationEngine: Sendable {
     private let kernel: CIColorKernel?
     private let detailKernel: CIColorKernel?
     private let depthBlendKernel: CIColorKernel?
+    private let subjectWeightKernel: CIColorKernel?
+    private let subjectFreeLightKernel: CIColorKernel?
     /// Depth (normalized) from which a pixel takes the full restored result. See combined().
     static let nearDepth: Float = 0.25
 
@@ -149,6 +151,8 @@ final class RestorationEngine: Sendable {
         kernel = MetalKernels.color("UnderBlueRestoration")
         detailKernel = MetalKernels.color("UnderBlueRestoredDetail")
         depthBlendKernel = MetalKernels.color("UnderBlueDepthBlend")
+        subjectWeightKernel = MetalKernels.color("UnderBlueSubjectWeight")
+        subjectFreeLightKernel = MetalKernels.color("UnderBlueSubjectFreeLight")
     }
 
     /// The blur (share of the short side, at least 1.5 px) that splits the source into the part
@@ -170,10 +174,25 @@ final class RestorationEngine: Sendable {
         blur.radius = max(1.5, Self.detailSplitRadius * (short.isFinite ? short : 0))
         let low = detailKernel == nil ? image : (blur.outputImage ?? image).cropped(to: image.extent)
         // The broad light around each pixel, for the local veil (RestorationMath.localVeil).
-        let broadBlur = CIFilter.gaussianBlur()
-        broadBlur.inputImage = image.clampedToExtent()
-        broadBlur.radius = max(4, RestorationMath.localVeilRadius * (short.isFinite ? short : 0))
-        let broad = (broadBlur.outputImage ?? image).cropped(to: image.extent)
+        let broadRadius = max(4, RestorationMath.localVeilRadius * (short.isFinite ? short : 0))
+        func broadBlur(_ input: CIImage) -> CIImage {
+            let blur = CIFilter.gaussianBlur()
+            blur.inputImage = input.clampedToExtent()
+            blur.radius = broadRadius
+            return (blur.outputImage ?? input).cropped(to: image.extent)
+        }
+        var broad = broadBlur(image)
+        // Outside the photo's subjects the broad light leaves them out: a blur of the source
+        // weighted by (1 - mask), divided by the blur of the weight. See SubjectMask.
+        if let subjects = plan.subjectMask, let subjectWeightKernel, let subjectFreeLightKernel {
+            let mask = subjects.image(matching: image.extent)
+            if let weighted = subjectWeightKernel.apply(extent: image.extent, arguments: [image, mask, 0]),
+               let weight = subjectWeightKernel.apply(extent: image.extent, arguments: [image, mask, 1]),
+               let free = subjectFreeLightKernel.apply(extent: image.extent, arguments: [
+                   broadBlur(weighted), broadBlur(weight), broad, mask]) {
+                broad = free.cropped(to: image.extent)
+            }
+        }
         let restoredLow = kernel.apply(extent: image.extent, arguments: [
             low, depth, broad,
             vector(plan.backscatterInfinity), vector(plan.betaDirect), vector(plan.betaBackscatter),

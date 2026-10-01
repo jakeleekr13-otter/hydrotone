@@ -179,6 +179,9 @@ for name in selected {
         let depth = try await depthEstimator.monocularDepth(for: source)
         depthMap = depth.map
         plan = try waterEstimator.estimate(image: source, depth: depth, legacy: analysis, context: engine.context)
+        // As PhotoProcessor does. The uniform (video) plan below has no mask, as video has none.
+        plan?.subjectMask = SubjectMask.estimate(source)
+        if ProcessInfo.processInfo.environment["HT_EVAL_LOG"] != nil, let m = plan?.subjectMask { print("\(name) subjects: \(m.width)x\(m.height) share=\(m.values.reduce(0, +) / Float(m.values.count))") }
     } catch { }
     guard let depthMap else { print("depth failed \(name)"); continue }
     let current = engine.apply(source, settings: settings)

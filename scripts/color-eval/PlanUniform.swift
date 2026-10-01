@@ -14,6 +14,7 @@ extension RestorationPlan {
                                depthConfidence: depthConfidence, waterFitConfidence: waterFitConfidence,
                                temporalConfidence: temporalConfidence, channelRecoverability: channelRecoverability)
         plan.veilLevel = veilLevel
+        // No subjectMask: video plans have none.
         return plan
     }
 }

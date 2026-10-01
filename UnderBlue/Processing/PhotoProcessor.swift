@@ -176,7 +176,8 @@ actor PhotoProcessor {
         do {
             let depth = try await depthEstimator.estimate(image: source, sourceURL: url)
             try Task.checkCancellation()
-            let plan = try waterEstimator.estimate(image: source, depth: depth, legacy: analysis, context: engine.context)
+            var plan = try waterEstimator.estimate(image: source, depth: depth, legacy: analysis, context: engine.context)
+            plan.subjectMask = SubjectMask.estimate(source)
             restorationPlan = plan
             #if DEBUG
             logger.debug("Binf=(\(plan.backscatterInfinity.x),\(plan.backscatterInfinity.y),\(plan.backscatterInfinity.z)) betaD=(\(plan.betaDirect.x),\(plan.betaDirect.y),\(plan.betaDirect.z)) betaB=(\(plan.betaBackscatter.x),\(plan.betaBackscatter.y),\(plan.betaBackscatter.z)) confidence=\(plan.confidence) floorPixels=\(plan.transmissionFloorPixelPercentage)% maxGainPixels=\(plan.maximumGainPixelPercentage)%")
