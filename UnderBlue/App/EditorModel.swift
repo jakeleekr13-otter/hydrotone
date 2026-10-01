@@ -128,7 +128,8 @@ final class EditorModel {
         guard media.kind == .photo else {
             previewSettings.update(settings, comparing: comparing)
             let generation = previewGeneration.begin()
-            guard let player, let item = player.currentItem, let videoAnalysis else { return }
+            // Without a scene analysis (it failed) the preview still follows the preset and intensity.
+            guard let player, let item = player.currentItem else { return }
             do {
                 let composition = try await videoPreview.composition(asset: item.asset, settings: previewSettings,
                                                                      analysis: videoAnalysis)

@@ -156,6 +156,7 @@ Run before release:
 - **Export time.** The restoration now has one more blur per frame. Video export time is unmeasured.
 - **Holdout and presets.** Re-run the UIEB holdout. Check Tropical and Deep Dive by eye, because the restoration and the tone step changed.
 - **Custom Brightness down.** Check that dark areas keep their grades at the slider's minimum.
+- **Video analysis on the iPhone (1 Oct 2026).** The whale shark clip in `challenge_video/video3` failed its whole scene analysis twice (diagnostic code 6). Then it got the neutral standard correction, which made it bluer. One unreadable keyframe stopped the analysis; an audio track longer than the video by more than 0.13 s causes that. Keyframes now stay inside the video track, and an unreadable keyframe is skipped. The file in `video3` is an UnderBlue export, not the original. Open the original from Photos again: no fallback notice, and Natural Dive removes the blue cast.
 
 ## HDR photo export (28 Sep 2026)
 

@@ -176,8 +176,26 @@ actor VideoRestorationAnalyzer {
         generator.requestedTimeToleranceBefore = CMTime(seconds: 0.03, preferredTimescale: 600)
         generator.requestedTimeToleranceAfter = CMTime(seconds: 0.03, preferredTimescale: 600)
 
-        let representativeTime = max(0, metadata.duration * 0.5)
-        let representative = try await generator.image(at: CMTime(seconds: representativeTime, preferredTimescale: 600)).image
+        // One frame that cannot be read must not stop the whole analysis (code 6, video3, 1 Oct 2026):
+        // a failed keyframe is skipped, and only a clip with no readable keyframe fails.
+        // Keyframes stay inside the video track: a longer audio track ran them past the last frame.
+        let videoDuration = metadata.videoDuration
+        let keyframes = Self.keyframeTimes(duration: videoDuration)
+        var times: [Double] = [], samples: [WaterAnalysis] = [], firstFrame: CGImage?
+        for time in keyframes {
+            try Task.checkCancellation()
+            let cg: CGImage
+            do { cg = try await generator.image(at: CMTime(seconds: time, preferredTimescale: 600)).image }
+            catch is CancellationError { throw CancellationError() } catch { continue }
+            if firstFrame == nil { firstFrame = cg }
+            times.append(time)
+            samples.append(engine.analyze(engine.sdr(CIImage(cgImage: cg))))
+        }
+        guard let firstFrame else { throw UnderBlueError.unreadable }
+        var representativeTime = max(0, videoDuration * 0.5)
+        let representative: CGImage
+        do { representative = try await generator.image(at: CMTime(seconds: representativeTime, preferredTimescale: 600)).image }
+        catch is CancellationError { throw CancellationError() } catch { representative = firstFrame; representativeTime = times[0] }
         let representativeImage = engine.sdr(CIImage(cgImage: representative))
         let device = await profiler.profile(representativeImage: representativeImage)
         let source = VideoSourceProfile.make(url: url, metadata: metadata)
@@ -190,13 +208,6 @@ actor VideoRestorationAnalyzer {
         // Video rule: a keyframe about every second. Keyframes that show the same scene form one scene
         // (VideoSceneSplitter). A scene averages its keyframes, drops odd ones, and its values hold for
         // the whole scene. Between two scenes the values cross-fade (VideoRestorationAnalysis.moment).
-        let times = Self.keyframeTimes(duration: metadata.duration)
-        var samples: [WaterAnalysis] = []
-        for time in times {
-            try Task.checkCancellation()
-            let cg = try await generator.image(at: CMTime(seconds: time, preferredTimescale: 600)).image
-            samples.append(engine.analyze(engine.sdr(CIImage(cgImage: cg))))
-        }
         let starts = VideoSceneSplitter.sceneStarts(samples)
         let ranges = zip(starts, starts.dropFirst() + [samples.count]).map { $0..<$1 }
 
@@ -205,7 +216,9 @@ actor VideoRestorationAnalyzer {
         for range in ranges {
             for index in Self.spread(range, count: Self.maximumFitsPerScene) {
                 try Task.checkCancellation()
-                let cg = try await generator.image(at: CMTime(seconds: times[index], preferredTimescale: 600)).image
+                let cg: CGImage
+                do { cg = try await generator.image(at: CMTime(seconds: times[index], preferredTimescale: 600)).image }
+                catch is CancellationError { throw CancellationError() } catch { restorationFailures += 1; continue }
                 let image = engine.sdr(CIImage(cgImage: cg))
                 do {
                     let depth = try await depthEstimator.monocularDepth(for: image)

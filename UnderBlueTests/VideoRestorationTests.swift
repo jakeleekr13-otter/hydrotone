@@ -249,6 +249,37 @@ final class VideoRestorationTests: XCTestCase {
         print("Video V2 integration export: \(result.frames) frames in \(elapsed)s (\(Double(result.frames) / elapsed) fps)")
     }
 
+    /// video3 (1 Oct 2026): the whole scene analysis failed (diagnostic code 6), so the clip got only the
+    /// neutral standard correction. A keyframe past the last video frame cannot be read, and an audio
+    /// track longer than the video put the last keyframe there. Keyframes now stay inside the video track.
+    func testAnalysisSucceedsWhenTheAudioOutlastsTheVideo() async throws {
+        let fixture = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "h264_1080_30_audio", withExtension: "mov"))
+        let source = AVURLAsset(url: fixture)
+        let composition = AVMutableComposition()
+        let half = CMTime(seconds: 0.3, preferredTimescale: 600), full = try await source.load(.duration)
+        let videoTracks = try await source.loadTracks(withMediaType: .video), audioTracks = try await source.loadTracks(withMediaType: .audio)
+        let video = try XCTUnwrap(videoTracks.first), audio = try XCTUnwrap(audioTracks.first)
+        let videoTrack = try XCTUnwrap(composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid))
+        let audioTrack = try XCTUnwrap(composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid))
+        try videoTrack.insertTimeRange(CMTimeRange(start: .zero, duration: half), of: video, at: .zero)
+        try audioTrack.insertTimeRange(CMTimeRange(start: .zero, duration: full), of: audio, at: .zero)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("audio-longer-\(UUID().uuidString).mov")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let session = try XCTUnwrap(AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough))
+        try await session.export(to: url, as: .mov)
+
+        let metadata = try await MediaInspector().inspect(url)
+        XCTAssertGreaterThan(metadata.duration, 0.5)                    // the audio sets the asset duration
+        XCTAssertEqual(metadata.videoDuration, 0.3, accuracy: 0.05)     // frames end here
+        let suite = "UnderBlue.VideoV2.Tests.\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+        let analyzer = VideoRestorationAnalyzer(profiler: DeviceCapabilityProfiler(defaults: try XCTUnwrap(UserDefaults(suiteName: suite))))
+        let analysis = try await analyzer.analyze(url: url, metadata: metadata)
+        XCTAssertLessThanOrEqual(analysis.representativeTime, metadata.videoDuration)
+        XCTAssertGreaterThan(analysis.legacyAnalysis.midLuminance, 0)   // a real colour analysis, not the neutral default
+        XCTAssertNotEqual(analysis.legacyAnalysis, .neutral)
+    }
+
     func testFiveFrameAnalyzerOnPhysicalDevice() async throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Compressed Depth Anything analysis requires a physical Apple device")
