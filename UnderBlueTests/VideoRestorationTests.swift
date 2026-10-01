@@ -103,6 +103,54 @@ final class VideoRestorationTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(analysis.moment(at: 45.6)).from.start, 60)
     }
 
+    /// video2 (1 Oct 2026): scenes of one or two keyframes switched the values against the light, so
+    /// the clip flickered at 14 to 18 s. They are skipped; their neighbours fade across the whole gap.
+    func testShortScenesAreSkippedAndTheirNeighboursFadeAcrossTheGap() throws {
+        let cg = try blackImage()
+        let map = try NormalizedDepthMap(width: 2, height: 2, values: .init(repeating: 0.5, count: 4))
+        func plan() -> RestorationPlan {
+            RestorationPlan(depth: map, depthSource: .monocular, depthStatistics: .init(minimum: 0.5, maximum: 0.5, median: 0.5),
+                backscatterInfinity: .init(0.04, 0.08, 0.12), betaDirect: .init(1.2, 0.6, 0.4), betaBackscatter: .init(1.2, 1.6, 1.6),
+                confidence: 0.6, limits: .init(), transmissionFloorPixelPercentage: 0, maximumGainPixelPercentage: 0)
+        }
+        let scenes = [VideoScene(start: 0, end: 10, analysis: .init(redLoss: 0.6), plan: plan(), keyframes: 11),
+                      VideoScene(start: 11, end: 12, analysis: .init(redLoss: 0.1), plan: plan(), keyframes: 2),
+                      VideoScene(start: 13, end: 13, analysis: .init(redLoss: 0.9), plan: plan(), keyframes: 1),
+                      VideoScene(start: 14, end: 30, analysis: .init(redLoss: 0.3), plan: plan(), keyframes: 17)]
+        let analysis = VideoRestorationAnalysis(
+            legacyAnalysis: .neutral, representativeFrame: cg, representativeTime: 0, scenes: scenes,
+            initialEnvironment: nil, deviceProfile: device(.balanced, milliseconds: 50), sourceProfile: source(.medium),
+            previewPolicy: policy(.preview), exportPolicy: policy(.export))
+        // The short scenes never appear; the fade runs from 10 to 14 s and keeps rising.
+        var previous: Float = 0
+        for step in 1...39 {
+            let time = 10 + Double(step) / 10
+            let moment = try XCTUnwrap(analysis.moment(at: time))
+            XCTAssertEqual(moment.from.start, 0, "t=\(time)")
+            XCTAssertEqual(moment.to.start, 14, "t=\(time)")
+            XCTAssertGreaterThanOrEqual(moment.amount, previous, "t=\(time)")
+            previous = moment.amount
+        }
+        XCTAssertEqual(try XCTUnwrap(analysis.moment(at: 10)).amount, 0)
+        XCTAssertEqual(try XCTUnwrap(analysis.moment(at: 12)).amount, 0.5, accuracy: 1e-6)
+        XCTAssertEqual(try XCTUnwrap(analysis.moment(at: 14)).from.start, 14)
+        XCTAssertEqual(try XCTUnwrap(analysis.moment(at: 20)).from.start, 14)
+        // A short scene at the end of the clip is its only measurement there, so it stays.
+        let endingShort = VideoRestorationAnalysis(
+            legacyAnalysis: .neutral, representativeFrame: cg, representativeTime: 0,
+            scenes: scenes + [VideoScene(start: 31, end: 32, analysis: .init(redLoss: 0.5), plan: plan(), keyframes: 2)],
+            initialEnvironment: nil, deviceProfile: device(.balanced, milliseconds: 50), sourceProfile: source(.medium),
+            previewPolicy: policy(.preview), exportPolicy: policy(.export))
+        XCTAssertEqual(try XCTUnwrap(endingShort.moment(at: 32)).from.start, 31)
+        XCTAssertEqual(try XCTUnwrap(endingShort.moment(at: 12)).to.start, 14)
+        // A clip made only of short scenes still uses them.
+        let onlyShort = VideoRestorationAnalysis(
+            legacyAnalysis: .neutral, representativeFrame: cg, representativeTime: 0, scenes: Array(scenes[1...2]),
+            initialEnvironment: nil, deviceProfile: device(.balanced, milliseconds: 50), sourceProfile: source(.medium),
+            previewPolicy: policy(.preview), exportPolicy: policy(.export))
+        XCTAssertEqual(try XCTUnwrap(onlyShort.moment(at: 11)).from.start, 11)
+    }
+
     func testNoScenesMeansNoMoment() throws {
         let cg = try blackImage()
         let analysis = VideoRestorationAnalysis(

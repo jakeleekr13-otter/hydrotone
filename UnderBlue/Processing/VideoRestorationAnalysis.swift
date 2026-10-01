@@ -10,9 +10,12 @@ struct VideoScene: Sendable, Equatable {
     let end: Double
     let analysis: WaterAnalysis
     let plan: RestorationPlan
+    /// Keyframes the scene was measured on. Zero means unknown; such a scene always holds its values.
+    var keyframes: Int = 0
 
     func limiting(maximumOutput: Float) -> VideoScene {
-        VideoScene(start: start, end: end, analysis: analysis, plan: plan.limiting(maximumOutput: maximumOutput))
+        VideoScene(start: start, end: end, analysis: analysis, plan: plan.limiting(maximumOutput: maximumOutput),
+                   keyframes: keyframes)
     }
 }
 
@@ -75,19 +78,36 @@ struct VideoRestorationAnalysis: Sendable {
     /// two keyframes, so the fade is centred on the middle of that gap.
     static let sceneFade: Double = 1
 
+    /// A scene measured on fewer keyframes is a passing state, not a scene to hold. Its values come
+    /// from one or two keyframes, which jitter. While the camera turned toward the surface and back
+    /// (video2, 14 to 18 s), such scenes switched the values against the light: the output got darker
+    /// while the source got brighter. So a short scene between two held scenes is skipped, and its
+    /// neighbours fade across the whole gap. A short scene at the start or end of the clip is the only
+    /// measurement of that stretch, so it stays (skipping the last one turned the challenge clip's last
+    /// second grey: 0.1% to 32% of the frame).
+    static let heldSceneKeyframes = 3
+
     /// The scene values for one frame. Preview and export both use this, so they match.
     func moment(at time: Double) -> VideoSceneMoment? {
-        guard var current = scenes.first else { return nil }
-        for next in scenes.dropFirst() {
+        let held = scenes.indices.filter { scenes[$0].keyframes == 0 || scenes[$0].keyframes >= Self.heldSceneKeyframes }
+        let used = scenes.indices.filter { index in
+            guard let first = held.first, let last = held.last else { return true }
+            return held.contains(index) || index < first || index > last
+        }
+        guard let firstIndex = used.first else { return nil }
+        var current = scenes[firstIndex], currentIndex = firstIndex
+        for nextIndex in used.dropFirst() {
+            let next = scenes[nextIndex]
             let middle = (current.end + next.start) / 2
-            let half = min(Self.sceneFade, next.start - current.end) / 2
+            let skipped = nextIndex > currentIndex + 1
+            let half = (skipped ? next.start - current.end : min(Self.sceneFade, next.start - current.end)) / 2
             if time < middle + half {
                 guard half > 0, time > middle - half else { return VideoSceneMoment(from: current, to: current, amount: 0) }
                 // Smoothstep: the fade starts and ends without a jolt.
                 let x = Float((time - (middle - half)) / (2 * half))
                 return VideoSceneMoment(from: current, to: next, amount: x * x * (3 - 2 * x))
             }
-            current = next
+            current = next; currentIndex = nextIndex
         }
         return VideoSceneMoment(from: current, to: current, amount: 0)
     }
@@ -259,7 +279,7 @@ actor VideoRestorationAnalyzer {
         if let fallback = scenePlan(clipKept) ?? sceneValues.lazy.compactMap({ $0.plan }).first {
             scenes = sceneValues.map {
                 VideoScene(start: times[$0.range.lowerBound], end: times[$0.range.upperBound - 1],
-                           analysis: $0.analysis, plan: $0.plan ?? fallback)
+                           analysis: $0.analysis, plan: $0.plan ?? fallback, keyframes: $0.range.count)
             }
         }
         let environment = aggregate(clipKept.compactMap { plans[$0] })

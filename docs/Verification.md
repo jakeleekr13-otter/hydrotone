@@ -157,6 +157,7 @@ Run before release:
 - **Holdout and presets.** Re-run the UIEB holdout. Check Tropical and Deep Dive by eye, because the restoration and the tone step changed.
 - **Custom Brightness down.** Check that dark areas keep their grades at the slider's minimum.
 - **Video analysis on the iPhone (1 Oct 2026).** The whale shark clip in `challenge_video/video3` failed its whole scene analysis twice (diagnostic code 6). Then it got the neutral standard correction, which made it bluer. One unreadable keyframe stopped the analysis; an audio track longer than the video by more than 0.13 s causes that. Keyframes now stay inside the video track, and an unreadable keyframe is skipped. The file in `video3` is an UnderBlue export, not the original. Open the original from Photos again: no fallback notice, and Natural Dive removes the blue cast.
+- **Video flicker at short scenes (1 Oct 2026).** `video2` pumped in brightness at 14 to 18 s. The camera turned toward the surface and back, and scenes of one or two keyframes switched the values against the light. A short scene between two held scenes (3 or more keyframes) is now skipped; its neighbours fade across the whole gap. On the Mac (videosim, 0.1 s steps): frames moving against the source 15 to 8, largest frame-to-frame change 0.0346 to 0.0157 (source 0.0147). The challenge clip is unchanged. Export `video2` on the iPhone and watch 13 to 19 s.
 
 ## HDR photo export (28 Sep 2026)
 
