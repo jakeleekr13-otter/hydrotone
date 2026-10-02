@@ -127,6 +127,38 @@ final class RestorationTests: XCTestCase {
         XCTAssertTrue(edge.x.isFinite && edge.y.isFinite && edge.z.isFinite)
     }
 
+    func testWarmRatioGuardKeepsPaleSurfaceLightFromTurningPink() {
+        // Pale surface light, red already above green: restoration may not raise its red/green.
+        let surface = SIMD3<Float>(0.62, 0.59, 0.57)
+        let kept = RestorationMath.keepWarmRatio(source: surface, restored: .init(0.70, 0.55, 0.56))
+        XCTAssertEqual(kept.x / kept.y, surface.x / surface.y, accuracy: 1e-5)
+        XCTAssertEqual(kept.y, 0.55, accuracy: 1e-6)
+        XCTAssertEqual(kept.z, 0.56, accuracy: 1e-6)
+        // A colourful red subject, a cyan-lit subject and a restoration that lowers red are untouched.
+        for (source, restored): (SIMD3<Float>, SIMD3<Float>) in [
+            (.init(0.5, 0.3, 0.2), .init(0.7, 0.3, 0.2)),     // red fish
+            (.init(0.2, 0.35, 0.4), .init(0.4, 0.35, 0.38)),  // cyan-lit subject, red below green
+            (.init(0.6, 0.58, 0.56), .init(0.5, 0.58, 0.56))] { // red already below the ceiling
+            assertEqual(RestorationMath.keepWarmRatio(source: source, restored: restored), restored, accuracy: 1e-6)
+        }
+        let edge = RestorationMath.keepWarmRatio(source: .zero, restored: .init(0.1, 0.2, 0))
+        XCTAssertTrue(edge.x.isFinite && edge.y.isFinite && edge.z.isFinite)
+    }
+
+    func testCastGainsLeavePaleSurfaceLightUncast() {
+        let values = colorOnly { $0.castGains = .init(1.3, 0.85, 1.2) }
+        // Pale surface light keeps its own colour at the gains' luminance.
+        let surface = SIMD3<Float>(0.5, 0.48, 0.45)
+        let out = FinishingMath.color(surface, correction: values)
+        XCTAssertEqual(out.x / out.y, surface.x / surface.y, accuracy: 1e-4)
+        XCTAssertEqual(out.z / out.y, surface.z / surface.y, accuracy: 1e-4)
+        // A blue-cast pixel (red below green) still gets the cast gains.
+        let castSand = SIMD3<Float>(0.3, 0.4, 0.42)
+        XCTAssertEqual(FinishingMath.uncast(castSand), 0)
+        XCTAssertEqual(FinishingMath.uncast(.init(0.5, 0.3, 0.2)), 0)  // colourful red subject
+        XCTAssertEqual(FinishingMath.uncast(surface), 1)
+    }
+
     func testRestorationKernelMatchesCPUMirror() throws {
         let engine = FilterEngine(), restoration = RestorationEngine()
         let infinity = SIMD3<Float>(0.043, 0.086, 0.121), direct = SIMD3<Float>(1.2, 0.6, 0.4), back = SIMD3<Float>(1.2, 1.6, 1.6)
@@ -138,7 +170,8 @@ final class RestorationTests: XCTestCase {
                 betaDirect: direct, betaBackscatter: back, confidence: 0.8, limits: .init(),
                 transmissionFloorPixelPercentage: 0, maximumGainPixelPercentage: 0, channelRecoverability: recover)
             // Bright subject, mid water, and dark far water that the dark-pixel rule catches.
-            for color: SIMD3<Float> in [.init(0.4, 0.5, 0.55), .init(0.06, 0.12, 0.3), .init(0.02, 0.036, 0.099)] {
+            for color: SIMD3<Float> in [.init(0.4, 0.5, 0.55), .init(0.06, 0.12, 0.3), .init(0.02, 0.036, 0.099),
+                                        .init(0.5, 0.48, 0.45)] {
                 let image = CIImage(color: CIColor(red: CGFloat(color.x), green: CGFloat(color.y), blue: CGFloat(color.z),
                                                    colorSpace: FilterEngine.workingSpace)!).cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
                 var pixel = [Float](repeating: 0, count: 4)
@@ -425,7 +458,7 @@ final class RestorationTests: XCTestCase {
         // passes green (violet guard), and a gated pixel whose rebuilt red hits the ceiling.
         for color: SIMD3<Float> in [.init(0.05, 0.3, 0.35), .init(0.3, 0.25, 0.2), .init(0.02, 0.5, 0.3), .init(2.5, 3, 4),
                                     .init(0.02, 0.15, 0.4), .init(0.06, 0.2, 0.3), .init(0.3, 0.33, 0.38),
-                                    .init(0.05, 0.02, 0.5), .init(0.2, 0.3, 0.33)] {
+                                    .init(0.05, 0.02, 0.5), .init(0.2, 0.3, 0.33), .init(0.5, 0.48, 0.45)] {
             let image = CIImage(color: CIColor(red: CGFloat(color.x), green: CGFloat(color.y), blue: CGFloat(color.z),
                                                colorSpace: FilterEngine.workingSpace)!).cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
             var pixel = [Float](repeating: 0, count: 4)

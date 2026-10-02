@@ -219,6 +219,7 @@ extension ColorCorrection {
         }
         restored = RestorationMath.keepHueWhereDark(source: mean, restored: restored)
         restored = RestorationMath.keepBlueFamily(source: mean, restored: restored)
+        restored = RestorationMath.keepWarmRatio(source: mean, restored: restored)
         return restored.x.isFinite && restored.y.isFinite && restored.z.isFinite ? restored : mean
     }
 

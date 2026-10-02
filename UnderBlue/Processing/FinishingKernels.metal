@@ -8,6 +8,15 @@ using namespace metal;
 [[stitchable]] float4 UnderBlueFinishColor(coreimage::sample_t source, coreimage::sample_t referenceInput, float4 gains, float4 water, float4 shape, float4 red, float4 tone, float4 neutral, float4 waterLit, float4 subjectTone, float4 reference) {
     const float3 input = max(source.rgb, float3(0.0f));
     float3 c = input * max(gains.rgb, float3(0.0f));
+    // A pale pixel whose red already reaches green carries no water cast (surface light): it keeps
+    // its own colour at the gains' luminance. FinishingMath.uncast mirrors the weight.
+    {
+        const float sourceTop = max(input.r, max(input.g, input.b));
+        const float sourceChroma = sourceTop > 1e-4f ? (sourceTop - min(input.r, min(input.g, input.b))) / sourceTop : 0.0f;
+        const float uncast = smoothstep(0.92f, 1.0f, input.r / max(input.g, 1e-4f)) * (1.0f - smoothstep(0.15f, 0.3f, sourceChroma));
+        const float3 luma = float3(0.2126f, 0.7152f, 0.0722f);
+        c = mix(c, input * (dot(c, luma) / max(dot(input, luma), 1e-5f)), uncast);
+    }
     // Redder subjects stay protected, with a broad transition through similar water colours.
     // Only strongly coloured water (shape.y) reliably separates silver subjects by chroma.
     // In murky water, fading that test avoids amplifying compressed colour steps into patches.

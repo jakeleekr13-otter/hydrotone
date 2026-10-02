@@ -12,6 +12,9 @@ enum FinishingMath {
         let input = SIMD3(source.x.isFinite ? max(0, source.x) : 0, source.y.isFinite ? max(0, source.y) : 0,
                           source.z.isFinite ? max(0, source.z) : 0)
         var c = input * SIMD3(max(0, v.castGains.x), max(0, v.castGains.y), max(0, v.castGains.z))
+        // A pale pixel whose red already reaches green keeps its own colour at the gains' luminance.
+        let uncast = uncast(input)
+        c += (input * ((c * ColorCorrection.luma).sum() / max((input * ColorCorrection.luma).sum(), 1e-5)) - c) * uncast
         let waterLike = waterLike(c, correction: v)
         // White reference: pixels that are not water-like, or clearly brighter than the water,
         // move with the scene's neutral surfaces.
@@ -79,6 +82,24 @@ enum FinishingMath {
         }
         return c.x.isFinite && c.y.isFinite && c.z.isFinite ? c : input
     }
+    /// Weight of "this pixel carries no water cast", 0 to 1, read on the source pixel.
+    /// Water takes red first, so a pixel whose red already reaches green (red/green uncastLow to
+    /// uncastHigh) and that is pale (chroma (max - min) / max below paleChromaLow to paleChromaHigh)
+    /// lost no red: surface light, a reflection of the sky, a sunlit highlight. The cast gains and the
+    /// restoration's red recovery pushed it to pink or lavender: the shark photo's water surface,
+    /// 4.2% pink or violet in the source, 28.5% after (3 Oct 2026). Colourful red subjects keep their
+    /// correction. The finishing kernel and RestorationMath.keepWarmRatio use the same weight.
+    static func uncast(_ source: SIMD3<Float>) -> Float {
+        func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {
+            let t = min(1, max(0, (x - low) / max(1e-5, high - low)))
+            return t * t * (3 - 2 * t)
+        }
+        let s = pointwiseMax(source, .zero), top = s.max()
+        let chroma = top > 1e-4 ? (top - s.min()) / top : 0
+        return smoothstep(uncastLow, uncastHigh, s.x / max(s.y, 1e-4)) * (1 - smoothstep(paleChromaLow, paleChromaHigh, chroma))
+    }
+    static let uncastLow: Float = 0.92, uncastHigh: Float = 1.0
+    static let paleChromaLow: Float = 0.15, paleChromaHigh: Float = 0.3
     /// Fine detail layer, applied after the unsharp masks. The UnderBlueDetail kernel mirrors it.
     /// `c` is the pixel after the unsharp masks, `blurred` the same pixel blurred by detailRadius, and
     /// `reference` the finishing input (the source, or the restored image), which the water-like test reads.

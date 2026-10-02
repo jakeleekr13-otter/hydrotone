@@ -55,6 +55,15 @@ using namespace metal;
         const float amount = blueness * smoothstep(1.1f, 1.4f, greenBlue) * smoothstep(4.0f, 8.0f, growth);
         restored = mix(restored, lit * ((now.r + now.g + now.b) / before), amount);
     }
+    // A pale source pixel whose red already reaches green lost no red, so restoration may not
+    // raise its red/green. RestorationMath.keepWarmRatio mirrors it.
+    if (before > 1e-5f) {
+        const float sourceTop = max(lit.r, max(lit.g, lit.b));
+        const float sourceChroma = sourceTop > 1e-4f ? (sourceTop - min(lit.r, min(lit.g, lit.b))) / sourceTop : 0.0f;
+        const float ratio = lit.r / max(lit.g, 1e-4f);
+        const float uncast = smoothstep(0.92f, 1.0f, ratio) * (1.0f - smoothstep(0.15f, 0.3f, sourceChroma));
+        restored.r = mix(restored.r, min(restored.r, max(restored.g, 0.0f) * ratio), uncast);
+    }
     if (!all(isfinite(restored))) { restored = max(source.rgb, float3(0.0f)); }
     return float4(restored, source.a);
 }
