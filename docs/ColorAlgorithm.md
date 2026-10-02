@@ -331,13 +331,12 @@ If the finishing kernel fails to compile, `FilterEngine.colorStage` falls back t
 
 Use [scripts/color-eval](../scripts/color-eval/README.md). It compiles the app's own `Processing` sources.
 
-deltaE is the mean CIE76 colour difference to the reference image. Lower is closer. UIEB is a public underwater image set with reference images.
+deltaE is the mean CIE76 colour difference to the reference image. Lower is closer. UIEB is a public underwater image set with reference images. It was removed on 2 Oct 2026, so the UIEB figures below cannot be re-run.
 
 1. Run `scripts/color-eval/aquacolorfix_eval.sh <name>` for the AquaColorFix gate (24 seconds). It prints the five pair ΔE values, the gate mean and the water hues. `HT_EVAL_LOG` shows every value `make()` produced and a probe of the water, neutral and mean colours through the chain.
 2. Run `scripts/color-eval/tune_eval.sh <name>`.
-3. Check the guards in the harness README. They cover the neutral ramp, dev deltaE, indigo and violet water, green water, the best UIEB images, real photos, market pairs and the AquaColorFix gate.
+3. Check the guards in the harness README. They cover the neutral ramp, real photos, market pairs, neutral surfaces and the AquaColorFix gate.
 4. Open the sheets and look at them. The numbers do not show everything.
-5. Tune on dev. Check holdout once, at the end.
 
 Water hue uses OKLab. CIELAB hue cannot separate azure (273), pure blue (306) and violet (310). So earlier "violet water" counts, including one commit message, mixed blue with violet. The bands are cyan 180 to 235, blue 235 to 270, indigo 270 to 282, violet 282 and above.
 

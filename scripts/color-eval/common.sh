@@ -1,5 +1,5 @@
 # Shared setup for the colour evaluation scripts (zsh). Source it; do not run it.
-# HT_EVAL_DATA     data root (UIEB, market pairs, real photos). Default: DeveloperMedia/ (git-ignored, outside every Xcode group).
+# HT_EVAL_DATA     data root (market pairs, real photos, AquaColorFix triplets). Default: DeveloperMedia/ (git-ignored, outside every Xcode group).
 # HT_EVAL_SOURCES  folder with the colour sources (FilterEngine, MetalKernels, the .metal files, FinishingMath, ColorCorrection,
 #                  ColorMath, WaterAnalysis, FilterSettings, DivePreset), RestorationPlan, RestorationEngine,
 #                  WaterModelEstimator, DepthEstimator and SubjectMask.
@@ -13,7 +13,6 @@ HT_EVAL_OUT=${HT_EVAL_OUT:-${TMPDIR:-/tmp}/underblue-color-eval}
 # Keep all media OUTSIDE UnderBlueTests/: that folder is a synchronized Xcode group, so even git-ignored
 # files there ship in the test bundle, and same-named files (raw/ vs ref/) break build-for-testing.
 HT_EVAL_MARKET=${HT_EVAL_MARKET:-$HT_EVAL_DATA/market}
-UIEB=$HT_EVAL_DATA/samples/photo
 MODEL=$HT_EVAL_OUT/cache/DepthAnythingV2SmallF16P6.mlmodelc
 export HT_EVAL_DATA
 

@@ -112,6 +112,7 @@ Static results and known regressions are in [M5ColorEvaluation](M5ColorEvaluatio
 - **Holdout.** Run after the final 29 Sep static candidate: 20.3411 combined and 20.3539 uniform,
   against 20.4373 and 20.4364 from the pre-change source snapshot. The mean improved, but
   `144_img_.png` regressed by 1.53 on uniform; this is not an unconditional pass.
+  The UIEB set was removed on 2 Oct 2026, so this check is closed and cannot be re-run.
 - **Presets on the new colour.** Done on 29 Sep: Jake checked and accepted the tuned Natural,
   Tropical and Deep Dive presets on the iPhone (`8b9f278`, recorded by `7b1a015`). The Natural Dive
   pin was regenerated for the reference-adaptation values. Repeat this check only if colour or
@@ -154,7 +155,7 @@ Run before release:
 - **iPhone photo export.** Check a full-size export of a reef and a bright blue-water photo. Look for halos where a subject meets open water. The broad blur is 5% of the short side.
 - **iPhone video export.** Export `challenge_video/original.MP4` and `challenge_video/video2`. Check the band at 32–38 s, the pink surface light, and the manta at 5 s. Watch the fish school edge for a moving halo or flicker: the broad blur is computed per frame.
 - **Export time.** The restoration now has one more blur per frame. Video export time is unmeasured.
-- **Holdout and presets.** Re-run the UIEB holdout. Check Tropical and Deep Dive by eye, because the restoration and the tone step changed.
+- **Presets.** Check Tropical and Deep Dive by eye, because the restoration and the tone step changed.
 - **Custom Brightness down.** Check that dark areas keep their grades at the slider's minimum.
 - **Video analysis on the iPhone (1 Oct 2026).** The whale shark clip in `challenge_video/video3` failed its whole scene analysis twice (diagnostic code 6). Then it got the neutral standard correction, which made it bluer. One unreadable keyframe stopped the analysis; an audio track longer than the video by more than 0.13 s causes that. Keyframes now stay inside the video track, and an unreadable keyframe is skipped. The file in `video3` is an UnderBlue export, not the original. Open the original from Photos again: no fallback notice, and Natural Dive removes the blue cast.
 - **Video flicker at short scenes (1 Oct 2026).** `video2` pumped in brightness at 14 to 18 s. The camera turned toward the surface and back, and scenes of one or two keyframes switched the values against the light. A short scene between two held scenes (3 or more keyframes) is now skipped; its neighbours fade across the whole gap. On the Mac (videosim, 0.1 s steps): frames moving against the source 15 to 8, largest frame-to-frame change 0.0346 to 0.0157 (source 0.0147). The challenge clip is unchanged. Export `video2` on the iPhone and watch 13 to 19 s.
@@ -214,14 +215,12 @@ Still open:
 1. **Colour scorecard.** The 29 Sep candidate was run as `m5-final2-dev-20260929`; rerun if any
    colour source changes. Check every guard in [the harness README](../scripts/color-eval/README.md#guards-used-for-tuning),
    including individual regressions that an improved mean can hide.
-2. **Holdout, once per final candidate.** The 29 Sep final static candidate was checked once:
-   20.3411 combined and 20.3539 uniform. If the implementation changes again, treat that as a new
-   candidate and run a fresh holdout only after tuning is frozen.
+2. **Holdout: closed.** The 29 Sep final static candidate was checked once: 20.3411 combined and
+   20.3539 uniform. The UIEB set was removed on 2 Oct 2026, so no fresh holdout can run.
 3. **Presets.** The tuning round checked each preset at intensity 0.8, on photos only:
    - Tropical on shallow, bright scenes: r03, r08, r10, m5
    - Deep Dive on deep, dark-blue scenes: r02, r09, r11, r12, r13
    - Still to check:
-     - UIEB dev and holdout for Tropical and Deep Dive
      - intensity values other than 0.8
      - by eye: done on 29 Sep; the three presets were distinct enough to match their names and accepted on iPhone
      - Deep Dive's lavender sea fans on r11, and Tropical's peach sun core on r10

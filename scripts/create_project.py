@@ -31,7 +31,7 @@ for scope in ['project', 'app', 'tests', 'uitests', 'share']:
 products=[]; groups=[]; targets=[]
 share_target=ident('sharetarget')
 for scope,name,kind in [('app','UnderBlue','application'),('tests','UnderBlueTests','bundle.unit-test'),('uitests','UnderBlueUITests','bundle.ui-testing'),('share','UnderBlueShare','app-extension')]:
-    # Developer media (UIEB, dive clips, market pairs) lives in DeveloperMedia/ at the repo root, outside every
+    # Developer media (dive clips, owner photos, market pairs) lives in DeveloperMedia/ at the repo root, outside every
     # synchronized group. Anything under UnderBlueTests/ ships in the test bundle, git-ignored or not.
     exceptions=''
     # The share extension also compiles SharedInbox.swift from the app folder. An Info.plist is not a resource.
