@@ -157,6 +157,30 @@ enum FinishingMath {
         return out.x.isFinite && out.y.isFinite && out.z.isFinite ? out : c
     }
     static let shoulderWidth: Float = 0.15, whiteLow: Float = 1.3, whiteHigh: Float = 2
+
+    /// Light detail. Inside bright light (light rays below the surface) the tone curve compresses the
+    /// top of the range, so the rays merged into one flat patch. In IMG_7400 (2 Oct 2026) the output
+    /// rose 0.89 per unit of source lightness there; AquaColorFix rose 1.34.
+    /// So where the broad light (`base`, a blur of lightDetailRadius of the short side) is bright,
+    /// the pixel's difference from it grows by lightDetailAmount, on gamma luminance. A large
+    /// difference is an edge (a dark wing against the light). It gets none, so no rim appears.
+    /// The kernel mirrors it.
+    static func lightDetail(_ c: SIMD3<Float>, base: SIMD3<Float>) -> SIMD3<Float> {
+        func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {
+            let t = min(1, max(0, (x - low) / max(1e-5, high - low)))
+            return t * t * (3 - 2 * t)
+        }
+        let l = (c * ColorCorrection.luma).sum(), lb = (base * ColorCorrection.luma).sum()
+        guard l > 1e-5, lb > 0, l.isFinite, lb.isFinite else { return c }
+        let y = pow(l, 1 / 2.2), b = pow(lb, 1 / 2.2), d = y - b
+        let w = smoothstep(lightDetailLow, lightDetailHigh, b) * (1 - smoothstep(lightDetailEdgeLow, lightDetailEdgeHigh, abs(d)))
+        let shaped = min(max(y + d * lightDetailAmount * w, 0), max(1, y))
+        let out = c * (pow(shaped, 2.2) / l)
+        return out.x.isFinite && out.y.isFinite && out.z.isFinite ? out : c
+    }
+    static let lightDetailAmount: Float = 1.3, lightDetailRadius: Float = 0.018
+    static let lightDetailLow: Float = 0.5, lightDetailHigh: Float = 0.7
+    static let lightDetailEdgeLow: Float = 0.06, lightDetailEdgeHigh: Float = 0.15
     static let paleLow: Float = 0.65, paleHigh: Float = 0.9
     /// Linear BT.2020 (the working space) to linear BT.709 / sRGB primaries. Standard colorimetry.
     static func display(_ c: SIMD3<Float>) -> SIMD3<Float> {
@@ -173,6 +197,7 @@ enum FinishingMath {
     /// 0...1: how much the white reference acts on a colour (after the cast gains). Water-like
     /// pixels get none, unless they are 2.2 to 3.2 times brighter than the water and of another
     /// chromaticity (a pale belly). Brighter water of the water's own chromaticity gets none.
+    /// In a scene with a strong light source the range is 2.5 to 8 times (lightBrightLow/High).
     /// The kernel mirrors it. At 1.3 to 1.8 times, sunlit water (IMG_7400 light rays) turned grey
     /// with a lavender edge; with no exception, a pale manta kept a teal tint (1 Oct 2026).
     static func neutralWeight(_ c: SIMD3<Float>, correction v: ColorCorrection) -> Float {
@@ -185,9 +210,15 @@ enum FinishingMath {
         guard waterLum > 1e-4, c.sum() > 1e-5 else { return 1 - waterLike(c, correction: v) }
         // Chromaticity distance to the water: sum of |channel share - water channel share|.
         let apart = simd_reduce_add(abs(c / c.sum() - water / water.sum()))
-        let bright = smoothstep(2.2, 3.2, lum / waterLum) * smoothstep(0.08, 0.2, apart)
+        let g = min(1, max(0, v.lightGradient))
+        let low = brightLow + (lightBrightLow - brightLow) * g, high = brightHigh + (lightBrightHigh - brightHigh) * g
+        let bright = smoothstep(low, high, lum / waterLum) * smoothstep(0.08, 0.2, apart)
         return 1 - waterLike(c, correction: v) * (1 - bright)
     }
+    /// "Clearly brighter" for neutralWeight: 2.2 to 3.2 times the water's luma; with a strong light
+    /// source (ColorCorrection.lightGradient 1) 2.5 to 8 times. The colour kernel mirrors both.
+    static let brightLow: Float = 2.2, brightHigh: Float = 3.2
+    static let lightBrightLow: Float = 2.5, lightBrightHigh: Float = 8
     /// 0...1: how much a colour (after the cast gains) counts as open water.
     static func waterLike(_ c: SIMD3<Float>, correction v: ColorCorrection) -> Float {
         func smoothstep(_ low: Float, _ high: Float, _ x: Float) -> Float {

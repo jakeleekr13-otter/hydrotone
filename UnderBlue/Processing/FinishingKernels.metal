@@ -26,7 +26,10 @@ using namespace metal;
     float bright = 0.0f;
     if (waterLum > 1e-4f && total > 1e-5f) {
         const float3 d = abs(c / total - lw / (lw.r + lw.g + lw.b));
-        bright = smoothstep(2.2f, 3.2f, dot(c, float3(0.2126f, 0.7152f, 0.0722f)) / waterLum)
+        // waterLit.w is ColorCorrection.lightGradient: 2.2-3.2 times the water, or 2.5-8 with a strong
+        // light source (FinishingMath.brightLow/High, lightBrightLow/High).
+        const float g = clamp(waterLit.w, 0.0f, 1.0f);
+        bright = smoothstep(mix(2.2f, 2.5f, g), mix(3.2f, 8.0f, g), dot(c, float3(0.2126f, 0.7152f, 0.0722f)) / waterLum)
             * smoothstep(0.08f, 0.2f, d.r + d.g + d.b);
     }
     c *= mix(float3(1.0f), max(neutral.rgb, float3(0.0f)), 1.0f - waterLike * (1.0f - bright));
@@ -190,4 +193,19 @@ using namespace metal;
     if (!(before > 1e-5f)) { return float4(sharp.rgb, base.a); }
     const float3 out = base.rgb * max(0.0f, after / before);
     return all(isfinite(out)) ? float4(out, base.a) : sharp;
+}
+
+// Light detail: inside bright broad light, the pixel's difference from its blur (gamma luminance)
+// grows, so light rays stay apart. Large differences (edges) get none. FinishingMath.lightDetail
+// mirrors it. sharp = the unsharp mask at intensity 1 (pixel + (pixel - blur)), so the blur is
+// 2 * pixel - sharp. shape = (amount, bright low, bright high, unused), edge = (edge low, edge high).
+[[stitchable]] float4 UnderBlueLightDetail(coreimage::sample_t source, coreimage::sample_t sharp, float4 shape, float4 edge) {
+    const float3 luma = float3(0.2126f, 0.7152f, 0.0722f);
+    const float l = dot(source.rgb, luma), lb = dot(2.0f * source.rgb - sharp.rgb, luma);
+    if (!(l > 1e-5f) || !(lb > 0.0f)) { return source; }
+    const float y = pow(l, 1.0f / 2.2f), b = pow(lb, 1.0f / 2.2f), d = y - b;
+    const float w = smoothstep(shape.y, shape.z, b) * (1.0f - smoothstep(edge.x, edge.y, fabs(d)));
+    const float shaped = min(max(y + d * shape.x * w, 0.0f), max(1.0f, y));
+    const float3 out = source.rgb * (pow(shaped, 2.2f) / l);
+    return all(isfinite(out)) ? float4(out, source.a) : source;
 }

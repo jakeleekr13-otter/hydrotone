@@ -11,6 +11,7 @@ final class FilterEngine: Sendable {
     private let detailKernel: CIColorKernel?
     private let lumaKernel: CIColorKernel?
     private let offsetKernel: CIColorKernel?
+    private let lightDetailKernel: CIColorKernel?
     /// False when the finishing kernel failed to load. Output then uses the weaker colour-matrix
     /// fallback, so owners with a DiagnosticRecorder report it.
     var finishingKernelAvailable: Bool { colorKernel != nil }
@@ -29,6 +30,7 @@ final class FilterEngine: Sendable {
         detailKernel = MetalKernels.color("UnderBlueDetail")
         lumaKernel = MetalKernels.color("UnderBlueLumaTransfer")
         offsetKernel = MetalKernels.color("UnderBlueBlackOffset")
+        lightDetailKernel = MetalKernels.color("UnderBlueLightDetail")
     }
 
     func apply(_ image: CIImage, settings: FilterSettings) -> CIImage {
@@ -95,6 +97,24 @@ final class FilterEngine: Sendable {
             corrected = lumaKernel.apply(extent: image.extent, arguments: [unsharpened, corrected]) ?? corrected
         }
 
+        // Light rays inside bright light keep their contrast (FinishingMath.lightDetail). The kernel
+        // gets the blur back from an unsharp mask (sharp = pixel + (pixel - blur)), as clarity does.
+        // It runs here, before the fine detail. Placed last (after vibrance), with a blur or an unsharp
+        // mask as its second input, it gave the Mac video path a vignette: the challenge clip's
+        // frame edges up to 60 levels brighter, the centre unchanged (2 Oct 2026). The cause was
+        // not found. The pixel values entering the kernel already had the bright edges.
+        if let lightDetailKernel {
+            let mask = CIFilter.unsharpMask()
+            mask.inputImage = corrected
+            mask.radius = max(2, FinishingMath.lightDetailRadius * short)
+            mask.intensity = 1
+            let sharp = (mask.outputImage ?? corrected).cropped(to: image.extent)
+            corrected = lightDetailKernel.apply(extent: image.extent, arguments: [corrected, sharp,
+                CIVector(x: CGFloat(FinishingMath.lightDetailAmount), y: CGFloat(FinishingMath.lightDetailLow),
+                         z: CGFloat(FinishingMath.lightDetailHigh), w: 0),
+                CIVector(x: CGFloat(FinishingMath.lightDetailEdgeLow), y: CGFloat(FinishingMath.lightDetailEdgeHigh), z: 0, w: 0)
+            ]) ?? corrected
+        }
         // Fine detail: the pixel against its own small blur, on subjects only (UnderBlueDetail). The blur
         // reads a clamped image, so the border gets no dark rim.
         if v.detail > 0, let detailKernel {
@@ -162,7 +182,7 @@ final class FilterEngine: Sendable {
             CIVector(x: CGFloat(v.redRebuild), y: CGFloat(v.redGateLow), z: CGFloat(v.redGateHigh), w: CGFloat(v.subjectRed)),
             CIVector(x: CGFloat(v.toneCurve), y: CGFloat(v.tonePivot), z: CGFloat(v.midLift), w: CGFloat(v.brightness + (1 - v.contrast) * 0.5)),
             CIVector(x: CGFloat(v.neutralGains.x), y: CGFloat(v.neutralGains.y), z: CGFloat(v.neutralGains.z), w: CGFloat(v.contrast)),
-            CIVector(x: CGFloat(v.waterLit.x), y: CGFloat(v.waterLit.y), z: CGFloat(v.waterLit.z), w: 0),
+            CIVector(x: CGFloat(v.waterLit.x), y: CGFloat(v.waterLit.y), z: CGFloat(v.waterLit.z), w: CGFloat(v.lightGradient)),
             CIVector(x: CGFloat(v.subjectTone.x), y: CGFloat(v.subjectTone.y), z: CGFloat(v.subjectTone.z), w: 0),
             CIVector(x: CGFloat(v.referenceGains.x), y: CGFloat(v.referenceGains.y), z: CGFloat(v.referenceGains.z), w: CGFloat(v.referenceStrength))
         ]) ?? image
@@ -195,12 +215,12 @@ final class FilterEngine: Sendable {
                        bounds: CGRect(x: 0, y: 0, width: size, height: size), format: .RGBAf, colorSpace: Self.workingSpace)
         var red: Float = 0, green: Float = 0, blue: Float = 0, luminance: [Float] = [], saturation: Float = 0
         var colors: [SIMD3<Float>] = []
-        var lit: Float = 0, high: Float = 0
+        var lit: Float = 0, high: Float = 0, litLuminance: [Float] = []
         for i in stride(from: 0, to: pixels.count, by: 4) {
             let r = pixels[i], g = pixels[i+1], b = pixels[i+2]
             let l = r * 0.2126 + g * 0.7152 + b * 0.0722
             // Bright share counts clipped pixels too: a blown white belly is a bright area.
-            if l.isFinite, l > 0.015 { lit += 1; if l >= 0.35 { high += 1 } }
+            if l.isFinite, l > 0.015 { lit += 1; litLuminance.append(l); if l >= 0.35 { high += 1 } }
             guard l.isFinite, l > 0.015, l < 0.85 else { continue }
             red += max(0, r); green += max(0, g); blue += max(0, b); luminance.append(l)
             colors.append(SIMD3(max(0, r), max(0, g), max(0, b)))
@@ -232,6 +252,7 @@ final class FilterEngine: Sendable {
             meanRed: red / n, meanGreen: green / n, meanBlue: blue / n, midLuminance: luminance[luminance.count / 2],
             waterRed: water.x, waterGreen: water.y, waterBlue: water.z,
             neutralRed: neutral.x, neutralGreen: neutral.y, neutralBlue: neutral.z, neutralShare: neutralCount / n,
-            highShare: lit > 0 ? high / lit : 0)
+            highShare: lit > 0 ? high / lit : 0,
+            lightShare: lit > 0 ? Float(litLuminance.filter { $0 >= waterLuminance * WaterAnalysis.lightShareRatio }.count) / lit : 0)
     }
 }

@@ -26,6 +26,11 @@ struct WaterAnalysis: Sendable, Equatable {
     /// Share of lit pixels (clipped ones included) at or above luminance 0.35, about L* 66.
     /// A large bright subject in a darker scene gets less mid-tone lift and brightness.
     var highShare: Float = 0
+    /// Share of lit pixels at or above lightShareRatio times the water's luminance: a strong light
+    /// source (sun rays under the surface). A pale subject stays below it (2 Oct 2026, source photos:
+    /// IMG_7400 light 3.5%; O1 to O5, IMG_7401 and m5 at most 1.0%). See ColorCorrection.lightGradient.
+    var lightShare: Float = 0
+    static let lightShareRatio: Float = 4
     /// Green over blue in the scene mean. Above one the water reads green, not blue.
     var greenOverBlue: Float { meanBlue > 0.001 && meanGreen > 0.001 ? meanGreen / meanBlue : 1 }
     var meanColor: SIMD3<Float> { SIMD3(meanRed, meanGreen, meanBlue) }
@@ -43,7 +48,7 @@ struct WaterAnalysis: Sendable, Equatable {
     static let neutral = WaterAnalysis()
     /// Every stored value. median and sceneMean walk this list, so a new field must be added
     /// here or video silently gets its default.
-    static var fields: [WritableKeyPath<Self, Float>] { sceneFields + [\.neutralRed, \.neutralGreen, \.neutralBlue, \.neutralShare, \.highShare] }
+    static var fields: [WritableKeyPath<Self, Float>] { sceneFields + [\.neutralRed, \.neutralGreen, \.neutralBlue, \.neutralShare, \.highShare, \.lightShare] }
     /// The values that describe the water scene. sceneInliers judges frames by these only. A white
     /// surface or a bright subject comes and goes within one dive, so a frame without one is not odd.
     static var sceneFields: [WritableKeyPath<Self, Float>] { [\.redLoss, \.cyanDominance, \.exposure, \.contrast, \.saturation,

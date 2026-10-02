@@ -72,6 +72,13 @@ struct ColorCorrection: Sendable, Equatable {
     /// reference in full. Brighter water of the same hue does not. Zero means no such exception.
     /// "Clearly brighter" is 2.2 to 3.2 times the water's luma (FinishingMath.neutralWeight).
     var waterLit = SIMD3<Float>(repeating: 0)
+    /// 0 for a scene without a strong light source, 1 for one with it (WaterAnalysis.lightShare,
+    /// 1.2% to 3%). With it, "clearly brighter" widens from 2.2-3.2 to 2.5-8 times the water: the
+    /// light then fades from white through pale water colour to the water. With 2.2-3.2 the
+    /// IMG_7400 light rays were one white patch with blue right beside it (2 Oct 2026). A pale subject
+    /// needs 2.2-3.2: at 2.5-8 the O4 manta turned teal (core chroma 0.032 -> 0.039). Video takes
+    /// the clip's mean analysis, so the whole clip gets one value.
+    var lightGradient: Float = 0
     static let identity = ColorCorrection()
 
     /// The one place that turns measurements into correction values. Pure and deterministic.
@@ -105,6 +112,8 @@ struct ColorCorrection: Sendable, Equatable {
         // little darker (the highlight rule, both paths). Brightness down lowers the mid-tones on both
         // paths. The white reference below sees the result.
         v.midLift = min(0.9, max(minimumMidLift, v.midLift - 0.12 * scene.highlight + min(0, user.brightness) * Caps.brightnessDown))
+        let light = min(1, max(0, (analysis.lightShare - 0.012) / 0.018))
+        v.lightGradient = light.isFinite ? light * light * (3 - 2 * light) : 0
         v.neutralGains = whiteReference(analysis, correction: v, plan: plan)
         referenceAdaptation(&v, analysis: analysis, plan: plan, scene: scene)
         return v.sanitized()
@@ -433,7 +442,7 @@ struct ColorCorrection: Sendable, Equatable {
         func fix(_ key: WritableKeyPath<Self, Float>) { if !v[keyPath: key].isFinite { v[keyPath: key] = fallback[keyPath: key] } }
         for key in [\Self.redRebuild, \.redGateLow, \.redGateHigh, \.subjectRed, \.waterRedness, \.waterSaturation, \.waterChroma, \.waterType, \.redCeiling, \.violetGuard, \.midLift, \.toneCurve, \.tonePivot,
                     \.brightness, \.contrast, \.saturation, \.shadowLift, \.highlightAmount, \.clarity, \.clarityRadius,
-                    \.definition, \.definitionRadius, \.detail, \.detailFloor, \.detailRadius, \.warmth, \.vibrance, \.physicalWeight] { fix(key) }
+                    \.definition, \.definitionRadius, \.detail, \.detailFloor, \.detailRadius, \.warmth, \.vibrance, \.physicalWeight, \.lightGradient] { fix(key) }
         if !(v.castGains.x.isFinite && v.castGains.y.isFinite && v.castGains.z.isFinite) { v.castGains = fallback.castGains }
         if !(v.waterTone.x.isFinite && v.waterTone.y.isFinite && v.waterTone.z.isFinite) { v.waterTone = fallback.waterTone }
         if !(v.waterLit.x.isFinite && v.waterLit.y.isFinite && v.waterLit.z.isFinite) { v.waterLit = fallback.waterLit }
@@ -444,6 +453,7 @@ struct ColorCorrection: Sendable, Equatable {
         v.midLift = min(0.9, max(Self.minimumMidLift, v.midLift))
         v.toneCurve = min(0.3, max(0, v.toneCurve))
         v.physicalWeight = min(1, max(0, v.physicalWeight))
+        v.lightGradient = min(1, max(0, v.lightGradient))
         return v
     }
 

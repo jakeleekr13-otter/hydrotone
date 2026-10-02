@@ -35,13 +35,17 @@ struct VideoSceneMoment: Sendable, Equatable {
     /// The correction values for the user's current settings. Each scene gets its own make() result,
     /// then the results mix. So every value moves on a straight line between the two scenes,
     /// whatever make() does inside.
+    /// The light-source decision (WaterAnalysis.lightShare) is the whole clip's, from `settings`
+    /// (the clip's mean analysis), so every scene takes the same direction and none can switch.
     func corrections(settings: FilterSettings, engine: RestorationEngine) -> (current: ColorCorrection, restored: ColorCorrection) {
         var first = settings
         first.analysis = from.analysis
+        first.analysis.lightShare = settings.analysis.lightShare
         let a = engine.corrections(settings: first, plan: from.plan)
         guard amount > 0 else { return a }
         var second = settings
         second.analysis = to.analysis
+        second.analysis.lightShare = settings.analysis.lightShare
         let b = engine.corrections(settings: second, plan: to.plan)
         guard amount < 1 else { return b }
         return (a.current.mixed(with: b.current, amount: amount), a.restored.mixed(with: b.restored, amount: amount))
@@ -343,7 +347,8 @@ extension ColorCorrection {
         [\.redRebuild, \.redGateLow, \.redGateHigh, \.subjectRed, \.waterRedness, \.waterSaturation, \.waterChroma,
          \.waterType, \.redCeiling, \.violetGuard, \.midLift, \.toneCurve, \.tonePivot, \.brightness, \.contrast,
          \.saturation, \.shadowLift, \.highlightAmount, \.clarity, \.clarityRadius, \.definition, \.definitionRadius,
-         \.detail, \.detailFloor, \.detailRadius, \.warmth, \.vibrance, \.physicalWeight, \.referenceStrength]
+         \.detail, \.detailFloor, \.detailRadius, \.warmth, \.vibrance, \.physicalWeight, \.referenceStrength,
+         \.lightGradient]
     }
     static var mixedVectors: [WritableKeyPath<Self, SIMD3<Float>>] {
         [\.castGains, \.waterTone, \.subjectTone, \.neutralGains, \.waterLit, \.referenceGains]

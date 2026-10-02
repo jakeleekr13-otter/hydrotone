@@ -1023,6 +1023,40 @@ final class RestorationTests: XCTestCase {
         }
     }
 
+    func testLightDetailKernelMatchesCPUMirrorAndSparesDarkAreasAndEdges() throws {
+        let engine = FilterEngine()
+        let kernel = try XCTUnwrap(MetalKernels.color("UnderBlueLightDetail"))
+        func solid(_ c: SIMD3<Float>) -> CIImage {
+            CIImage(color: CIColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z),
+                                   colorSpace: FilterEngine.workingSpace)!).cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+        }
+        func gamma(_ c: SIMD3<Float>) -> Float { pow((c * ColorCorrection.luma).sum(), 1 / 2.2) }
+        // A ray a little brighter than the light around it, a ray a little darker, a dark area, and
+        // a hard edge inside the light (a white fish against the bright water: gamma 0.99 vs 0.75).
+        let cases: [(pixel: SIMD3<Float>, base: SIMD3<Float>)] = [
+            (.init(0.62, 0.66, 0.66), .init(0.5, 0.54, 0.55)), (.init(0.42, 0.46, 0.47), .init(0.5, 0.54, 0.55)),
+            (.init(0.03, 0.05, 0.08), .init(0.025, 0.04, 0.07)), (.init(0.95, 0.97, 0.98), .init(0.5, 0.54, 0.55))]
+        var outputs: [SIMD3<Float>] = []
+        for (pixel, base) in cases {
+            // The kernel takes an unsharp mask at intensity 1: pixel + (pixel - blur).
+            let output = try XCTUnwrap(kernel.apply(extent: CGRect(x: 0, y: 0, width: 4, height: 4), arguments: [solid(pixel), solid(2 * pixel - base),
+                CIVector(x: CGFloat(FinishingMath.lightDetailAmount), y: CGFloat(FinishingMath.lightDetailLow), z: CGFloat(FinishingMath.lightDetailHigh), w: 0),
+                CIVector(x: CGFloat(FinishingMath.lightDetailEdgeLow), y: CGFloat(FinishingMath.lightDetailEdgeHigh), z: 0, w: 0)]))
+            var px = [Float](repeating: 0, count: 4)
+            engine.context.render(output, toBitmap: &px, rowBytes: 16, bounds: CGRect(x: 1, y: 1, width: 1, height: 1),
+                                  format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+            let expected = FinishingMath.lightDetail(pixel, base: base)
+            assertEqual(SIMD3(px[0], px[1], px[2]), expected, accuracy: 0.003)
+            outputs.append(expected)
+        }
+        // Inside the light, both rays move away from the light around them.
+        XCTAssertGreaterThan(gamma(outputs[0]) - gamma(cases[0].base), (gamma(cases[0].pixel) - gamma(cases[0].base)) * 1.5)
+        XCTAssertLessThan(gamma(outputs[1]) - gamma(cases[1].base), (gamma(cases[1].pixel) - gamma(cases[1].base)) * 1.5)
+        // Dark areas and edges keep their value.
+        assertEqual(outputs[2], cases[2].pixel, accuracy: 1e-5)
+        assertEqual(outputs[3], cases[3].pixel, accuracy: 1e-5)
+    }
+
     func testFinishingKernelMatchesCPUMirrorWithWhiteReference() {
         let engine = FilterEngine()
         let values = colorOnly { $0.castGains = .init(1.2, 0.97, 0.97); $0.redRebuild = 0.3; $0.subjectRed = 0.3
@@ -1069,6 +1103,35 @@ final class RestorationTests: XCTestCase {
         let plain = FilterEngine().analyze(water)
         XCTAssertEqual(plain.neutralShare, 0)
         XCTAssertEqual(plain.highShare, 0)
+    }
+
+    func testStrongLightSourceWidensTheWhiteReferenceRamp() {
+        // Dark blue water with a light source on the right (an eighth of the frame, 17 times the
+        // water's luminance), as below the surface in IMG_7400.
+        let width = 48, height = 48
+        var rgba = [Float]()
+        for _ in 0..<height { for x in 0..<width {
+            rgba += x < 42 ? [0.01, 0.04, 0.12, 1] : [0.5, 0.7, 0.75, 1]
+        } }
+        let data = rgba.withUnsafeBytes { Data($0) }
+        let image = CIImage(bitmapData: data, bytesPerRow: width * 16, size: CGSize(width: width, height: height),
+                            format: .RGBAf, colorSpace: FilterEngine.workingSpace)
+        let analysis = FilterEngine().analyze(image)
+        XCTAssertEqual(analysis.lightShare, 6.0 / 48, accuracy: 0.02)
+        XCTAssertEqual(ColorCorrection.make(analysis: analysis, preset: .natural).lightGradient, 1)
+        // The O4 analysis (a pale manta, no light source) keeps the narrow ramp.
+        var manta = analysis; manta.lightShare = 0
+        XCTAssertEqual(ColorCorrection.make(analysis: manta, preset: .natural).lightGradient, 0)
+        // Light-coloured light about 4.9 times as bright as the water, and still water-like by colour:
+        // full white reference with the narrow ramp, part of the way with the light ramp (2.5 to 8 times).
+        var values = colorOnly { $0.castGains = .init(1.2, 0.97, 0.97); $0.waterRedness = 0.03; $0.waterChroma = 0.9
+            $0.waterLit = .init(0.01, 0.1, 0.3) }
+        let pale = SIMD3<Float>(0.08, 0.55, 0.75)
+        XCTAssertGreaterThan(FinishingMath.neutralWeight(pale, correction: values), 0.99)
+        values.lightGradient = 1
+        let weight = FinishingMath.neutralWeight(pale, correction: values)
+        XCTAssertLessThan(weight, 0.8)
+        XCTAssertGreaterThan(weight, 0.2)
     }
 
     // MARK: Fine detail layer
