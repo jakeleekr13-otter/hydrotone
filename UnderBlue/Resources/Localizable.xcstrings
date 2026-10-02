@@ -2452,6 +2452,41 @@
         }
       }
     },
+    "Open-source licenses" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open-source licenses"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オープンソースライセンス"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오픈소스 라이선스"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开源许可"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開放原始碼授權"
+          }
+        }
+      }
+    },
     "Pick a look: Natural Dive, Tropical or Deep Dive. Intensity sets how strong it is." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5355,6 +5390,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "熱帶"
+          }
+        }
+      }
+    },
+    "UnderBlue includes the following open-source software. Its license follows." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UnderBlue includes the following open-source software. Its license follows."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UnderBlueには次のオープンソースソフトウェアが含まれています。ライセンス全文は以下のとおりです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UnderBlue에는 다음 오픈소스 소프트웨어가 포함되어 있습니다. 라이선스 전문은 아래와 같습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UnderBlue 包含以下开源软件。许可证全文如下。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UnderBlue 包含以下開放原始碼軟體。授權條款全文如下。"
           }
         }
       }
