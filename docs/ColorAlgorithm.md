@@ -69,7 +69,7 @@ All values come from `ColorCorrection.make`. The finishing kernel `UnderBlueFini
 
 | Value | Meaning |
 |---|---|
-| `castGains` | Per-channel gains: red boost plus a green-to-blue shift. The shift acts only when green/blue > 0.88, and scales with cast and `waterType`. Mean luminance is kept, within a correction factor of 0.8 to 1.25. |
+| `castGains` | Per-channel gains: red boost plus a green-to-blue shift. The shift acts only when green/blue > 0.88, and scales with cast and `waterType`. Mean luminance is kept, within a correction factor of 0.8 to 1.25. A pale pixel without a cast keeps its own colour; see [Pale surface light](#pale-surface-light). |
 | `waterType` | 0 = blue water, 1 = green or teal. Continuous. The water colour's own red loss (not the `redLoss` field) adds to green/blue, so teal counts as green. A neutral scene gets 0 (`waterType(_:)`). |
 | `waterTone` | Gains that move water-like pixels toward the OKLab target from `waterTarget`. |
 | `subjectTone` | Gains for pixels that are not water-like: red 1, green and blue at or below 1. See [Subject light removal](#subject-light-removal). |
@@ -95,6 +95,21 @@ Subjects are lit through the same water, so they carry its colour: blue, or gree
 - A grey scene has grey water and gets gains of one.
 
 The white reference below reads the result, so a neutral surface needs less from it.
+
+### Pale surface light
+
+Water takes red first. So a source pixel whose red already reaches green lost no red. Examples are light on the water surface, a reflection of the sky, or a sunlit highlight. The cast gains and the restoration's red recovery still pushed such pixels to pink or lavender. In a shallow shark photo (3 Oct 2026), the water surface went from 4.2% pink or violet pixels in the source to 28.5%.
+
+- The weight is `FinishingMath.uncast`, read on the source pixel. It is the product of two parts:
+  - red/green from 0.92 to 1.0
+  - pale: chroma (max - min) / max from 0.3 down to 0.15
+- Finishing: the pixel keeps its source colour at the luminance the cast gains give it.
+- Restoration: `keepWarmRatio` keeps the restored red at or below green times the source red/green. See [Restoration kernel](#restoration-kernel).
+- Colourful red subjects (chroma above 0.3) and blue-cast pixels (red below green) keep their full correction.
+- Only the `castGains` step and the restoration are covered. The later finishing steps still add some pink. On the shark surface, restoration alone gives 3.2%. The full output gives 11.3%. Before this change, turning off saturation and vibrance, or the black offset, each removed about 5 points.
+- The test photos are in `DeveloperMedia/shallowwater/`: the shark (surface light, caustics on sand) and a cave (light rays, bubbles).
+
+This is not a caustics rule. Caustics on sand had no pink or violet pixels before this change (0%), and they still have none.
 
 ### Bright-scene reference adaptation (29 Sep 2026)
 
@@ -287,10 +302,11 @@ These limits apply. Most are in `RestorationLimits`; `channelRecoverability` is 
 | `maximumOutput` | 1.15; 8 for HDR video (`RestorationEngine.combined(_:moment:settings:filter:preservesHDR:)`) |
 | `channelRecoverability` | Per-channel share of the correction that is applied |
 
-Two hue rules run last:
+Three hue rules run last:
 
 - **`keepHueWhereDark`**: restoration can leave little light (channel sum ratio below 0.6). There the source hue is kept, at the restored level. So far water does not turn red-brown or violet.
 - **`keepBlueFamily`**: a blue source pixel can turn green because the veil took its blue. If green/blue grew 4 to 8 times, the pixel keeps its source hue. This fixes a pale fish read at far-water depth on the video path.
+- **`keepWarmRatio`**: a pale source pixel whose red already reaches green (`FinishingMath.uncast`) cannot get a higher red/green than its source. The red-first gain and the removal of a bluer veil raised it before. On the shark photo, restoration alone took the surface from 4.2% to 12.7% pink or violet pixels. With this rule it gives 3.2%.
 
 The estimator spreads attenuation across channels only as far as the measured cast (`spread(_:by:)` with `castStrength`). A neutral scene gets equal attenuation, so greys stay grey. Plan confidence is the minimum of four values: the estimator's overall confidence (at most 0.9), depth, water-fit and temporal confidence (`RestorationPlan.init`).
 
@@ -444,6 +460,7 @@ No separate figure is recorded here for these four. The scorecard shows the comb
 |---|---|
 | Attenuation spread scaled by cast | Neutral ramp max chroma: 7.7 before, 0.01 now |
 | `keepHueWhereDark` and `keepBlueFamily` | A lime fish on the video path: green/blue 1.45 before, 0.86 now |
+| Pale surface light: `FinishingMath.uncast` and `keepWarmRatio` (3 Oct 2026) | Shark surface pink or violet pixels 28.5% to 11.3% (source 4.2%). Caustics on sand, cave rays and cave floor unchanged. AquaColorFix gate 10.98 to 10.98. Market m1 24.1 to 24.0, m3 20.7 to 21.0 (a mood grade). r04 keeps its magenta anemone. |
 | Chroma-confidence fade for murky water (`b8db6df`) | Visibly fewer block patches on a compressed murky image |
 | Confidence coverage fix (`candidateCoverage` over 8 x 256 samples) | Plan confidence was capped near 0.41 on all 890 UIEB images. The median is now about 0.66. |
 | White reference (`neutralGains`) and highlight rule, measured together | Photo path chroma: m5 sand 0.076 to 0.032, m6 belly 0.069 to 0.026. m6 mean L* 54.6 to 48.6. Holdout deltaE 21.01 to 20.12. |

@@ -56,6 +56,7 @@ enum RestorationMath {
                              min(1, max(0, recoverability.z)))
         corrected = keepHueWhereDark(source: source, restored: source + (corrected - source) * recovery)
         corrected = keepBlueFamily(source: source, restored: corrected)
+        corrected = keepWarmRatio(source: source, restored: corrected)
         return RestorationPixelResult(color: finite(corrected), hitTransmissionFloor: hitFloor, hitMaximumGain: hitGain)
     }
 
@@ -115,6 +116,20 @@ enum RestorationMath {
     static let blueLow: Float = 1.0, blueHigh: Float = 1.1
     static let greenLow: Float = 1.1, greenHigh: Float = 1.4
     static let growthLow: Float = 4, growthHigh: Float = 8
+
+    /// A pale source pixel whose red already reaches green lost no red to the water (surface
+    /// light; see FinishingMath.uncast). The red-first transmission gain and the removal of a
+    /// bluer veil still raised its red above green: the shark photo's surface went from 4.2% to
+    /// 12.7% pink or violet on restoration alone (3.2% with this rule, 3 Oct 2026). So its
+    /// restored red stays at or below green times the source red/green. The Metal kernel mirrors it.
+    static func keepWarmRatio(source: SIMD3<Float>, restored: SIMD3<Float>) -> SIMD3<Float> {
+        let lit = pointwiseMax(source, .zero)
+        guard lit.sum() > 1e-5 else { return restored }
+        let ceiling = max(restored.y, 0) * lit.x / max(lit.y, 1e-4)
+        var kept = restored
+        kept.x += (min(restored.x, ceiling) - restored.x) * FinishingMath.uncast(source)
+        return finite(kept)
+    }
 
     static func confidenceBlend(current: SIMD3<Float>, restored: SIMD3<Float>, confidence: Float) -> SIMD3<Float> {
         let amount = safe(confidence, fallback: 0, range: 0...1)
